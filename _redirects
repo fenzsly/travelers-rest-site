@@ -1,0 +1,4 @@
+# Change only the target URL below when the Discord invite changes.
+# Format: /path   destination   status-code
+
+/discord    https://discord.gg/XQzqvSsWUE    302

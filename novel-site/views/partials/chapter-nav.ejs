@@ -1,0 +1,11 @@
+<div class="chapter-nav chapter-nav-<%= where %>">
+  <% if (prev) { %><a class="btn" rel="prev" href="/novel/<%= novel.slug %>/c/<%= u.formatNumber(prev.number) %>" title="<%= u.chapterLabel(prev) %>">← Previous</a><% } else { %><span class="btn disabled">← Previous</span><% } %>
+  <a class="btn" href="/novel/<%= novel.slug %>#chapters">☰ Contents</a>
+  <% if (user) { %>
+    <form method="post" action="/novel/<%= novel.slug %>/bookmark" class="inline">
+      <input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="next" value="/novel/<%= novel.slug %>/c/<%= u.formatNumber(chapter.number) %>">
+      <button class="btn <%= bookmarked ? 'btn-on' : '' %>" type="submit"><%= bookmarked ? '✓ In library' : '+ Library' %></button>
+    </form>
+  <% } %>
+  <% if (next) { %><a class="btn btn-accent" rel="next" href="/novel/<%= novel.slug %>/c/<%= u.formatNumber(next.number) %>" title="<%= u.chapterLabel(next) %>">Next →</a><% } else { %><span class="btn disabled">Next →</span><% } %>
+</div>

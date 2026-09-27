@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title><%= title %> · Admin · <%= settings.site_name %></title>
+<link rel="stylesheet" href="<%= A('/assets/admin.css') %>">
+<meta name="csrf" content="<%= csrf %>">
+</head>
+<body>
+<div class="shell">
+  <aside class="side" id="side">
+    <a class="side-brand" href="<%= A('/') %>"><span>⚙</span> <%= settings.site_name %><small>Admin panel</small></a>
+    <nav class="side-nav">
+      <% const nav = [
+        ['/', '🏠', 'Dashboard'],
+        ['/novels', '📚', 'Novels'],
+        ['/upload', '⬆', 'Upload chapters'],
+        ['/novels/new', '➕', 'New novel'],
+      ];
+      if (user.role === 'admin') nav.push(['/users', '👥', 'Users'], ['/comments', '💬', 'Comments'], ['/settings', '🛠', 'Site settings']);
+      nav.push(['/account', '🔑', 'My account']);
+      const current = path.replace(/\/$/, '') || '/';
+      nav.forEach(([href, icon, label]) => {
+        const full = A(href).replace(/\/$/, '') || '/';
+        const active = href === '/' ? current === full : (current === full || (href === '/novels' && current.startsWith(full + '/') && !current.endsWith('/new') && !current.endsWith('/upload')) || (href === '/upload' && current.endsWith('/upload'))); %>
+        <a href="<%= A(href) %>" class="<%= active ? 'active' : '' %>"><span class="ico"><%= icon %></span><%= label %></a>
+      <% }) %>
+    </nav>
+    <div class="side-foot">
+      <a href="<%= site('/') %>" target="_blank" rel="noopener">↗ View site</a>
+      <div class="side-user">Signed in as <strong><%= user.username %></strong> <span class="pill"><%= user.role %></span></div>
+      <form method="post" action="<%= A('/logout') %>"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="link" type="submit">Log out</button></form>
+    </div>
+  </aside>
+  <div class="main">
+    <header class="topline">
+      <button class="menu-btn" type="button" onclick="document.getElementById('side').classList.toggle('open')" aria-label="Menu">☰</button>
+      <h1><%= title %></h1>
+      <div class="top-actions"><%- typeof actions !== 'undefined' ? actions : '' %></div>
+    </header>
+    <div class="page">
+      <% if (flash) { %><div class="alert alert-<%= flash.type %>"><%= flash.message %><button class="alert-x" onclick="this.parentNode.remove()">✕</button></div><% } %>

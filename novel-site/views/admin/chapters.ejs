@@ -1,0 +1,49 @@
+<%- include('partials/top', { title: 'Chapters', actions: `<a class="btn btn-primary" href="${A(`/novels/${novel.id}/upload`)}">⬆ Batch upload</a>` }) %>
+<%- include('partials/novel-tabs', { tab: 'chapters' }) %>
+<% if (!chapters.length) { %>
+  <div class="card empty-state">
+    <p>This novel has no chapters yet.</p>
+    <a class="btn btn-primary btn-lg" href="<%= A(`/novels/${novel.id}/upload`) %>">⬆ Upload chapters in bulk</a>
+    <a class="btn btn-lg" href="<%= A(`/novels/${novel.id}/chapters/new`) %>">✏ Write one chapter</a>
+  </div>
+<% } else { %>
+<form method="post" action="<%= A(`/novels/${novel.id}/chapters/bulk`) %>" id="bulk-form" data-update-url="<%= A(`/novels/${novel.id}/chapters/bulk`) %>">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <div class="bulkbar" id="bulkbar">
+    <span><strong id="sel-count">0</strong> selected</span>
+    <button class="btn btn-sm btn-danger" name="action" value="delete" type="submit" data-confirm="Delete the selected chapters? This cannot be undone.">🗑 Delete selected</button>
+    <span class="sep"></span>
+    <label class="small">Shift numbers by <input type="number" name="by" step="any" value="1" class="num-input"></label>
+    <button class="btn btn-sm" name="action" value="shift" type="submit" data-needs-selection>Shift selected</button>
+    <span class="sep"></span>
+    <button class="btn btn-sm" name="action" value="renumber" type="submit" data-no-selection data-confirm="Renumber ALL chapters of this novel as 1, 2, 3… in their current order?">Renumber all 1…N</button>
+  </div>
+  <div class="card flush">
+    <p class="hint pad">Tip: click a number or title to edit it in place. Changes save automatically when you leave the field.</p>
+    <table class="table chapter-table">
+      <thead><tr><th class="w-check"><input type="checkbox" id="check-all" title="Select all"></th><th class="w-num">#</th><th>Title</th><th class="right">Words</th><th class="right">Views</th><th class="right">💬</th><th>Published</th><th></th></tr></thead>
+      <tbody>
+      <% chapters.forEach((c) => { %>
+        <tr>
+          <td><input type="checkbox" name="ids" value="<%= c.id %>" class="row-check"></td>
+          <td><input class="inline-edit num" data-id="<%= c.id %>" data-field="number" value="<%= u.formatNumber(c.number) %>" inputmode="decimal"></td>
+          <td><input class="inline-edit" data-id="<%= c.id %>" data-field="title" value="<%= c.title %>" placeholder="(no title)"></td>
+          <td class="right muted"><%= c.word_count.toLocaleString('en-US') %></td>
+          <td class="right muted"><%= c.views %></td>
+          <td class="right muted"><%= c.comment_count || '' %></td>
+          <td class="muted small nowrap"><%= u.formatDate(c.created_at) %></td>
+          <td class="right nowrap">
+            <a class="btn btn-sm" href="<%= A(`/novels/${novel.id}/chapters/${c.id}/edit`) %>">Edit</a>
+            <a class="btn btn-sm btn-ghost" href="<%= site(`/novel/${novel.slug}/c/${u.formatNumber(c.number)}`) %>" target="_blank" rel="noopener" title="Read">↗</a>
+          </td>
+        </tr>
+      <% }) %>
+      </tbody>
+    </table>
+  </div>
+</form>
+<% if (pager.pages > 1) { %>
+  <div class="pager"><% for (let p = 1; p <= pager.pages; p++) { %><a class="<%= p === pager.current ? 'on' : '' %>" href="?page=<%= p %>"><%= p %></a><% } %></div>
+<% } %>
+<% } %>
+<%- include('partials/bottom') %>

@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title><%= u.chapterLabel(chapter) %> — <%= novel.title %> — <%= settings.site_name %></title>
+<link rel="stylesheet" href="/static/css/site.css">
+<link rel="stylesheet" href="/static/css/reader.css">
+<% if (prev) { %><link rel="prev" href="/novel/<%= novel.slug %>/c/<%= u.formatNumber(prev.number) %>"><% } %>
+<% if (next) { %><link rel="next" href="/novel/<%= novel.slug %>/c/<%= u.formatNumber(next.number) %>"><% } %>
+<script>
+  // Apply saved reader preferences before first paint (no flash of the wrong theme).
+  try {
+    var p = JSON.parse(localStorage.getItem('reader-prefs') || '{}');
+    var d = document.documentElement;
+    d.dataset.theme = p.theme || localStorage.getItem('site-theme') || 'light';
+    d.dataset.rtheme = p.rtheme || '';
+    d.style.setProperty('--r-size', (p.size || 19) + 'px');
+    d.style.setProperty('--r-line', p.line || 1.8);
+    d.style.setProperty('--r-width', (p.width || 800) + 'px');
+    d.dataset.font = p.font || 'serif';
+    d.dataset.align = p.align || 'left';
+  } catch (e) {}
+</script>
+</head>
+<body class="reader-page">
+<div class="progress"><div class="progress-bar" id="progress"></div></div>
+<header class="reader-bar" id="reader-bar">
+  <div class="reader-bar-inner">
+    <a class="rb-home" href="/" title="Home">📖</a>
+    <a class="rb-novel" href="/novel/<%= novel.slug %>"><%= novel.title %></a>
+    <span class="rb-chapter muted"><%= u.chapterLabel(chapter) %></span>
+    <div class="rb-actions">
+      <button type="button" class="icon-btn" data-open="toc" title="Contents (C)">☰</button>
+      <button type="button" class="icon-btn" data-open="settings" title="Reader settings (S)">Aa</button>
+    </div>
+  </div>
+</header>
+
+<main class="reader">
+  <nav class="crumbs"><a href="/">Home</a> › <a href="/novel/<%= novel.slug %>"><%= novel.title %></a> › <span>Chapter <%= u.formatNumber(chapter.number) %></span></nav>
+  <%- include('partials/chapter-nav', { where: 'top' }) %>
+  <article class="chapter" id="chapter" data-slug="<%= novel.slug %>" data-num="<%= u.formatNumber(chapter.number) %>" data-novel-title="<%= novel.title %>">
+    <h1 class="chapter-title"><%= u.chapterLabel(chapter) %></h1>
+    <div class="chapter-meta muted small"><%= u.formatDate(chapter.created_at) %> · <%= chapter.word_count.toLocaleString('en-US') %> words · ~<%= Math.max(1, Math.round(chapter.word_count / 230)) %> min read · chapter <%= position %> of <%= novel.chapter_count %></div>
+    <div class="chapter-text" id="chapter-text"><%- chapter.content %></div>
+  </article>
+  <%- include('partials/chapter-nav', { where: 'bottom' }) %>
+  <p class="muted small center">Tip: use ← → arrow keys to switch chapters.</p>
+
+  <% if (settings.comments_enabled === '1') { %>
+  <section class="comments" id="comments">
+    <h2>Comments <span class="muted small"><%= comments.length %></span></h2>
+    <% if (user) { %>
+      <form method="post" action="/novel/<%= novel.slug %>/c/<%= u.formatNumber(chapter.number) %>/comment" class="comment-form">
+        <input type="hidden" name="_csrf" value="<%= csrf %>">
+        <textarea name="body" rows="3" maxlength="4000" placeholder="Share your thoughts on this chapter… (please mark spoilers)" required></textarea>
+        <button class="btn btn-accent" type="submit">Post comment</button>
+      </form>
+    <% } else { %>
+      <p class="muted"><a href="/login?next=<%= encodeURIComponent(`/novel/${novel.slug}/c/${u.formatNumber(chapter.number)}#comments`) %>">Log in</a> to comment.</p>
+    <% } %>
+    <ul class="comment-list">
+      <% comments.forEach((c) => { %>
+        <li class="comment">
+          <div class="comment-head"><strong><%= c.username %></strong><% if (c.role !== 'reader') { %> <span class="badge badge-role"><%= c.role %></span><% } %> <span class="muted small"><%= u.timeAgo(c.created_at) %></span>
+            <% if (user && (user.id === c.user_id || user.role === 'admin' || novel.owner_id === user.id)) { %>
+              <form method="post" action="/comment/<%= c.id %>/delete" class="inline" onsubmit="return confirm('Delete this comment?')"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="linklike small" type="submit">delete</button></form>
+            <% } %>
+          </div>
+          <div class="comment-body"><%= c.body %></div>
+        </li>
+      <% }) %>
+    </ul>
+  </section>
+  <% } %>
+</main>
+
+<div class="panel" id="panel-toc" hidden>
+  <div class="panel-inner">
+    <div class="panel-head"><strong>Contents</strong><button class="icon-btn" data-close>✕</button></div>
+    <input type="search" class="toc-filter" placeholder="Jump to chapter number or search title…">
+    <ul class="toc-list" id="toc-list"><li class="muted">Loading…</li></ul>
+  </div>
+</div>
+
+<div class="panel" id="panel-settings" hidden>
+  <div class="panel-inner">
+    <div class="panel-head"><strong>Reader settings</strong><button class="icon-btn" data-close>✕</button></div>
+    <div class="setting">
+      <label>Theme</label>
+      <div class="swatches">
+        <button data-rtheme="" class="sw sw-light" title="Light">A</button>
+        <button data-rtheme="sepia" class="sw sw-sepia" title="Sepia">A</button>
+        <button data-rtheme="green" class="sw sw-green" title="Soft green">A</button>
+        <button data-rtheme="dark" class="sw sw-dark" title="Dark">A</button>
+        <button data-rtheme="black" class="sw sw-black" title="OLED black">A</button>
+      </div>
+    </div>
+    <div class="setting">
+      <label>Font</label>
+      <div class="seg">
+        <button data-font="serif">Serif</button><button data-font="sans">Sans</button><button data-font="mono">Mono</button><button data-font="dyslexic">Readable</button>
+      </div>
+    </div>
+    <div class="setting"><label for="s-size">Text size <output id="o-size"></output></label><input type="range" id="s-size" min="13" max="32" step="1"></div>
+    <div class="setting"><label for="s-line">Line spacing <output id="o-line"></output></label><input type="range" id="s-line" min="1.2" max="2.6" step="0.1"></div>
+    <div class="setting"><label for="s-width">Page width <output id="o-width"></output></label><input type="range" id="s-width" min="500" max="1400" step="20"></div>
+    <div class="setting">
+      <label>Alignment</label>
+      <div class="seg"><button data-align="left">Left</button><button data-align="justify">Justify</button></div>
+    </div>
+    <button class="btn btn-block" id="reset-prefs" type="button">Reset to defaults</button>
+  </div>
+</div>
+
+<script src="/static/js/reader.js" defer></script>
+</body>
+</html>

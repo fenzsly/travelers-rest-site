@@ -1,0 +1,85 @@
+<%- include('partials/head', { title: novel.title, description: novel.description.slice(0, 160) }) %>
+<%- include('partials/header') %>
+<main class="wrap">
+  <nav class="crumbs"><a href="/">Home</a> › <a href="/novels">Novels</a> › <span><%= novel.title %></span></nav>
+  <section class="block novel-head">
+    <div class="novel-cover"><%- include('partials/cover', { n: novel }) %></div>
+    <div class="novel-info">
+      <h1 class="novel-title"><%= novel.title %></h1>
+      <% if (novel.alt_titles) { %><div class="novel-alt"><%= novel.alt_titles.split('\n').join(' · ') %></div><% } %>
+      <div class="rating-line">
+        <span class="stars big"><% for (let i = 1; i <= 5; i++) { %><%= i <= Math.round(novel.rating || 0) ? '★' : '☆' %><% } %></span>
+        <span><strong><%= novel.rating || '—' %></strong> / 5 · <%= novel.rating_count %> vote<%= novel.rating_count === 1 ? '' : 's' %></span>
+      </div>
+      <table class="info-table">
+        <% if (novel.author) { %><tr><th>Author</th><td><a href="/novels?q=<%= encodeURIComponent(novel.author) %>"><%= novel.author %></a></td></tr><% } %>
+        <% if (novel.translator) { %><tr><th>Translator</th><td><%= novel.translator %></td></tr><% } %>
+        <tr><th>Status</th><td><span class="badge badge-<%= novel.status %>"><%= u.STATUS_LABELS[novel.status] %></span></td></tr>
+        <% if (novel.original_language) { %><tr><th>Language</th><td><%= novel.original_language %></td></tr><% } %>
+        <% if (novel.year) { %><tr><th>Year</th><td><%= novel.year %></td></tr><% } %>
+        <tr><th>Chapters</th><td><%= novel.chapter_count %> <span class="muted">(<%= u.compactNumber(words) %> words)</span></td></tr>
+        <tr><th>Views</th><td><%= novel.views.toLocaleString('en-US') %></td></tr>
+        <% if (latest) { %><tr><th>Updated</th><td><%= u.timeAgo(latest.created_at) %></td></tr><% } %>
+        <% if (genres.length) { %><tr><th>Genres</th><td class="chips"><% genres.forEach((g) => { %><a class="chip" href="/novels?genre=<%= g.slug %>"><%= g.name %></a><% }) %></td></tr><% } %>
+      </table>
+      <div class="novel-actions">
+        <% if (first) { %>
+          <a class="btn btn-accent btn-lg" href="/novel/<%= novel.slug %>/c/<%= u.formatNumber(first.number) %>">Start reading</a>
+          <a class="btn btn-lg continue-btn" hidden data-slug="<%= novel.slug %>" <% if (bookmark && bookmark.last_number != null) { %>data-server-last="<%= u.formatNumber(bookmark.last_number) %>"<% } %>>Continue</a>
+          <a class="btn btn-lg" href="/novel/<%= novel.slug %>/c/<%= u.formatNumber(latest.number) %>">Latest chapter</a>
+        <% } %>
+        <% if (user) { %>
+          <form method="post" action="/novel/<%= novel.slug %>/bookmark" class="inline">
+            <input type="hidden" name="_csrf" value="<%= csrf %>">
+            <button class="btn btn-lg <%= bookmark ? 'btn-on' : '' %>" type="submit"><%= bookmark ? '✓ In library' : '+ Add to library' %></button>
+          </form>
+        <% } else { %>
+          <a class="btn btn-lg" href="/login?next=/novel/<%= novel.slug %>">+ Add to library</a>
+        <% } %>
+        <% if (user && (user.role === 'admin' || novel.owner_id === user.id) && adminUrl) { %>
+          <a class="btn btn-lg" href="<%= adminUrl %>/novels/<%= novel.id %>/upload">⬆ Upload chapters</a>
+        <% } %>
+      </div>
+      <% if (user) { %>
+        <form method="post" action="/novel/<%= novel.slug %>/rate" class="rate-form">
+          <input type="hidden" name="_csrf" value="<%= csrf %>">
+          <span class="muted small">Your rating:</span>
+          <% for (let i = 1; i <= 5; i++) { %><button type="submit" name="score" value="<%= i %>" class="star-btn <%= myRating >= i ? 'on' : '' %>" title="<%= i %> star<%= i > 1 ? 's' : '' %>">★</button><% } %>
+        </form>
+      <% } %>
+    </div>
+  </section>
+
+  <div class="layout">
+    <div class="content">
+      <section class="block">
+        <h2 class="block-title">Description</h2>
+        <div class="description collapsible" id="desc"><% novel.description.split(/\n\s*\n/).forEach((p) => { %><p><%= p %></p><% }) %></div>
+        <button class="linklike" type="button" data-expand="desc" hidden>Show more ▾</button>
+        <% if (novel.tags) { %><div class="chips tags"><% novel.tags.split(',').forEach((t) => { %><a class="chip chip-tag" href="/novels?q=<%= encodeURIComponent(t.trim()) %>">#<%= t.trim() %></a><% }) %></div><% } %>
+      </section>
+
+      <section class="block" id="chapters">
+        <h2 class="block-title">Table of contents <span class="muted small"><%= novel.chapter_count %> chapters</span>
+          <a class="block-more" href="/novel/<%= novel.slug %>?order=<%= order === 'DESC' ? 'asc' : 'desc' %>#chapters"><%= order === 'DESC' ? 'Oldest first ↑' : 'Newest first ↓' %></a>
+        </h2>
+        <% if (!chapters.length) { %><div class="empty">No chapters yet.</div><% } %>
+        <ul class="chapter-list">
+          <% chapters.forEach((c) => { %>
+            <li><a href="/novel/<%= novel.slug %>/c/<%= u.formatNumber(c.number) %>" data-num="<%= u.formatNumber(c.number) %>"><%= u.chapterLabel(c) %></a><span class="muted small"><%= u.formatDate(c.created_at) %></span></li>
+          <% }) %>
+        </ul>
+        <%- include('partials/pager', { pager, base: `/novel/${novel.slug}`, hash: '#chapters' }) %>
+      </section>
+    </div>
+    <aside class="sidebar">
+      <section class="block">
+        <h2 class="block-title">More like this</h2>
+        <% if (genres.length) { %>
+          <div class="genre-cloud"><% genres.forEach((g) => { %><a href="/novels?genre=<%= g.slug %>">More <%= g.name %></a><% }) %></div>
+        <% } else { %><p class="muted"><a href="/novels">Browse all novels</a></p><% } %>
+      </section>
+    </aside>
+  </div>
+</main>
+<%- include('partials/footer') %>

@@ -1,0 +1,23 @@
+{
+  "name": "novel-site",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Webnovel fan-translation hosting site with batch chapter uploads and a configurable reader.",
+  "main": "server.js",
+  "engines": { "node": ">=22.13" },
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning server.js",
+    "dev": "node --disable-warning=ExperimentalWarning --watch server.js",
+    "seed": "node --disable-warning=ExperimentalWarning scripts/seed.js",
+    "test": "node --disable-warning=ExperimentalWarning --test test/*.test.js"
+  },
+  "dependencies": {
+    "cookie-session": "^2.1.1",
+    "ejs": "^6.0.1",
+    "express": "^5.2.1",
+    "mammoth": "^1.13.0",
+    "marked": "^18.0.14",
+    "multer": "^2.4.0",
+    "sanitize-html": "^2.17.7"
+  }
+}

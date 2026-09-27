@@ -1,0 +1,10 @@
+<%- include('partials/head', { title: `Error ${status}` }) %>
+<%- include('partials/header') %>
+<main class="wrap narrow">
+  <section class="block center">
+    <h2 class="block-title"><%= status === 404 ? 'Not found' : 'Oops' %></h2>
+    <p><%= message %></p>
+    <p><a class="btn" href="/">Back to home</a></p>
+  </section>
+</main>
+<%- include('partials/footer') %>

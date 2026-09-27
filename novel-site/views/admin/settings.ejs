@@ -1,0 +1,17 @@
+<%- include('partials/top', { title: 'Site settings' }) %>
+<form method="post" action="<%= A('/settings') %>" class="card settings-form">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <h2>Branding</h2>
+  <label class="field">Site name<input name="site_name" value="<%= settings.site_name %>" required maxlength="80"></label>
+  <label class="field">Tagline<input name="site_tagline" value="<%= settings.site_tagline %>" maxlength="200"></label>
+  <label class="field">Announcement banner<span class="hint">Shown at the top of every public page. Leave empty to hide.</span><input name="announcement" value="<%= settings.announcement %>" maxlength="1000" placeholder="e.g. Double releases this weekend!"></label>
+  <label class="field">Footer text<textarea name="footer_text" rows="2"><%= settings.footer_text %></textarea></label>
+  <h2>Community</h2>
+  <label class="switch"><input type="checkbox" name="allow_registration" value="1" <%= settings.allow_registration === '1' ? 'checked' : '' %>><span></span> Allow new sign-ups</label>
+  <label class="switch"><input type="checkbox" name="comments_enabled" value="1" <%= settings.comments_enabled === '1' ? 'checked' : '' %>><span></span> Enable chapter comments</label>
+  <label class="field">New accounts start as
+    <select name="default_role"><option value="reader" <%= settings.default_role === 'reader' ? 'selected' : '' %>>Reader (recommended)</option><option value="translator" <%= settings.default_role === 'translator' ? 'selected' : '' %>>Translator (can upload immediately)</option></select>
+  </label>
+  <div class="form-actions"><button class="btn btn-primary btn-lg" type="submit">💾 Save settings</button></div>
+</form>
+<%- include('partials/bottom') %>

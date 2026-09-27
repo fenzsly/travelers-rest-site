@@ -1,0 +1,30 @@
+<% const editing = !!chapter.id; %>
+<%- include('partials/top', { title: editing ? `Edit chapter ${u.formatNumber(Number(chapter.number))}` : 'Write a chapter' }) %>
+<%- include('partials/novel-tabs', { tab: editing ? 'chapters' : 'write' }) %>
+<% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
+<form method="post" class="card chapter-editor" action="<%= editing ? A(`/novels/${novel.id}/chapters/${chapter.id}/edit`) : A(`/novels/${novel.id}/chapters/new`) %>">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <div class="row-num-title">
+    <label class="field">Chapter #<input name="number" value="<%= chapter.number %>" required inputmode="decimal"></label>
+    <label class="field grow">Title<input name="title" value="<%= chapter.title %>" placeholder="Optional, e.g. The Lantern Market"></label>
+  </div>
+  <div class="field">
+    <div class="editor-head">
+      <span>Content</span>
+      <div class="seg" id="format-seg">
+        <% const fmt = chapter.format || (editing ? 'html' : 'text'); %>
+        <label><input type="radio" name="format" value="text" <%= fmt === 'text' ? 'checked' : '' %>><span>Plain text</span></label>
+        <label><input type="radio" name="format" value="markdown" <%= fmt === 'markdown' ? 'checked' : '' %>><span>Markdown</span></label>
+        <label><input type="radio" name="format" value="html" <%= fmt === 'html' ? 'checked' : '' %>><span>HTML</span></label>
+      </div>
+    </div>
+    <textarea name="content" rows="24" class="mono" required placeholder="Paste or type the chapter here. In plain text mode, blank lines separate paragraphs."><%= chapter.content %></textarea>
+    <span class="hint">Paste from Google Docs/Word works best in <em>Plain text</em>. Use <code>***</code> on its own line for a scene break.</span>
+  </div>
+  <div class="form-actions">
+    <button class="btn btn-primary btn-lg" type="submit">💾 <%= editing ? 'Save chapter' : 'Publish chapter' %></button>
+    <% if (!editing) { %><button class="btn btn-lg" type="submit" name="and_new" value="1">Publish & write next</button><% } %>
+    <% if (editing) { %><a class="btn btn-lg btn-ghost" href="<%= site(`/novel/${novel.slug}/c/${u.formatNumber(Number(chapter.number))}`) %>" target="_blank" rel="noopener">↗ Read on site</a><% } %>
+  </div>
+</form>
+<%- include('partials/bottom') %>

@@ -1,0 +1,38 @@
+<%- include('partials/head', { title: search ? `Search: ${search}` : activeGenre ? activeGenre.name : 'Novels' }) %>
+<%- include('partials/header') %>
+<main class="wrap">
+  <div class="layout">
+    <div class="content">
+      <section class="block">
+        <h2 class="block-title">
+          <% if (search) { %>Search results for “<%= search %>”<% } else if (activeGenre) { %><%= activeGenre.name %> novels<% } else { %>Novel list<% } %>
+          <span class="muted small"><%= pager.total %> found</span>
+        </h2>
+        <form class="filters" method="get" action="/novels">
+          <input type="search" name="q" value="<%= search %>" placeholder="Title, author, tag…">
+          <select name="genre">
+            <option value="">All genres</option>
+            <% genres.forEach((g) => { %><option value="<%= g.slug %>" <%= g.slug === genre ? 'selected' : '' %>><%= g.name %></option><% }) %>
+          </select>
+          <select name="status">
+            <option value="">Any status</option>
+            <% Object.entries(u.STATUS_LABELS).forEach(([k, v]) => { %><option value="<%= k %>" <%= k === status ? 'selected' : '' %>><%= v %></option><% }) %>
+          </select>
+          <select name="sort">
+            <% [['updated','Last updated'],['new','Newest'],['popular','Most viewed'],['rating','Top rated'],['chapters','Most chapters'],['title','Title A–Z']].forEach(([k, v]) => { %>
+              <option value="<%= k %>" <%= k === sort ? 'selected' : '' %>><%= v %></option>
+            <% }) %>
+          </select>
+          <button class="btn btn-accent" type="submit">Filter</button>
+        </form>
+        <% if (!novels.length) { %><div class="empty">Nothing matches those filters.</div><% } %>
+        <div class="story-list">
+          <% novels.forEach((n) => { %><%- include('partials/story-card', { n }) %><% }) %>
+        </div>
+        <%- include('partials/pager', { pager, base: '/novels' }) %>
+      </section>
+    </div>
+    <%- include('partials/sidebar') %>
+  </div>
+</main>
+<%- include('partials/footer') %>

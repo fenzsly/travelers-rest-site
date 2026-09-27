@@ -1,0 +1,16 @@
+<%- include('partials/top', { title: 'Upload chapters' }) %>
+<% if (!novels.length) { %>
+  <div class="card empty-state"><p>You need a novel before you can upload chapters.</p><a class="btn btn-primary btn-lg" href="<%= A('/novels/new') %>">➕ Create a novel</a></div>
+<% } else { %>
+  <p class="muted">Which novel are these chapters for?</p>
+  <div class="pick-grid">
+    <% novels.forEach((n) => { %>
+      <a class="pick" href="<%= A(`/novels/${n.id}/upload`) %>">
+        <% if (n.cover) { %><img src="<%= A('/uploads/covers/' + n.cover) %>" alt=""><% } else { %><div class="thumb-ph big"></div><% } %>
+        <strong><%= n.title %></strong><span class="muted small"><%= n.chapter_count %> chapters<%= n.latest_number != null ? ` · latest #${u.formatNumber(n.latest_number)}` : '' %></span>
+      </a>
+    <% }) %>
+    <a class="pick pick-new" href="<%= A('/novels/new') %>"><span>➕</span><strong>New novel</strong></a>
+  </div>
+<% } %>
+<%- include('partials/bottom') %>

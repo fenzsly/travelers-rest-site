@@ -1,0 +1,31 @@
+<%- include('partials/top', { title: 'Novels', actions: `<a class="btn btn-primary" href="${A('/novels/new')}">➕ New novel</a>` }) %>
+<form class="toolbar" method="get">
+  <input type="search" name="q" value="<%= search %>" placeholder="Filter by title or author…" autofocus>
+  <button class="btn" type="submit">Search</button>
+</form>
+<div class="card flush">
+  <% if (!novels.length) { %><div class="empty-state"><p><%= search ? 'No novels match.' : 'No novels yet.' %></p><a class="btn btn-primary" href="<%= A('/novels/new') %>">➕ Add a novel</a></div><% } else { %>
+  <table class="table table-lg">
+    <thead><tr><th></th><th>Novel</th><th>Status</th><th class="right">Chapters</th><th class="right">Views</th><th>Updated</th><th></th></tr></thead>
+    <tbody>
+    <% novels.forEach((n) => { %>
+      <tr>
+        <td class="thumb"><% if (n.cover) { %><img src="<%= A('/uploads/covers/' + n.cover) %>" alt=""><% } else { %><div class="thumb-ph"></div><% } %></td>
+        <td><a href="<%= A(`/novels/${n.id}/chapters`) %>"><strong><%= n.title %></strong></a><div class="muted small"><%= n.author || '—' %><% if (user.role === 'admin' && n.translator) { %> · by <%= n.translator %><% } %></div></td>
+        <td><span class="pill pill-<%= n.status %>"><%= STATUS_LABELS[n.status] %></span></td>
+        <td class="right"><%= n.chapter_count %><% if (n.latest_number != null) { %><div class="muted small">latest #<%= u.formatNumber(n.latest_number) %></div><% } %></td>
+        <td class="right"><%= u.compactNumber(n.views) %></td>
+        <td class="muted small nowrap"><%= u.timeAgo(n.updated_at) %></td>
+        <td class="right nowrap">
+          <a class="btn btn-sm btn-primary" href="<%= A(`/novels/${n.id}/upload`) %>">⬆ Upload</a>
+          <a class="btn btn-sm" href="<%= A(`/novels/${n.id}/chapters`) %>">Chapters</a>
+          <a class="btn btn-sm" href="<%= A(`/novels/${n.id}/edit`) %>">Edit</a>
+          <a class="btn btn-sm btn-ghost" href="<%= site(`/novel/${n.slug}`) %>" target="_blank" rel="noopener" title="View on site">↗</a>
+        </td>
+      </tr>
+    <% }) %>
+    </tbody>
+  </table>
+  <% } %>
+</div>
+<%- include('partials/bottom') %>

@@ -1,0 +1,53 @@
+<%- include('partials/top', { title: 'Dashboard', actions: `<a class="btn btn-primary" href="${A('/upload')}">⬆ Upload chapters</a>` }) %>
+<div class="stats">
+  <div class="stat"><span><%= stats.novels %></span>Novels</div>
+  <div class="stat"><span><%= stats.chapters.toLocaleString('en-US') %></span>Chapters</div>
+  <div class="stat"><span><%= u.compactNumber(stats.words) %></span>Words translated</div>
+  <div class="stat"><span><%= u.compactNumber(stats.views) %></span>Total views</div>
+  <% if (user.role === 'admin') { %>
+  <div class="stat"><span><%= stats.users %></span>Users</div>
+  <div class="stat"><span><%= stats.comments %></span>Comments</div>
+  <% } %>
+</div>
+
+<div class="quick">
+  <a class="quick-card" href="<%= A('/novels/new') %>"><span>➕</span><strong>Add a novel</strong><small>Title, cover, genres, synopsis</small></a>
+  <a class="quick-card" href="<%= A('/upload') %>"><span>⬆</span><strong>Batch upload</strong><small>Drop files or paste, preview, publish</small></a>
+  <a class="quick-card" href="<%= A('/novels') %>"><span>📚</span><strong>Manage novels</strong><small>Edit details, chapters, delete</small></a>
+  <% if (user.role === 'admin') { %>
+  <a class="quick-card" href="<%= A('/settings') %>"><span>🛠</span><strong>Site settings</strong><small>Name, announcement, sign-ups</small></a>
+  <% } %>
+</div>
+
+<div class="grid-2">
+  <section class="card">
+    <h2>Your novels <a class="card-link" href="<%= A('/novels') %>">See all →</a></h2>
+    <% if (!novels.length) { %>
+      <div class="empty-state">
+        <p>No novels yet. Start by adding one. It only takes a title.</p>
+        <a class="btn btn-primary" href="<%= A('/novels/new') %>">➕ Add your first novel</a>
+      </div>
+    <% } %>
+    <table class="table">
+      <% novels.forEach((n) => { %>
+        <tr>
+          <td><a href="<%= A(`/novels/${n.id}/chapters`) %>"><strong><%= n.title %></strong></a><div class="muted small"><%= n.chapter_count %> ch. · updated <%= u.timeAgo(n.updated_at) %></div></td>
+          <td class="right nowrap"><a class="btn btn-sm btn-primary" href="<%= A(`/novels/${n.id}/upload`) %>">⬆ Upload</a> <a class="btn btn-sm" href="<%= A(`/novels/${n.id}/edit`) %>">Edit</a></td>
+        </tr>
+      <% }) %>
+    </table>
+  </section>
+  <section class="card">
+    <h2>Recently published</h2>
+    <% if (!recent.length) { %><p class="muted">Nothing published yet.</p><% } %>
+    <table class="table">
+      <% recent.forEach((c) => { %>
+        <tr>
+          <td><a href="<%= site(`/novel/${c.slug}/c/${u.formatNumber(c.number)}`) %>" target="_blank" rel="noopener"><%= u.chapterLabel(c) %></a><div class="muted small"><%= c.novel_title %></div></td>
+          <td class="right muted small nowrap"><%= u.timeAgo(c.created_at) %><br>👁 <%= c.views %></td>
+        </tr>
+      <% }) %>
+    </table>
+  </section>
+</div>
+<%- include('partials/bottom') %>

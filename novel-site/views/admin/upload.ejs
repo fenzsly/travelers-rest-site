@@ -1,0 +1,95 @@
+<%- include('partials/top', { title: 'Batch upload' }) %>
+<%- include('partials/novel-tabs', { tab: 'upload' }) %>
+
+<div id="uploader"
+     data-parse-url="<%= A(`/novels/${novel.id}/upload/parse`) %>"
+     data-commit-url="<%= A(`/novels/${novel.id}/upload/commit`) %>"
+     data-chapters-url="<%= A(`/novels/${novel.id}/chapters`) %>"
+     data-read-url="<%= site(`/novel/${novel.slug}/c/`) %>">
+
+  <!-- STEP 1 -->
+  <section class="card step" id="step-1">
+    <h2><span class="step-no">1</span> Add your chapters</h2>
+    <div class="mode-tabs" role="tablist">
+      <button type="button" class="on" data-mode="files">📄 One file per chapter</button>
+      <button type="button" data-mode="split">📘 One big file, auto-split</button>
+      <button type="button" data-mode="paste">📋 Paste text</button>
+    </div>
+
+    <div class="mode-pane" data-pane="files">
+      <label class="dropzone" id="dropzone">
+        <input type="file" id="file-input" multiple accept=".txt,.md,.markdown,.html,.htm,.xhtml,.docx">
+        <div class="dz-icon">⬆</div>
+        <strong>Drop chapter files here</strong> or click to choose
+        <small>.txt · .docx · .md · .html. Select as many as you like. Chapter numbers come from the file's heading (“Chapter 12: …”) or the file name (“012.txt”).</small>
+      </label>
+      <div class="dz-extra"><button type="button" class="btn btn-sm" id="pick-folder">📁 Choose a whole folder</button><input type="file" id="folder-input" webkitdirectory multiple hidden></div>
+    </div>
+
+    <div class="mode-pane" data-pane="split" hidden>
+      <label class="dropzone" id="dropzone-split">
+        <input type="file" id="split-input" accept=".txt,.md,.html,.htm,.docx" multiple>
+        <div class="dz-icon">📘</div>
+        <strong>Drop one document containing many chapters</strong>
+        <small>A new chapter starts at every line like “Chapter 12”, “Ch. 12 - Title”, “第12章”, “Prologue”, “Epilogue”, “Side Story”…</small>
+      </label>
+    </div>
+
+    <div class="mode-pane" data-pane="paste" hidden>
+      <textarea id="paste-text" rows="14" class="mono" placeholder="Chapter 1: The Beginning&#10;&#10;First paragraph…&#10;&#10;Second paragraph…&#10;&#10;Chapter 2: Next&#10;&#10;…"></textarea>
+      <button type="button" class="btn btn-primary" id="paste-go">Split into chapters →</button>
+    </div>
+
+    <details class="advanced">
+      <summary>Advanced: custom chapter heading pattern</summary>
+      <label class="field">Regular expression matching heading lines (case-insensitive)<input id="pattern" placeholder="^\s*(Chapter|Episode)\s*\d+" class="mono"></label>
+      <span class="hint">Only needed for “auto-split” and “paste” if your headings look unusual. Leave empty for automatic detection.</span>
+    </details>
+    <div class="parse-status" id="parse-status" hidden></div>
+  </section>
+
+  <!-- STEP 2 -->
+  <section class="card step" id="step-2" hidden>
+    <h2><span class="step-no">2</span> Check the chapters <span class="muted small" id="summary"></span></h2>
+    <div class="preview-tools">
+      <label class="small">If a chapter number already exists:
+        <select id="on-conflict"><option value="skip">Skip it (keep current)</option><option value="overwrite">Replace it with the upload</option></select>
+      </label>
+      <span class="sep"></span>
+      <label class="small">Renumber selected from <input type="number" id="renumber-from" class="num-input" step="any"></label>
+      <button type="button" class="btn btn-sm" id="renumber-go">Apply</button>
+      <button type="button" class="btn btn-sm" id="sort-go">Sort by number</button>
+      <button type="button" class="btn btn-sm" id="strip-go" title="Remove text like 'Chapter 12:' duplicated inside the title">Clean titles</button>
+      <button type="button" class="btn btn-sm btn-ghost" id="clear-go">✕ Start over</button>
+    </div>
+    <div class="errors" id="parse-errors" hidden></div>
+    <div class="table-scroll">
+      <table class="table preview-table">
+        <thead><tr><th class="w-check"><input type="checkbox" id="pv-all" checked></th><th class="w-num">#</th><th>Title</th><th class="right">Words</th><th>Source</th><th>Status</th><th></th></tr></thead>
+        <tbody id="preview-body"></tbody>
+      </table>
+    </div>
+    <div class="publish-row">
+      <button type="button" class="btn btn-primary btn-lg" id="publish-go">🚀 Publish <span id="publish-count">0</span> chapters</button>
+      <span class="muted small">Nothing is saved until you click publish.</span>
+    </div>
+    <div class="progress" id="publish-progress" hidden><div class="progress-fill"></div><span></span></div>
+  </section>
+
+  <!-- STEP 3 -->
+  <section class="card step result" id="step-3" hidden>
+    <h2><span class="step-no">✓</span> Done!</h2>
+    <p id="result-text"></p>
+    <p>
+      <a class="btn btn-primary" id="result-read" target="_blank" rel="noopener">↗ Read on site</a>
+      <a class="btn" href="<%= A(`/novels/${novel.id}/chapters`) %>">📄 Manage chapters</a>
+      <button type="button" class="btn" id="again-go">⬆ Upload more</button>
+    </p>
+  </section>
+</div>
+
+<dialog id="preview-dialog" class="preview-dialog">
+  <div class="dlg-head"><strong id="dlg-title"></strong><button type="button" class="btn btn-sm" onclick="this.closest('dialog').close()">Close</button></div>
+  <div class="dlg-body reading" id="dlg-body"></div>
+</dialog>
+<%- include('partials/bottom') %>

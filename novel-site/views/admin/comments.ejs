@@ -1,0 +1,14 @@
+<%- include('partials/top', { title: 'Comments' }) %>
+<div class="card flush">
+  <% if (!comments.length) { %><div class="empty-state"><p>No comments yet.</p></div><% } %>
+  <table class="table">
+    <% comments.forEach((c) => { %>
+      <tr>
+        <td class="nowrap"><strong><%= c.username %></strong><div class="muted small"><%= u.timeAgo(c.created_at) %></div></td>
+        <td><div class="comment-text"><%= c.body %></div><a class="small" href="<%= site(`/novel/${c.slug}/c/${u.formatNumber(c.number)}#comments`) %>" target="_blank" rel="noopener"><%= c.novel_title %> · Ch. <%= u.formatNumber(c.number) %></a></td>
+        <td class="right"><form method="post" action="<%= A(`/comments/${c.id}/delete`) %>" onsubmit="return confirm('Delete this comment?')"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn btn-sm btn-danger">Delete</button></form></td>
+      </tr>
+    <% }) %>
+  </table>
+</div>
+<%- include('partials/bottom') %>

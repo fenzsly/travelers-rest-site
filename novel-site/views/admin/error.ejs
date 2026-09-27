@@ -1,0 +1,8 @@
+<% if (user && user.role !== 'reader') { %>
+<%- include('partials/top', { title: status === 404 ? 'Not found' : 'Something went wrong' }) %>
+<div class="card"><p><%= message %></p><p><a class="btn" href="javascript:history.back()">← Go back</a> <a class="btn" href="<%= A('/') %>">Dashboard</a></p></div>
+<%- include('partials/bottom') %>
+<% } else { %>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Error</title><link rel="stylesheet" href="<%= A('/assets/admin.css') %>"></head>
+<body class="login-body"><div class="login-card"><h1>Error <%= status %></h1><p><%= message %></p><a class="btn btn-primary" href="<%= A('/login') %>">Admin login</a></div></body></html>
+<% } %>

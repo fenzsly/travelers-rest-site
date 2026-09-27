@@ -1,0 +1,19 @@
+<%- include('partials/head', { title: mode === 'login' ? 'Log in' : 'Sign up' }) %>
+<%- include('partials/header') %>
+<main class="wrap narrow">
+  <section class="block auth">
+    <h2 class="block-title"><%= mode === 'login' ? 'Log in' : 'Create an account' %></h2>
+    <% if (error) { %><div class="flash flash-error"><%= error %></div><% } %>
+    <form method="post" action="/<%= mode %>">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <input type="hidden" name="next" value="<%= next %>">
+      <label>Username <input name="username" value="<%= username %>" required autocomplete="username" autofocus></label>
+      <label>Password <input name="password" type="password" required minlength="<%= mode === 'register' ? 8 : 1 %>" autocomplete="<%= mode === 'login' ? 'current-password' : 'new-password' %>"></label>
+      <button class="btn btn-accent btn-block" type="submit"><%= mode === 'login' ? 'Log in' : 'Sign up' %></button>
+    </form>
+    <p class="muted small center">
+      <% if (mode === 'login') { %>No account? <a href="/register?next=<%= encodeURIComponent(next) %>">Sign up</a><% } else { %>Already registered? <a href="/login?next=<%= encodeURIComponent(next) %>">Log in</a><% } %>
+    </p>
+  </section>
+</main>
+<%- include('partials/footer') %>

@@ -1,0 +1,33 @@
+<header class="topbar">
+  <div class="wrap topbar-inner">
+    <a class="logo" href="/"><span class="logo-mark">📖</span><%= settings.site_name %></a>
+    <nav class="mainnav">
+      <a href="/" class="<%= path === '/' ? 'active' : '' %>">Home</a>
+      <a href="/novels" class="<%= path === '/novels' && !query.sort ? 'active' : '' %>">Novels</a>
+      <a href="/novels?sort=popular" class="<%= query.sort === 'popular' ? 'active' : '' %>">Popular</a>
+      <a href="/novels?sort=rating" class="<%= query.sort === 'rating' ? 'active' : '' %>">Top rated</a>
+      <% if (user) { %><a href="/library" class="<%= path === '/library' ? 'active' : '' %>">Library</a><% } %>
+    </nav>
+    <form class="search" action="/novels" method="get" role="search">
+      <input type="search" name="q" placeholder="Search novels, authors…" value="<%= typeof search !== 'undefined' ? search : '' %>" aria-label="Search">
+    </form>
+    <div class="userbox">
+      <button type="button" class="icon-btn" id="theme-toggle" title="Toggle night mode" aria-label="Toggle night mode">🌙</button>
+      <% if (user) { %>
+        <% if (user.role !== 'reader' && adminUrl) { %><a class="btn btn-sm btn-accent" href="<%= adminUrl %>">Admin</a><% } %>
+        <details class="usermenu">
+          <summary><%= user.username %></summary>
+          <div class="usermenu-pop">
+            <a href="/library">My library</a>
+            <form method="post" action="/logout"><input type="hidden" name="_csrf" value="<%= csrf %>"><button type="submit">Log out</button></form>
+          </div>
+        </details>
+      <% } else { %>
+        <a class="btn btn-sm" href="/login?next=<%= encodeURIComponent(path) %>">Log in</a>
+        <% if (settings.allow_registration === '1') { %><a class="btn btn-sm btn-accent" href="/register">Sign up</a><% } %>
+      <% } %>
+    </div>
+  </div>
+</header>
+<% if (settings.announcement) { %><div class="announcement"><div class="wrap"><%= settings.announcement %></div></div><% } %>
+<% if (flash) { %><div class="wrap"><div class="flash flash-<%= flash.type %>"><%= flash.message %></div></div><% } %>

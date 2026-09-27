@@ -1,0 +1,8 @@
+<% if (pager.pages > 1) { %>
+<nav class="pager" aria-label="Pagination">
+  <% const win = 2; for (let p = 1; p <= pager.pages; p++) {
+       if (p === 1 || p === pager.pages || Math.abs(p - pager.current) <= win) { %>
+    <% if (p === pager.current) { %><span class="current"><%= p %></span><% } else { %><a href="<%= base %><%= u.withQuery(query, { page: p }) %><%= typeof hash !== 'undefined' ? hash : '' %>"><%= p %></a><% } %>
+  <% } else if (Math.abs(p - pager.current) === win + 1) { %><span class="gap">…</span><% } } %>
+</nav>
+<% } %>

@@ -1,0 +1,29 @@
+<aside class="sidebar">
+  <% if (typeof topRated !== 'undefined' && topRated.length) { %>
+  <section class="block">
+    <h2 class="block-title">Top rated</h2>
+    <ol class="toplist">
+      <% topRated.forEach((n, i) => { %>
+        <li><span class="rank"><%= i + 1 %></span><a href="/novel/<%= n.slug %>"><%= n.title %></a><span class="stars">★ <%= n.rating %></span></li>
+      <% }) %>
+    </ol>
+  </section>
+  <% } %>
+  <% if (typeof fresh !== 'undefined' && fresh.length) { %>
+  <section class="block">
+    <h2 class="block-title">New novels</h2>
+    <ul class="mini-list">
+      <% fresh.forEach((n) => { %>
+        <li><a class="mini-cover" href="/novel/<%= n.slug %>"><%- include('cover', { n }) %></a>
+          <div><a href="/novel/<%= n.slug %>"><%= n.title %></a><div class="muted small"><%= n.chapter_count %> chapters · <%= u.timeAgo(n.created_at) %></div></div></li>
+      <% }) %>
+    </ul>
+  </section>
+  <% } %>
+  <section class="block">
+    <h2 class="block-title">Genres</h2>
+    <div class="genre-cloud">
+      <% genres.forEach((g) => { %><a href="/novels?genre=<%= g.slug %>" class="<%= typeof genre !== 'undefined' && genre === g.slug ? 'active' : '' %>"><%= g.name %><% if (g.novel_count) { %> <small><%= g.novel_count %></small><% } %></a><% }) %>
+    </div>
+  </section>
+</aside>

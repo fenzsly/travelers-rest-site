@@ -1,0 +1,100 @@
+# Novel site
+
+A web novel hosting site for fan translations. The layout is modelled on ranobes: dark top bar, story cards with covers, a "latest updates" feed, a right sidebar, and a configurable chapter reader. It has a **separate admin panel** built for fast batch uploads.
+
+- **Stack:** Node.js 22 + Express + SQLite (built into Node, nothing to install) + EJS templates.
+- **Storage:** one database file plus an uploads folder for covers. Back up those two and you have everything.
+
+## Features
+
+**Readers**
+- Home page: popular shelf, latest chapter updates, new novels, top rated, genre list
+- Catalog with search, genre/status filters and sorting (updated, new, popular, rating, chapters, A–Z)
+- Novel page: cover, info table, rating, synopsis, tags, paginated table of contents, "Continue reading"
+- Reader:
+  - 5 themes (light, sepia, green, dark, OLED black); font, size, line spacing, width and alignment settings
+  - ← → keys to change chapter, C for contents, S for settings
+  - Progress bar, searchable contents panel, read-chapter markers
+- Accounts: library/bookmarks with "N new chapters" badges and automatic progress saving, ratings, chapter comments
+- Night mode for the whole site; works on mobile
+
+**Admin panel** (`/admin`), a separate app with its own login, look and navigation
+- First visit to `/admin` creates your **owner account**, so no setup files are needed
+- Dashboard with stats and one-click actions
+- **Batch upload** in three modes:
+  1. *One file per chapter:* drop many `.txt`, `.docx`, `.md` or `.html` files, or a whole folder
+  2. *One big file, auto-split:* splits at lines like "Chapter 12", "Ch. 12 - Title", "第12章", "Prologue", "Epilogue"
+  3. *Paste text:* paste many chapters at once
+- The preview is editable before anything is saved:
+  - Fix numbers and titles, and preview each chapter
+  - Renumber, sort, or strip "Chapter N:" from titles
+  - Choose to skip or replace chapters that already exist
+- Large batches are sent in chunks with a progress bar
+- Chapter manager:
+  - Edit numbers and titles inline (click, type, Enter)
+  - Shift-click to select a range; bulk delete; shift numbers; renumber 1…N
+- Chapter editor (plain text, Markdown or HTML); novel editor with drag-and-drop cover
+- Users: create translator accounts, change roles, reset passwords. Translators can only manage their own novels.
+- Site settings in the browser: site name, tagline, announcement banner, footer, sign-ups on/off, comments on/off
+- Comment moderation
+
+All uploaded HTML is sanitized, so scripts and event handlers are stripped. Forms are CSRF-protected.
+
+## Run it on your computer
+
+```bash
+cd novel-site
+npm install
+npm run seed     # optional: 3 demo novels so you can see the layout
+npm start
+```
+
+- Site: http://localhost:3000
+- Admin: http://localhost:3000/admin (the first visit creates your owner account)
+
+## Put it online (VPS such as Contabo, Ubuntu 22.04/24.04)
+
+1. At your domain registrar (or Cloudflare), add an **A record** for `yourdomain.com` pointing to the VPS IP address. Also add one for `www` if you want it.
+2. SSH into the VPS and run:
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/fenzsly/travelers-rest-site/main/novel-site/deploy/install.sh | sudo bash -s -- yourdomain.com
+   ```
+   If the repository is private, clone it first and run `sudo bash novel-site/deploy/install.sh yourdomain.com` from the clone. Set `REPO=<clone URL>` so updates can pull from it.
+3. Open `https://yourdomain.com/admin` and create your owner account.
+
+The script installs Node 22 and Caddy (automatic HTTPS), runs the site as a `novel-site` systemd service, opens the firewall for web traffic, and keeps 14 days of nightly backups in `/var/lib/novel-site/backups`.
+
+- **Update after new code is pushed:** `sudo bash /opt/novel-site/repo/novel-site/deploy/update.sh`
+- **Logs:** `journalctl -u novel-site -f`
+- **Your data:** `/var/lib/novel-site` (`site.db` plus `uploads/`)
+
+**Cloudflare (recommended):** set the DNS record to "Proxied" and SSL mode to **Full (strict)**. Covers and assets are then cached near readers worldwide.
+
+Docker is also supported: `docker build -t novel-site . && docker run -p 3000:3000 -v novel-data:/data novel-site`.
+
+## Configuration (environment variables, all optional)
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `PORT` | `3000` | Public site port |
+| `ADMIN_PORT` | unset | If set, the admin panel runs **only** on this separate port instead of `/admin` (e.g. to keep it off the internet and reach it over an SSH tunnel) |
+| `ADMIN_URL` | unset | With `ADMIN_PORT`: where the "Admin" button on the public site points |
+| `PUBLIC_URL` | `http://localhost:PORT` | With `ADMIN_PORT`: public site address used for "View" links |
+| `DATA_DIR` | `./data` | Database and session secret |
+| `UPLOAD_DIR` | `./uploads` | Cover images |
+| `COOKIE_SECURE` | unset | `1` when served over HTTPS |
+| `TRUST_PROXY` | unset | `1` behind Caddy, nginx or Cloudflare |
+| `SESSION_SECRET` | auto-generated | Cookie signing key |
+
+## Tips for uploading
+
+- Name files so they sort naturally (`001.txt`, `002.txt`, or `Chapter 12 - Title.docx`).
+- In text files, leave a blank line between paragraphs. `***` on its own line becomes a scene break.
+- A first line like `Chapter 12: The Gate` becomes the chapter number and title, and is removed from the body.
+- If headings in a big file look unusual, open "Advanced" on the upload page and give a pattern, e.g. `^Episode \d+`.
+
+## Tests
+
+```bash
+npm test
+```

@@ -1,0 +1,48 @@
+<%- include('partials/top', { title: 'Users' }) %>
+<section class="card">
+  <h2>Add a team member</h2>
+  <form method="post" action="<%= A('/users/new') %>" class="inline-form">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <input name="username" placeholder="Username" required pattern="[A-Za-z0-9_.\-]{3,24}">
+    <input name="password" placeholder="Password (empty = generate)" minlength="8">
+    <select name="role"><option value="translator">Translator</option><option value="admin">Admin</option><option value="reader">Reader</option></select>
+    <button class="btn btn-primary" type="submit">➕ Create account</button>
+  </form>
+  <p class="hint"><strong>Translators</strong> can add novels and upload chapters for their own novels. <strong>Admins</strong> can manage everything, including users and settings.</p>
+</section>
+<div class="card flush">
+  <table class="table table-lg">
+    <thead><tr><th>User</th><th>Role</th><th class="right">Novels</th><th class="right">Comments</th><th>Joined</th><th></th></tr></thead>
+    <tbody>
+    <% users.forEach((x) => { %>
+      <tr>
+        <td><strong><%= x.username %></strong><% if (x.id === user.id) { %> <span class="pill">you</span><% } %></td>
+        <td>
+          <% if (x.id === user.id) { %><span class="pill pill-<%= x.role %>"><%= x.role %></span><% } else { %>
+          <form method="post" action="<%= A(`/users/${x.id}`) %>" class="inline">
+            <input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="action" value="role">
+            <select name="role" onchange="this.form.submit()">
+              <% ['reader', 'translator', 'admin'].forEach((r) => { %><option value="<%= r %>" <%= x.role === r ? 'selected' : '' %>><%= r %></option><% }) %>
+            </select>
+          </form>
+          <% } %>
+        </td>
+        <td class="right"><%= x.novel_count %></td>
+        <td class="right"><%= x.comment_count %></td>
+        <td class="muted small"><%= u.formatDate(x.created_at) %></td>
+        <td class="right nowrap">
+          <form method="post" action="<%= A(`/users/${x.id}`) %>" class="inline" onsubmit="return confirm('Generate a new random password for <%= x.username %>?')">
+            <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn btn-sm" name="action" value="reset">Reset password</button>
+          </form>
+          <% if (x.id !== user.id) { %>
+          <form method="post" action="<%= A(`/users/${x.id}`) %>" class="inline" onsubmit="return confirm('Delete <%= x.username %>? Their comments are deleted; their novels are kept.')">
+            <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn btn-sm btn-danger" name="action" value="delete">Delete</button>
+          </form>
+          <% } %>
+        </td>
+      </tr>
+    <% }) %>
+    </tbody>
+  </table>
+</div>
+<%- include('partials/bottom') %>

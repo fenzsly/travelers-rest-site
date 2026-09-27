@@ -1,0 +1,20 @@
+<%- include('partials/head', { title: 'My library' }) %>
+<%- include('partials/header') %>
+<main class="wrap">
+  <section class="block">
+    <h2 class="block-title">My library <span class="muted small"><%= items.length %> novels</span></h2>
+    <% if (!items.length) { %><div class="empty">Your library is empty. Open any novel and click “Add to library”. Your reading progress is saved automatically.</div><% } %>
+    <div class="library-grid">
+      <% items.forEach((n) => { const unread = n.last_number != null ? n.latest_number - n.last_number : null; %>
+        <div class="lib-item">
+          <a class="lib-cover" href="/novel/<%= n.slug %>"><%- include('partials/cover', { n }) %><% if (unread > 0) { %><span class="lib-new"><%= u.formatNumber(unread) %> new</span><% } %></a>
+          <a class="lib-title" href="/novel/<%= n.slug %>"><%= n.title %></a>
+          <div class="muted small"><%= n.last_number != null ? `Read: ch. ${u.formatNumber(n.last_number)} / ${u.formatNumber(n.latest_number)}` : `${n.chapter_count} chapters · not started` %></div>
+          <% if (n.last_number != null) { %><a class="btn btn-sm btn-accent" href="/novel/<%= n.slug %>/c/<%= u.formatNumber(n.last_number) %>">Continue</a>
+          <% } else if (n.chapter_count) { %><a class="btn btn-sm" href="/novel/<%= n.slug %>">Start</a><% } %>
+        </div>
+      <% }) %>
+    </div>
+  </section>
+</main>
+<%- include('partials/footer') %>

@@ -1,0 +1,67 @@
+<% const editing = !!novel.id; %>
+<%- include('partials/top', { title: editing ? 'Edit novel' : 'New novel' }) %>
+<% if (editing) { %><%- include('partials/novel-tabs', { tab: 'edit' }) %><% } %>
+<% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
+<form method="post" enctype="multipart/form-data" action="<%= editing ? A(`/novels/${novel.id}/edit`) : A('/novels/new') %>" class="form-grid">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <section class="card">
+    <h2>Basics</h2>
+    <label class="field">Title <span class="req">*</span><input name="title" value="<%= novel.title || '' %>" required maxlength="250" id="f-title" placeholder="e.g. The Wandering Lantern Keeper"></label>
+    <label class="field">URL name<span class="hint">Leave empty to generate from the title.</span>
+      <div class="prefix-input"><span><%= site('/novel/') %></span><input name="slug" value="<%= novel.slug || '' %>" id="f-slug" placeholder="auto"></div></label>
+    <label class="field">Alternative titles<span class="hint">One per line (original-language title, abbreviations…)</span><textarea name="alt_titles" rows="2"><%= novel.alt_titles || '' %></textarea></label>
+    <div class="row-3">
+      <label class="field">Author<input name="author" value="<%= novel.author || '' %>"></label>
+      <label class="field">Original language<input name="original_language" value="<%= novel.original_language || '' %>" list="langs" placeholder="Chinese"></label>
+      <label class="field">Year<input name="year" type="number" min="1900" max="2100" value="<%= novel.year || '' %>"></label>
+    </div>
+    <datalist id="langs"><option>Chinese</option><option>Korean</option><option>Japanese</option><option>Vietnamese</option><option>Indonesian</option><option>Thai</option><option>Spanish</option></datalist>
+    <label class="field">Status
+      <div class="radio-row">
+        <% Object.entries(STATUS_LABELS).forEach(([k, v]) => { %><label class="radio"><input type="radio" name="status" value="<%= k %>" <%= (novel.status || 'ongoing') === k ? 'checked' : '' %>> <%= v %></label><% }) %>
+      </div>
+    </label>
+    <label class="field">Synopsis<span class="hint">Blank lines separate paragraphs.</span><textarea name="description" rows="8"><%= novel.description || '' %></textarea></label>
+    <label class="field">Tags<span class="hint">Comma separated: weak to strong, cultivation, female lead…</span><input name="tags" value="<%= novel.tags || '' %>"></label>
+  </section>
+
+  <div class="stack">
+    <section class="card">
+      <h2>Cover</h2>
+      <label class="cover-drop" id="cover-drop">
+        <img id="cover-preview" src="<%= novel.cover ? A('/uploads/covers/' + novel.cover) : '' %>" alt="" <%= novel.cover ? '' : 'hidden' %>>
+        <span id="cover-hint" <%= novel.cover ? 'hidden' : '' %>>Click or drop an image<br><small>JPG/PNG/WEBP, 2:3 ratio looks best</small></span>
+        <input type="file" name="cover" accept="image/jpeg,image/png,image/webp,image/gif" id="cover-input">
+      </label>
+      <% if (novel.cover) { %><label class="check"><input type="checkbox" name="remove_cover" value="1"> Remove current cover</label><% } %>
+    </section>
+    <section class="card">
+      <h2>Genres</h2>
+      <div class="checks">
+        <% genres.forEach((g) => { %><label class="check-chip"><input type="checkbox" name="genres" value="<%= g.id %>" <%= selected.has(g.id) || [].concat(novel.genres || []).map(Number).includes(g.id) ? 'checked' : '' %>><span><%= g.name %></span></label><% }) %>
+      </div>
+    </section>
+    <% if (user.role === 'admin') { %>
+    <section class="card">
+      <h2>Translator</h2>
+      <select name="owner_id" class="full">
+        <% users.forEach((x) => { %><option value="<%= x.id %>" <%= (novel.owner_id || user.id) == x.id ? 'selected' : '' %>><%= x.username %> (<%= x.role %>)</option><% }) %>
+      </select>
+      <p class="hint">Translators can only manage their own novels.</p>
+    </section>
+    <% } %>
+    <button class="btn btn-primary btn-lg btn-block" type="submit"><%= editing ? '💾 Save changes' : '➕ Create novel & upload chapters' %></button>
+  </div>
+</form>
+
+<% if (editing) { %>
+<section class="card danger">
+  <h2>Danger zone</h2>
+  <form method="post" action="<%= A(`/novels/${novel.id}/delete`) %>" class="inline-form" onsubmit="return confirm('Really delete this novel and ALL its chapters? This cannot be undone.')">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <input name="confirm" placeholder="Type the title to confirm: <%= novel.title %>" required>
+    <button class="btn btn-danger" type="submit">Delete novel</button>
+  </form>
+</section>
+<% } %>
+<%- include('partials/bottom') %>

@@ -1,0 +1,10 @@
+<%- include('partials/top', { title: 'My account' }) %>
+<% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
+<form method="post" action="<%= A('/account') %>" class="card settings-form">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <h2>Change password</h2>
+  <label class="field">Current password<input type="password" name="current" required autocomplete="current-password"></label>
+  <label class="field">New password<input type="password" name="password" required minlength="8" autocomplete="new-password"></label>
+  <div class="form-actions"><button class="btn btn-primary" type="submit">Change password</button></div>
+</form>
+<%- include('partials/bottom') %>

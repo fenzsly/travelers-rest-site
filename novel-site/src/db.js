@@ -1,0 +1,117 @@
+const fs = require('node:fs');
+const path = require('node:path');
+const { DatabaseSync } = require('node:sqlite');
+
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '..', 'data');
+fs.mkdirSync(DATA_DIR, { recursive: true });
+
+const db = new DatabaseSync(process.env.DB_PATH || path.join(DATA_DIR, 'site.db'));
+db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;');
+
+db.exec(`
+CREATE TABLE IF NOT EXISTS users (
+  id            INTEGER PRIMARY KEY,
+  username      TEXT NOT NULL UNIQUE COLLATE NOCASE,
+  password_hash TEXT NOT NULL,
+  role          TEXT NOT NULL DEFAULT 'reader' CHECK (role IN ('reader','translator','admin')),
+  created_at    INTEGER NOT NULL DEFAULT (unixepoch())
+);
+
+CREATE TABLE IF NOT EXISTS novels (
+  id                INTEGER PRIMARY KEY,
+  slug              TEXT NOT NULL UNIQUE,
+  title             TEXT NOT NULL,
+  alt_titles        TEXT NOT NULL DEFAULT '',
+  author            TEXT NOT NULL DEFAULT '',
+  original_language TEXT NOT NULL DEFAULT '',
+  year              INTEGER,
+  status            TEXT NOT NULL DEFAULT 'ongoing' CHECK (status IN ('ongoing','completed','hiatus','dropped')),
+  description       TEXT NOT NULL DEFAULT '',
+  tags              TEXT NOT NULL DEFAULT '',
+  cover             TEXT,
+  owner_id          INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  views             INTEGER NOT NULL DEFAULT 0,
+  created_at        INTEGER NOT NULL DEFAULT (unixepoch()),
+  updated_at        INTEGER NOT NULL DEFAULT (unixepoch())
+);
+
+CREATE TABLE IF NOT EXISTS genres (
+  id   INTEGER PRIMARY KEY,
+  slug TEXT NOT NULL UNIQUE,
+  name TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS novel_genres (
+  novel_id INTEGER NOT NULL REFERENCES novels(id) ON DELETE CASCADE,
+  genre_id INTEGER NOT NULL REFERENCES genres(id) ON DELETE CASCADE,
+  PRIMARY KEY (novel_id, genre_id)
+);
+
+CREATE TABLE IF NOT EXISTS chapters (
+  id         INTEGER PRIMARY KEY,
+  novel_id   INTEGER NOT NULL REFERENCES novels(id) ON DELETE CASCADE,
+  number     REAL NOT NULL,
+  volume     INTEGER,
+  title      TEXT NOT NULL DEFAULT '',
+  content    TEXT NOT NULL,
+  word_count INTEGER NOT NULL DEFAULT 0,
+  views      INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+  UNIQUE (novel_id, number)
+);
+CREATE INDEX IF NOT EXISTS chapters_recent ON chapters (created_at DESC);
+
+CREATE TABLE IF NOT EXISTS comments (
+  id         INTEGER PRIMARY KEY,
+  chapter_id INTEGER NOT NULL REFERENCES chapters(id) ON DELETE CASCADE,
+  user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  body       TEXT NOT NULL,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
+CREATE INDEX IF NOT EXISTS comments_chapter ON comments (chapter_id, created_at);
+
+CREATE TABLE IF NOT EXISTS bookmarks (
+  user_id         INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  novel_id        INTEGER NOT NULL REFERENCES novels(id) ON DELETE CASCADE,
+  last_chapter_id INTEGER REFERENCES chapters(id) ON DELETE SET NULL,
+  updated_at      INTEGER NOT NULL DEFAULT (unixepoch()),
+  PRIMARY KEY (user_id, novel_id)
+);
+
+CREATE TABLE IF NOT EXISTS ratings (
+  user_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  novel_id INTEGER NOT NULL REFERENCES novels(id) ON DELETE CASCADE,
+  score    INTEGER NOT NULL CHECK (score BETWEEN 1 AND 5),
+  PRIMARY KEY (user_id, novel_id)
+);
+
+CREATE TABLE IF NOT EXISTS settings (
+  key   TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+`);
+
+const DEFAULT_GENRES = [
+  'Action', 'Adventure', 'Comedy', 'Drama', 'Fantasy', 'Harem', 'Historical', 'Horror',
+  'Isekai', 'Martial Arts', 'Mecha', 'Mystery', 'Psychological', 'Reincarnation', 'Romance',
+  'School Life', 'Sci-fi', 'Slice of Life', 'Supernatural', 'System', 'Tragedy', 'Wuxia', 'Xianxia', 'Xuanhuan',
+];
+const insertGenre = db.prepare('INSERT OR IGNORE INTO genres (slug, name) VALUES (?, ?)');
+for (const name of DEFAULT_GENRES) {
+  insertGenre.run(name.toLowerCase().replace(/[^a-z0-9]+/g, '-'), name);
+}
+
+/** Run fn inside a transaction; rolls back if it throws. */
+function tx(fn) {
+  db.exec('BEGIN');
+  try {
+    const result = fn();
+    db.exec('COMMIT');
+    return result;
+  } catch (err) {
+    db.exec('ROLLBACK');
+    throw err;
+  }
+}
+
+module.exports = { db, tx, DATA_DIR };

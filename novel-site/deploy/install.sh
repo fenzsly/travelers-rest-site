@@ -53,6 +53,7 @@ id novels >/dev/null 2>&1 || useradd --system --home "$APP_DIR" --shell /usr/sbi
 mkdir -p "$DATA_DIR/uploads" "$DATA_DIR/backups"
 
 echo "==> Fetching the code"
+git config --global --add safe.directory "$APP_DIR/repo" 2>/dev/null || true
 if [[ -d "$APP_DIR/repo/.git" ]]; then
   git -C "$APP_DIR/repo" fetch origin "$BRANCH" && git -C "$APP_DIR/repo" reset --hard "origin/$BRANCH"
 else

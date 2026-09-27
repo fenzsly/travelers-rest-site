@@ -1,4 +1,6 @@
-<%- include('partials/head', { title: novel.title, description: novel.description.slice(0, 160) }) %>
+<%- include('partials/head', { title: novel.title, description: novel.description.slice(0, 200),
+  og: { type: 'book', image: novel.cover ? `${baseUrl}/uploads/covers/${novel.cover}` : null, url: `${baseUrl}/novel/${novel.slug}` },
+  feed: { title: `${novel.title} — new chapters`, href: `/novel/${novel.slug}/rss.xml` } }) %>
 <%- include('partials/header') %>
 <main class="wrap">
   <nav class="crumbs"><a href="/">Home</a> › <a href="/novels">Novels</a> › <span><%= novel.title %></span></nav>
@@ -18,10 +20,16 @@
         <% if (novel.original_language) { %><tr><th>Language</th><td><%= novel.original_language %></td></tr><% } %>
         <% if (novel.year) { %><tr><th>Year</th><td><%= novel.year %></td></tr><% } %>
         <tr><th>Chapters</th><td><%= novel.chapter_count %> <span class="muted">(<%= u.compactNumber(words) %> words)</span></td></tr>
-        <tr><th>Views</th><td><%= novel.views.toLocaleString('en-US') %></td></tr>
-        <% if (latest) { %><tr><th>Updated</th><td><%= u.timeAgo(latest.created_at) %></td></tr><% } %>
+        <% if (latest) { %><tr><th>Updated</th><td><%= u.timeAgo(latest.released_at) %></td></tr><% } %>
         <% if (genres.length) { %><tr><th>Genres</th><td class="chips"><% genres.forEach((g) => { %><a class="chip" href="/novels?genre=<%= g.slug %>"><%= g.name %></a><% }) %></td></tr><% } %>
       </table>
+      <div class="view-counter" title="Views are counted once per reader per chapter">
+        <div><strong><%= novel.views.toLocaleString('en-US') %></strong><span>total views</span></div>
+        <div><strong><%= novel.views_week.toLocaleString('en-US') %></strong><span>this week</span></div>
+        <div><strong><%= novel.views_month.toLocaleString('en-US') %></strong><span>this month</span></div>
+        <div><strong>#<%= rank %></strong><span>popularity</span></div>
+        <div><strong><%= readers %></strong><span>in libraries</span></div>
+      </div>
       <div class="novel-actions">
         <% if (first) { %>
           <a class="btn btn-accent btn-lg" href="/novel/<%= novel.slug %>/c/<%= u.formatNumber(first.number) %>">Start reading</a>
@@ -56,17 +64,26 @@
         <h2 class="block-title">Description</h2>
         <div class="description collapsible" id="desc"><% novel.description.split(/\n\s*\n/).forEach((p) => { %><p><%= p %></p><% }) %></div>
         <button class="linklike" type="button" data-expand="desc" hidden>Show more ▾</button>
-        <% if (novel.tags) { %><div class="chips tags"><% novel.tags.split(',').forEach((t) => { %><a class="chip chip-tag" href="/novels?q=<%= encodeURIComponent(t.trim()) %>">#<%= t.trim() %></a><% }) %></div><% } %>
+        <% if (novel.tags) { %><div class="chips tags"><% novel.tags.split(',').forEach((t) => { %><a class="chip chip-tag" href="/novels?tag=<%= encodeURIComponent(t.trim()) %>">#<%= t.trim() %></a><% }) %></div><% } %>
       </section>
 
       <section class="block" id="chapters">
         <h2 class="block-title">Table of contents <span class="muted small"><%= novel.chapter_count %> chapters</span>
           <a class="block-more" href="/novel/<%= novel.slug %>?order=<%= order === 'DESC' ? 'asc' : 'desc' %>#chapters"><%= order === 'DESC' ? 'Oldest first ↑' : 'Newest first ↓' %></a>
         </h2>
+        <% if (upcoming.length) { %>
+          <div class="upcoming">
+            <strong>⏰ Coming soon</strong>
+            <ul>
+              <% upcoming.forEach((c) => { %><li><%= u.chapterLabel(c) %> <span class="muted small" data-ts="<%= c.publish_at %>"><%= u.formatDate(c.publish_at) %></span></li><% }) %>
+              <% if (upcomingCount > upcoming.length) { %><li class="muted small">…and <%= upcomingCount - upcoming.length %> more scheduled</li><% } %>
+            </ul>
+          </div>
+        <% } %>
         <% if (!chapters.length) { %><div class="empty">No chapters yet.</div><% } %>
         <ul class="chapter-list">
           <% chapters.forEach((c) => { %>
-            <li><a href="/novel/<%= novel.slug %>/c/<%= u.formatNumber(c.number) %>" data-num="<%= u.formatNumber(c.number) %>"><%= u.chapterLabel(c) %></a><span class="muted small"><%= u.formatDate(c.created_at) %></span></li>
+            <li><a href="/novel/<%= novel.slug %>/c/<%= u.formatNumber(c.number) %>" data-num="<%= u.formatNumber(c.number) %>"><%= u.chapterLabel(c) %></a><span class="muted small"><%= u.formatDate(c.released_at) %></span></li>
           <% }) %>
         </ul>
         <%- include('partials/pager', { pager, base: `/novel/${novel.slug}`, hash: '#chapters' }) %>
@@ -74,11 +91,30 @@
     </div>
     <aside class="sidebar">
       <section class="block">
-        <h2 class="block-title">More like this</h2>
-        <% if (genres.length) { %>
-          <div class="genre-cloud"><% genres.forEach((g) => { %><a href="/novels?genre=<%= g.slug %>">More <%= g.name %></a><% }) %></div>
-        <% } else { %><p class="muted"><a href="/novels">Browse all novels</a></p><% } %>
+        <h2 class="block-title">Share &amp; follow</h2>
+        <div class="share-row">
+          <button type="button" class="btn btn-sm" data-copy="<%= baseUrl %>/novel/<%= novel.slug %>">🔗 Copy link</button>
+          <a class="btn btn-sm" href="/novel/<%= novel.slug %>/rss.xml" title="Get new chapters in your RSS reader">📡 RSS</a>
+          <a class="btn btn-sm" href="https://twitter.com/intent/tweet?text=<%= encodeURIComponent(`Reading ${novel.title}`) %>&url=<%= encodeURIComponent(`${baseUrl}/novel/${novel.slug}`) %>" target="_blank" rel="noopener">𝕏 Share</a>
+        </div>
       </section>
+      <% if (similar.length) { %>
+      <section class="block">
+        <h2 class="block-title">You may also like</h2>
+        <ul class="mini-list">
+          <% similar.forEach((n) => { %>
+            <li><a class="mini-cover" href="/novel/<%= n.slug %>"><%- include('partials/cover', { n }) %></a>
+              <div><a href="/novel/<%= n.slug %>"><%= n.title %></a><div class="muted small"><%= n.chapter_count %> ch. · 👁 <%= u.compactNumber(n.views) %><%= n.rating ? ` · ★ ${n.rating}` : '' %></div></div></li>
+          <% }) %>
+        </ul>
+      </section>
+      <% } %>
+      <% if (genres.length) { %>
+      <section class="block">
+        <h2 class="block-title">Browse genres</h2>
+        <div class="genre-cloud"><% genres.forEach((g) => { %><a href="/novels?genre=<%= g.slug %>">More <%= g.name %></a><% }) %></div>
+      </section>
+      <% } %>
     </aside>
   </div>
 </main>

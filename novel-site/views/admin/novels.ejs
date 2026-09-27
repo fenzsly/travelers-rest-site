@@ -13,8 +13,8 @@
         <td class="thumb"><% if (n.cover) { %><img src="<%= A('/uploads/covers/' + n.cover) %>" alt=""><% } else { %><div class="thumb-ph"></div><% } %></td>
         <td><a href="<%= A(`/novels/${n.id}/chapters`) %>"><strong><%= n.title %></strong></a><div class="muted small"><%= n.author || '—' %><% if (user.role === 'admin' && n.translator) { %> · by <%= n.translator %><% } %></div></td>
         <td><span class="pill pill-<%= n.status %>"><%= STATUS_LABELS[n.status] %></span></td>
-        <td class="right"><%= n.chapter_count %><% if (n.latest_number != null) { %><div class="muted small">latest #<%= u.formatNumber(n.latest_number) %></div><% } %></td>
-        <td class="right"><%= u.compactNumber(n.views) %></td>
+        <td class="right"><%= n.chapter_count %><% if (n.latest_number != null) { %><div class="muted small">latest #<%= u.formatNumber(n.latest_number) %></div><% } %><% if (n.scheduled_count) { %><div class="small sched">⏰ <%= n.scheduled_count %> scheduled</div><% } %></td>
+        <td class="right"><a href="<%= A(`/novels/${n.id}/stats`) %>" title="View stats"><%= u.compactNumber(n.views) %></a><% if (n.views_week) { %><div class="muted small">+<%= u.compactNumber(n.views_week) %> this week</div><% } %></td>
         <td class="muted small nowrap"><%= u.timeAgo(n.updated_at) %></td>
         <td class="right nowrap">
           <a class="btn btn-sm btn-primary" href="<%= A(`/novels/${n.id}/upload`) %>">⬆ Upload</a>

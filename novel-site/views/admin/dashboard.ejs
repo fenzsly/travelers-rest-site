@@ -1,12 +1,14 @@
 <%- include('partials/top', { title: 'Dashboard', actions: `<a class="btn btn-primary" href="${A('/upload')}">⬆ Upload chapters</a>` }) %>
+<% if (update.running) { %><div class="alert alert-ok">⏳ A site update is in progress… <a href="<%= A('/system') %>">see progress</a></div><% } %>
 <div class="stats">
+  <div class="stat stat-accent"><span><%= stats.today.toLocaleString('en-US') %></span>Views today</div>
+  <div class="stat"><span><%= u.compactNumber(stats.week) %></span>Views this week</div>
   <div class="stat"><span><%= stats.novels %></span>Novels</div>
   <div class="stat"><span><%= stats.chapters.toLocaleString('en-US') %></span>Chapters</div>
   <div class="stat"><span><%= u.compactNumber(stats.words) %></span>Words translated</div>
-  <div class="stat"><span><%= u.compactNumber(stats.views) %></span>Total views</div>
+  <div class="stat"><span><%= u.compactNumber(stats.views) %></span>All-time views</div>
   <% if (user.role === 'admin') { %>
   <div class="stat"><span><%= stats.users %></span>Users</div>
-  <div class="stat"><span><%= stats.comments %></span>Comments</div>
   <% } %>
 </div>
 
@@ -21,6 +23,34 @@
 
 <div class="grid-2">
   <section class="card">
+    <h2>Views, last 30 days</h2>
+    <%- include('partials/bars', { chart }) %>
+  </section>
+  <section class="card">
+    <h2>Trending this week</h2>
+    <% if (!top.some((n) => n.views_week)) { %><p class="muted">No views yet this week. Share your novels on Discord or Reddit to get readers.</p><% } %>
+    <table class="table">
+      <% top.filter((n) => n.views_week).forEach((n, i) => { %>
+        <tr><td class="rank-cell"><%= i + 1 %></td><td><a href="<%= A(`/novels/${n.id}/stats`) %>"><strong><%= n.title %></strong></a></td><td class="right nowrap">👁 <%= n.views_week.toLocaleString('en-US') %></td></tr>
+      <% }) %>
+    </table>
+  </section>
+</div>
+
+<% if (scheduled.length) { %>
+<section class="card">
+  <h2>⏰ Scheduled releases</h2>
+  <table class="table">
+    <% scheduled.forEach((c) => { %>
+      <tr><td><a href="<%= A(`/novels/${c.novel_id}/chapters`) %>"><%= u.chapterLabel(c) %></a><div class="muted small"><%= c.novel_title %></div></td>
+      <td class="right nowrap"><span class="local-time" data-ts="<%= c.publish_at %>"><%= u.formatDate(c.publish_at) %></span></td></tr>
+    <% }) %>
+  </table>
+</section>
+<% } %>
+
+<div class="grid-2">
+  <section class="card">
     <h2>Your novels <a class="card-link" href="<%= A('/novels') %>">See all →</a></h2>
     <% if (!novels.length) { %>
       <div class="empty-state">
@@ -31,7 +61,7 @@
     <table class="table">
       <% novels.forEach((n) => { %>
         <tr>
-          <td><a href="<%= A(`/novels/${n.id}/chapters`) %>"><strong><%= n.title %></strong></a><div class="muted small"><%= n.chapter_count %> ch. · updated <%= u.timeAgo(n.updated_at) %></div></td>
+          <td><a href="<%= A(`/novels/${n.id}/chapters`) %>"><strong><%= n.title %></strong></a><div class="muted small"><%= n.chapter_count %> ch. · 👁 <%= u.compactNumber(n.views) %> · updated <%= u.timeAgo(n.updated_at) %><%= n.scheduled_count ? ` · ⏰ ${n.scheduled_count} scheduled` : '' %></div></td>
           <td class="right nowrap"><a class="btn btn-sm btn-primary" href="<%= A(`/novels/${n.id}/upload`) %>">⬆ Upload</a> <a class="btn btn-sm" href="<%= A(`/novels/${n.id}/edit`) %>">Edit</a></td>
         </tr>
       <% }) %>
@@ -44,7 +74,7 @@
       <% recent.forEach((c) => { %>
         <tr>
           <td><a href="<%= site(`/novel/${c.slug}/c/${u.formatNumber(c.number)}`) %>" target="_blank" rel="noopener"><%= u.chapterLabel(c) %></a><div class="muted small"><%= c.novel_title %></div></td>
-          <td class="right muted small nowrap"><%= u.timeAgo(c.created_at) %><br>👁 <%= c.views %></td>
+          <td class="right muted small nowrap"><%= u.timeAgo(c.released_at) %><br>👁 <%= c.views %></td>
         </tr>
       <% }) %>
     </table>

@@ -1,0 +1,11 @@
+<%- include('partials/head', { title: 'Reading history' }) %>
+<%- include('partials/header') %>
+<main class="wrap">
+  <section class="block">
+    <h2 class="block-title">Reading history <button type="button" class="block-more linklike" id="clear-history">Clear history</button></h2>
+    <p class="muted small">Saved in this browser, so it works without an account. <% if (!user) { %><a href="/register">Sign up</a> to keep a library across devices.<% } %></p>
+    <div class="continue-list" id="history-list"></div>
+    <div class="empty" id="history-empty" hidden>Nothing here yet. Chapters you read will show up here.</div>
+  </section>
+</main>
+<%- include('partials/footer') %>

@@ -1,0 +1,52 @@
+<%- include('partials/top', { title: 'Update & backup' }) %>
+<div class="grid-2">
+  <section class="card">
+    <h2>🔄 Site updates</h2>
+    <% if (!info.canUpdate) { %>
+      <p class="muted">One-click updates are only available when the site was installed with the install script (from GitHub).</p>
+    <% } else { %>
+      <p>Current version: <code><%= info.git.commit %></code> <span class="muted small">(<%= info.git.subject %>, <span class="local-time" data-iso="<%= info.git.date %>"><%= info.git.date.slice(0, 10) %></span>)</span></p>
+      <% if (update.running) { %>
+        <div class="alert alert-ok" id="update-running">⏳ Updating… this page refreshes by itself.</div>
+      <% } else if (info.pending === null) { %>
+        <a class="btn btn-primary btn-lg" href="<%= A('/system?check=1') %>">🔍 Check for updates</a>
+      <% } else if (info.checkError) { %>
+        <div class="alert alert-error">Couldn't check for updates: <%= info.checkError %></div>
+      <% } else if (!info.pending.length) { %>
+        <div class="alert alert-ok">✓ You're on the latest version.</div>
+        <a class="btn" href="<%= A('/system?check=1') %>">Check again</a>
+      <% } else { %>
+        <p><strong><%= info.pending.length %> update<%= info.pending.length === 1 ? '' : 's' %> available:</strong></p>
+        <ul class="changes"><% info.pending.slice(0, 15).forEach((c) => { %><li><%= c.subject %> <span class="muted small"><%= c.date.slice(0, 10) %></span></li><% }) %></ul>
+        <form method="post" action="<%= A('/system/update') %>" onsubmit="return confirm('Install the update now? The site will be unavailable for a few seconds while it restarts.')">
+          <input type="hidden" name="_csrf" value="<%= csrf %>">
+          <button class="btn btn-primary btn-lg" type="submit">⬆ Install update</button>
+        </form>
+        <p class="hint">Your novels, chapters, users and settings are kept. Only the site's code changes.</p>
+      <% } %>
+      <% if (update.log.length || update.running) { %><pre class="log" id="update-log"><%= update.log.join('\n') %></pre><% } %>
+    <% } %>
+  </section>
+  <section class="card">
+    <h2>💾 Backups</h2>
+    <p>Download a complete copy of the database: novels, chapters, users, comments and settings. Keep it somewhere safe (e.g. Google Drive).</p>
+    <a class="btn btn-primary" href="<%= A('/system/backup') %>">⬇ Download database backup</a>
+    <p class="hint">Database size: <%= info.dbSize ? u.compactNumber(info.dbSize) + 'B' : '?' %>. Cover images are stored separately and are included in the server's automatic nightly backups.</p>
+    <h2 style="margin-top:22px">ℹ Server</h2>
+    <p class="muted small">Node <%= info.node %> · up for <%= Math.floor(info.uptime / 3600) %>h <%= Math.floor(info.uptime % 3600 / 60) %>m</p>
+  </section>
+</div>
+<% if (update.running) { %>
+<script>
+  // Poll until the update finishes and the site comes back.
+  (function poll() {
+    setTimeout(function () {
+      fetch('<%= A('/system/status.json') %>', { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (s) {
+        document.getElementById('update-log').textContent = s.log.join('\n');
+        if (s.running) poll(); else location.href = '<%= A('/system?check=1') %>';
+      }).catch(function () { poll(); });
+    }, 2000);
+  })();
+</script>
+<% } %>
+<%- include('partials/bottom') %>

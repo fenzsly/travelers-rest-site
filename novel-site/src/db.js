@@ -91,6 +91,27 @@ CREATE TABLE IF NOT EXISTS settings (
 );
 `);
 
+// ---- Migrations for databases created by older versions ----
+function hasColumn(table, column) {
+  return db.prepare(`PRAGMA table_info(${table})`).all().some((c) => c.name === column);
+}
+if (!hasColumn('chapters', 'publish_at')) {
+  // NULL = released when uploaded (created_at); a timestamp = scheduled release.
+  db.exec('ALTER TABLE chapters ADD COLUMN publish_at INTEGER');
+}
+db.exec(`
+CREATE INDEX IF NOT EXISTS chapters_release ON chapters (COALESCE(publish_at, created_at) DESC);
+
+-- One row per novel per day, for the view counter / trending / stats pages.
+CREATE TABLE IF NOT EXISTS novel_views_daily (
+  novel_id INTEGER NOT NULL REFERENCES novels(id) ON DELETE CASCADE,
+  day      TEXT NOT NULL,
+  views    INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (novel_id, day)
+);
+CREATE INDEX IF NOT EXISTS novel_views_daily_day ON novel_views_daily (day);
+`);
+
 const DEFAULT_GENRES = [
   'Action', 'Adventure', 'Comedy', 'Drama', 'Fantasy', 'Harem', 'Historical', 'Horror',
   'Isekai', 'Martial Arts', 'Mecha', 'Mystery', 'Psychological', 'Reincarnation', 'Romance',

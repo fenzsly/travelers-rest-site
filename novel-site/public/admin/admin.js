@@ -1,3 +1,34 @@
+// Shared helpers: local times and date pickers that submit exact timestamps.
+(function () {
+  var fmt = { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+  document.querySelectorAll('.local-time[data-ts], .local-time[data-iso]').forEach(function (e) {
+    var d = e.dataset.ts ? new Date(Number(e.dataset.ts) * 1000) : new Date(e.dataset.iso);
+    if (!isNaN(d)) e.textContent = d.toLocaleString(undefined, fmt);
+  });
+  function toLocalInput(d) { var z = new Date(d.getTime() - d.getTimezoneOffset() * 60000); return z.toISOString().slice(0, 16); }
+  // <input type=datetime-local class=dt-local data-target=NAME> writes unix seconds into the hidden input NAME.
+  document.querySelectorAll('.dt-local').forEach(function (input) {
+    var form = input.closest('form');
+    var hidden = form.querySelector('input[type=hidden][name="' + input.dataset.target + '"]');
+    if (input.dataset.initial) input.value = toLocalInput(new Date(Number(input.dataset.initial) * 1000));
+    else if (!input.value) { var d = new Date(Date.now() + 3600000); d.setMinutes(0, 0, 0); input.value = toLocalInput(d); }
+    function sync() { var t = new Date(input.value).getTime(); hidden.value = isNaN(t) ? '' : Math.round(t / 1000); }
+    input.addEventListener('input', sync);
+    if (!input.closest('[hidden]')) sync();
+  });
+  var toggle = document.getElementById('sched-toggle');
+  if (toggle) {
+    var box = document.getElementById('sched-box');
+    var hidden = toggle.closest('form').querySelector('input[name=publish_at]');
+    var picker = box.querySelector('.dt-local');
+    toggle.addEventListener('change', function () {
+      box.hidden = !toggle.checked;
+      if (toggle.checked) { var t = new Date(picker.value).getTime(); hidden.value = isNaN(t) ? '' : Math.round(t / 1000); }
+      else hidden.value = '';
+    });
+  }
+})();
+
 // Admin panel interactions: cover preview, chapter table inline editing, batch uploader.
 (function () {
   var csrfMeta = document.querySelector('meta[name=csrf]');
@@ -257,6 +288,42 @@
   }
   $('#clear-go').addEventListener('click', function () { if (confirm('Discard this preview?')) reset(); });
 
+  // ----- Gradual release -----
+  var relRadios = $$('input[name=release]');
+  var relStart = $('#rel-start'), relEvery = $('#rel-every');
+  function toLocalInput(d) { var z = new Date(d.getTime() - d.getTimezoneOffset() * 60000); return z.toISOString().slice(0, 16); }
+  function scheduling() { return relRadios.some(function (r) { return r.checked && r.value === 'schedule'; }); }
+  function releasePlan() {
+    if (!scheduling()) return null;
+    var start = new Date(relStart.value).getTime() / 1000;
+    var every = Number(relEvery.value);
+    if (!isFinite(start) || start < Date.now() / 1000) { alert('Pick a first release time in the future.'); return false; }
+    if (!isFinite(every) || every < 0) { alert('Enter how many hours between releases.'); return false; }
+    return { start: start, every: every };
+  }
+  function releaseTime(index) {
+    var plan = releasePlan();
+    return plan ? Math.round(plan.start + index * plan.every * 3600) : null;
+  }
+  function updateRelSummary() {
+    var n = state.chapters.filter(function (c) { return c.include; }).length;
+    var plan = scheduling() && relStart.value ? { start: new Date(relStart.value).getTime() / 1000, every: Number(relEvery.value) } : null;
+    var el = $('#rel-summary');
+    if (!plan || !n || !isFinite(plan.start)) { el.textContent = ''; return; }
+    var last = new Date((plan.start + (n - 1) * plan.every * 3600) * 1000);
+    el.textContent = n + ' chapters, last one on ' + last.toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) + '.';
+  }
+  relRadios.forEach(function (r) {
+    r.addEventListener('change', function () {
+      $('#release-sched').hidden = !scheduling();
+      if (scheduling() && !relStart.value) { var d = new Date(Date.now() + 3600000); d.setMinutes(0, 0, 0); relStart.value = toLocalInput(d); }
+      updateRelSummary();
+    });
+  });
+  relStart.addEventListener('input', updateRelSummary);
+  relEvery.addEventListener('input', updateRelSummary);
+  body.addEventListener('change', updateRelSummary);
+
   // ----- Publish (sent in batches so huge uploads don't hit request limits) -----
   $('#publish-go').addEventListener('click', function () {
     var list = state.chapters.filter(function (c) { return c.include; });
@@ -266,21 +333,23 @@
     var bad = list.filter(function (c) { var s = statusFor(c, counts)[0]; return s === 'bad' || s === 'dup'; });
     if (bad.length) return alert(bad.length + ' chapter(s) have an invalid or duplicate number. Fix the red rows first.');
 
+    var sched = releasePlan();
+    if (sched === false) return;
     var btn = this;
     btn.disabled = true;
     var prog = $('#publish-progress');
     prog.hidden = false;
     var fill = $('.progress-fill', prog), label = $('span', prog);
     var BATCH = 50;
-    var total = { created: 0, updated: 0, skipped: [], invalid: [] };
+    var total = { created: 0, updated: 0, skipped: [], invalid: [], scheduled: 0 };
     var onConflict = $('#on-conflict').value;
     var i = 0;
     function next() {
       if (i >= list.length) return done();
-      var slice = list.slice(i, i + BATCH).map(function (c) { return { number: Number(c.number), title: c.title, content: c.content }; });
+      var slice = list.slice(i, i + BATCH).map(function (c, k) { return { number: Number(c.number), title: c.title, content: c.content, publish_at: releaseTime(i + k) }; });
       label.textContent = 'Publishing ' + Math.min(i + BATCH, list.length) + ' / ' + list.length + '…';
       postJSON(up.dataset.commitUrl, { chapters: slice, onConflict: onConflict }).then(function (r) {
-        total.created += r.created; total.updated += r.updated;
+        total.created += r.created; total.updated += r.updated; total.scheduled += r.scheduled || 0;
         total.skipped = total.skipped.concat(r.skipped); total.invalid = total.invalid.concat(r.invalid);
         i += BATCH;
         fill.style.width = Math.round(Math.min(i, list.length) / list.length * 100) + '%';
@@ -299,6 +368,7 @@
       if (total.updated) parts.push('<strong>' + total.updated + '</strong> replaced');
       if (total.skipped.length) parts.push(total.skipped.length + ' skipped because they already existed (' + total.skipped.slice(0, 10).map(fmtNum).join(', ') + (total.skipped.length > 10 ? '…' : '') + ')');
       if (total.invalid.length) parts.push(total.invalid.length + ' rejected (empty or invalid)');
+      if (total.scheduled) parts.push('<strong>' + total.scheduled + '</strong> scheduled for later release');
       $('#result-text').innerHTML = (parts.join(', ') || 'Nothing changed') + '.';
       var firstNum = Math.min.apply(null, list.map(function (c) { return Number(c.number); }));
       $('#result-read').href = up.dataset.readUrl + fmtNum(firstNum);

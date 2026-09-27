@@ -1,12 +1,13 @@
 <div class="novel-bar">
   <div class="novel-bar-title">
     <% if (novel.cover) { %><img src="<%= A('/uploads/covers/' + novel.cover) %>" alt=""><% } %>
-    <div><strong><%= novel.title %></strong><div class="muted small"><%= novel.chapter_count %> chapters · <%= STATUS_LABELS[novel.status] %></div></div>
+    <div><strong><%= novel.title %></strong><div class="muted small"><%= novel.chapter_count %> chapters<%= novel.scheduled_count ? ` (${novel.scheduled_count} scheduled)` : '' %> · 👁 <%= novel.views.toLocaleString('en-US') %> views · <%= STATUS_LABELS[novel.status] %></div></div>
   </div>
   <nav class="tabs">
     <a href="<%= A(`/novels/${novel.id}/upload`) %>" class="<%= tab === 'upload' ? 'on' : '' %>">⬆ Batch upload</a>
     <a href="<%= A(`/novels/${novel.id}/chapters`) %>" class="<%= tab === 'chapters' ? 'on' : '' %>">📄 Chapters</a>
     <a href="<%= A(`/novels/${novel.id}/chapters/new`) %>" class="<%= tab === 'write' ? 'on' : '' %>">✏ Write chapter</a>
+    <a href="<%= A(`/novels/${novel.id}/stats`) %>" class="<%= tab === 'stats' ? 'on' : '' %>">📈 Stats</a>
     <a href="<%= A(`/novels/${novel.id}/edit`) %>" class="<%= tab === 'edit' ? 'on' : '' %>">⚙ Details</a>
     <a href="<%= site(`/novel/${novel.slug}`) %>" target="_blank" rel="noopener">↗ View</a>
   </nav>

@@ -4,6 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title><%= u.chapterLabel(chapter) %> — <%= novel.title %> — <%= settings.site_name %></title>
+<meta name="description" content="<%= novel.title %>: <%= u.chapterLabel(chapter) %>">
+<meta property="og:site_name" content="<%= settings.site_name %>">
+<meta property="og:type" content="article">
+<meta property="og:title" content="<%= novel.title %> — <%= u.chapterLabel(chapter) %>">
+<meta property="og:description" content="<%= novel.description.slice(0, 200) %>">
+<meta property="og:url" content="<%= baseUrl %>/novel/<%= novel.slug %>/c/<%= u.formatNumber(chapter.number) %>">
+<% if (novel.cover) { %><meta property="og:image" content="<%= baseUrl %>/uploads/covers/<%= novel.cover %>"><% } %>
+<link rel="canonical" href="<%= baseUrl %>/novel/<%= novel.slug %>/c/<%= u.formatNumber(chapter.number) %>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📖</text></svg>">
 <link rel="stylesheet" href="/static/css/site.css">
 <link rel="stylesheet" href="/static/css/reader.css">
 <% if (prev) { %><link rel="prev" href="/novel/<%= novel.slug %>/c/<%= u.formatNumber(prev.number) %>"><% } %>
@@ -40,12 +49,19 @@
 <main class="reader">
   <nav class="crumbs"><a href="/">Home</a> › <a href="/novel/<%= novel.slug %>"><%= novel.title %></a> › <span>Chapter <%= u.formatNumber(chapter.number) %></span></nav>
   <%- include('partials/chapter-nav', { where: 'top' }) %>
-  <article class="chapter" id="chapter" data-slug="<%= novel.slug %>" data-num="<%= u.formatNumber(chapter.number) %>" data-novel-title="<%= novel.title %>">
+  <article class="chapter" id="chapter" data-slug="<%= novel.slug %>" data-num="<%= u.formatNumber(chapter.number) %>" data-novel-title="<%= novel.title %>" data-chapter-title="<%= chapter.title %>">
     <h1 class="chapter-title"><%= u.chapterLabel(chapter) %></h1>
-    <div class="chapter-meta muted small"><%= u.formatDate(chapter.created_at) %> · <%= chapter.word_count.toLocaleString('en-US') %> words · ~<%= Math.max(1, Math.round(chapter.word_count / 230)) %> min read · chapter <%= position %> of <%= novel.chapter_count %></div>
+    <div class="chapter-meta muted small"><%= u.formatDate(chapter.released_at) %> · 👁 <%= chapter.views.toLocaleString("en-US") %> views · <%= chapter.word_count.toLocaleString('en-US') %> words · ~<%= Math.max(1, Math.round(chapter.word_count / 230)) %> min read · chapter <%= position %> of <%= novel.chapter_count %></div>
     <div class="chapter-text" id="chapter-text"><%- chapter.content %></div>
   </article>
   <%- include('partials/chapter-nav', { where: 'bottom' }) %>
+  <% if (!next) { %>
+    <div class="end-note">
+      <% if (upcoming) { %>⏰ Chapter <%= u.formatNumber(upcoming.number) %> will be released <strong data-ts="<%= upcoming.publish_at %>"><%= u.formatDate(upcoming.publish_at) %></strong>.
+      <% } else { %>You're all caught up! <% if (novel.status === 'completed') { %>This novel is complete.<% } else { %>New chapters will appear here as they're translated.<% } %><% } %>
+      <% if (!bookmarked) { %><br><span class="muted small">Add it to your library to see when new chapters arrive.</span><% } %>
+    </div>
+  <% } %>
   <p class="muted small center">Tip: use ← → arrow keys to switch chapters.</p>
 
   <% if (settings.comments_enabled === '1') { %>

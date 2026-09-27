@@ -1,0 +1,37 @@
+<%- include('partials/top', { title: 'Stats' }) %>
+<%- include('partials/novel-tabs', { tab: 'stats' }) %>
+<div class="stats">
+  <div class="stat stat-accent"><span><%= novel.views.toLocaleString('en-US') %></span>All-time views</div>
+  <div class="stat"><span><%= extra.today.toLocaleString('en-US') %></span>Today</div>
+  <div class="stat"><span><%= novel.views_week.toLocaleString('en-US') %></span>Last 7 days</div>
+  <div class="stat"><span><%= novel.views_month.toLocaleString('en-US') %></span>Last 30 days</div>
+  <div class="stat"><span>#<%= extra.rank %></span>Rank on site</div>
+  <div class="stat"><span><%= extra.readers %></span>In libraries</div>
+  <div class="stat"><span><%= novel.rating || '—' %></span>Rating (<%= novel.rating_count %> votes)</div>
+  <div class="stat"><span><%= extra.comments %></span>Comments</div>
+</div>
+<section class="card">
+  <h2>Views per day, last 30 days</h2>
+  <%- include('partials/bars', { chart }) %>
+</section>
+<div class="grid-2">
+  <section class="card">
+    <h2>Most-read chapters</h2>
+    <% if (!topChapters.length) { %><p class="muted">No chapters yet.</p><% } %>
+    <table class="table">
+      <% topChapters.forEach((c, i) => { %>
+        <tr><td class="rank-cell"><%= i + 1 %></td><td><a href="<%= site(`/novel/${novel.slug}/c/${u.formatNumber(c.number)}`) %>" target="_blank" rel="noopener"><%= u.chapterLabel(c) %></a></td>
+          <td class="right nowrap">👁 <%= c.views.toLocaleString('en-US') %><% if (c.comment_count) { %> · 💬 <%= c.comment_count %><% } %></td></tr>
+      <% }) %>
+    </table>
+  </section>
+  <section class="card">
+    <h2>Reader retention</h2>
+    <% if (retention === null) { %><p class="muted">Not enough data yet.</p><% } else { %>
+      <div class="big-number"><%= retention %>%</div>
+      <p class="muted">of readers who opened the first chapter also reached the latest one. Views are counted once per reader per chapter, and bots are ignored.</p>
+    <% } %>
+    <p class="muted small"><%= u.compactNumber(extra.words) %> words translated across <%= novel.chapter_count %> chapters.</p>
+  </section>
+</div>
+<%- include('partials/bottom') %>

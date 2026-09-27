@@ -18,12 +18,12 @@
         ['/upload', '⬆', 'Upload chapters'],
         ['/novels/new', '➕', 'New novel'],
       ];
-      if (user.role === 'admin') nav.push(['/users', '👥', 'Users'], ['/comments', '💬', 'Comments'], ['/settings', '🛠', 'Site settings']);
+      if (user.role === 'admin') nav.push(['/users', '👥', 'Users'], ['/comments', '💬', 'Comments'], ['/settings', '🛠', 'Site settings'], ['/system', '🔄', 'Update & backup']);
       nav.push(['/account', '🔑', 'My account']);
       const current = path.replace(/\/$/, '') || '/';
       nav.forEach(([href, icon, label]) => {
         const full = A(href).replace(/\/$/, '') || '/';
-        const active = href === '/' ? current === full : (current === full || (href === '/novels' && current.startsWith(full + '/') && !current.endsWith('/new') && !current.endsWith('/upload')) || (href === '/upload' && current.endsWith('/upload'))); %>
+        const active = href === '/' ? current === full : (current === full || (href === '/novels' && current.startsWith(full + '/') && !current.endsWith('/new') && !current.endsWith('/upload')) || (href === '/upload' && current.endsWith('/upload')) || (href === '/system' && current.startsWith(full))); %>
         <a href="<%= A(href) %>" class="<%= active ? 'active' : '' %>"><span class="ico"><%= icon %></span><%= label %></a>
       <% }) %>
     </nav>

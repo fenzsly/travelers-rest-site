@@ -38,6 +38,17 @@ A web novel hosting site for fan translations. The layout is modelled on ranobes
 - Site settings in the browser: site name, tagline, announcement banner, footer, sign-ups on/off, comments on/off
 - Comment moderation
 
+**Added in v2**
+- **View counter per novel:** total, this week, this month, popularity rank and library count on every novel page. Views are counted once per reader per chapter, and bots are ignored.
+- **Trending:** "Trending this week" ranking in the sidebar, catalog sorts for trending, popular this month and all time, and a 🔥 weekly count on story cards
+- **Admin stats:** 30-day views chart on the dashboard and per novel, most-read chapters, reader retention, views today/this week
+- **Scheduled releases:** batch upload can "release gradually" (e.g. one chapter every 24 hours from a start time). You can schedule, release now or unschedule single chapters or selections. Readers see a "Coming soon" list and "next chapter releases on…".
+- **One-click updates:** Admin → Update & backup → Check for updates → Install update. It pulls the latest code from GitHub and restarts, with no terminal needed. The same page has a database backup download.
+- **Discovery:**
+  - Live search suggestions, random novel button, "You may also like", clickable tags, completed-novels shelf
+  - "Continue reading" row on the home page and a reading history page (works without an account)
+- **Sharing & SEO:** RSS feeds (site-wide and per novel), link previews for Discord/Twitter (Open Graph), sitemap.xml and robots.txt
+
 All uploaded HTML is sanitized, so scripts and event handlers are stripped. Forms are CSRF-protected.
 
 ## Run it on your computer

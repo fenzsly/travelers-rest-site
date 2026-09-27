@@ -18,10 +18,19 @@
     <span class="sep"></span>
     <button class="btn btn-sm" name="action" value="renumber" type="submit" data-no-selection data-confirm="Renumber ALL chapters of this novel as 1, 2, 3… in their current order?">Renumber all 1…N</button>
   </div>
+  <details class="bulkbar schedule-bar">
+    <summary>⏰ Schedule selected chapters</summary>
+    <label class="small">First release <input type="datetime-local" class="dt-local" data-target="start_at"></label>
+    <input type="hidden" name="start_at">
+    <label class="small">then one every <input type="number" name="every_hours" value="24" min="0" step="any" class="num-input"> hours</label>
+    <button class="btn btn-sm btn-primary" name="action" value="schedule" type="submit">Schedule</button>
+    <span class="sep"></span>
+    <button class="btn btn-sm" name="action" value="publish_now" type="submit">Release selected now</button>
+  </details>
   <div class="card flush">
     <p class="hint pad">Tip: click a number or title to edit it in place. Changes save automatically when you leave the field.</p>
     <table class="table chapter-table">
-      <thead><tr><th class="w-check"><input type="checkbox" id="check-all" title="Select all"></th><th class="w-num">#</th><th>Title</th><th class="right">Words</th><th class="right">Views</th><th class="right">💬</th><th>Published</th><th></th></tr></thead>
+      <thead><tr><th class="w-check"><input type="checkbox" id="check-all" title="Select all"></th><th class="w-num">#</th><th>Title</th><th class="right">Words</th><th class="right">Views</th><th class="right">💬</th><th>Release</th><th></th></tr></thead>
       <tbody>
       <% chapters.forEach((c) => { %>
         <tr>
@@ -31,7 +40,7 @@
           <td class="right muted"><%= c.word_count.toLocaleString('en-US') %></td>
           <td class="right muted"><%= c.views %></td>
           <td class="right muted"><%= c.comment_count || '' %></td>
-          <td class="muted small nowrap"><%= u.formatDate(c.created_at) %></td>
+          <td class="small nowrap"><% if (c.scheduled) { %><span class="tag tag-sched" title="Scheduled">⏰ <span class="local-time" data-ts="<%= c.publish_at %>"><%= u.formatDate(c.publish_at) %></span></span><% } else { %><span class="muted"><%= u.formatDate(c.publish_at || c.created_at) %></span><% } %></td>
           <td class="right nowrap">
             <a class="btn btn-sm" href="<%= A(`/novels/${novel.id}/chapters/${c.id}/edit`) %>">Edit</a>
             <a class="btn btn-sm btn-ghost" href="<%= site(`/novel/${novel.slug}/c/${u.formatNumber(c.number)}`) %>" target="_blank" rel="noopener" title="Read">↗</a>

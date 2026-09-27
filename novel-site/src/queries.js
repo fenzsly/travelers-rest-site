@@ -3,22 +3,43 @@ const { db } = require('./db');
 const { hashPassword, verifyPassword } = require('./auth');
 const { getSettings } = require('./settings');
 
-const NOVEL_COLUMNS = `
+// A chapter is public once its scheduled time (if any) has passed.
+const VISIBLE = '(c.publish_at IS NULL OR c.publish_at <= unixepoch())';
+// When a chapter was (or will be) released.
+const RELEASED = 'COALESCE(c.publish_at, c.created_at)';
+
+const COMMON_COLUMNS = `
   n.*,
-  (SELECT COUNT(*) FROM chapters c WHERE c.novel_id = n.id) AS chapter_count,
-  (SELECT MAX(c.number) FROM chapters c WHERE c.novel_id = n.id) AS latest_number,
   (SELECT ROUND(AVG(score), 1) FROM ratings r WHERE r.novel_id = n.id) AS rating,
   (SELECT COUNT(*) FROM ratings r WHERE r.novel_id = n.id) AS rating_count,
   (SELECT group_concat(g.name, ', ') FROM novel_genres ng JOIN genres g ON g.id = ng.genre_id WHERE ng.novel_id = n.id) AS genre_names,
-  (SELECT u.username FROM users u WHERE u.id = n.owner_id) AS translator
+  (SELECT u.username FROM users u WHERE u.id = n.owner_id) AS translator,
+  (SELECT COALESCE(SUM(d.views), 0) FROM novel_views_daily d WHERE d.novel_id = n.id AND d.day >= date('now', '-6 days')) AS views_week,
+  (SELECT COALESCE(SUM(d.views), 0) FROM novel_views_daily d WHERE d.novel_id = n.id AND d.day >= date('now', '-29 days')) AS views_month
+`;
+
+// Public pages: only released chapters count.
+const NOVEL_COLUMNS = `${COMMON_COLUMNS},
+  (SELECT COUNT(*) FROM chapters c WHERE c.novel_id = n.id AND ${VISIBLE}) AS chapter_count,
+  (SELECT MAX(c.number) FROM chapters c WHERE c.novel_id = n.id AND ${VISIBLE}) AS latest_number,
+  COALESCE((SELECT MAX(${RELEASED}) FROM chapters c WHERE c.novel_id = n.id AND ${VISIBLE}), n.updated_at) AS last_release
+`;
+
+// Admin panel: every chapter, plus how many are waiting for release.
+const ADMIN_NOVEL_COLUMNS = `${COMMON_COLUMNS},
+  (SELECT COUNT(*) FROM chapters c WHERE c.novel_id = n.id) AS chapter_count,
+  (SELECT MAX(c.number) FROM chapters c WHERE c.novel_id = n.id) AS latest_number,
+  (SELECT COUNT(*) FROM chapters c WHERE c.novel_id = n.id AND NOT ${VISIBLE}) AS scheduled_count,
+  (SELECT MIN(c.publish_at) FROM chapters c WHERE c.novel_id = n.id AND NOT ${VISIBLE}) AS next_release
 `;
 
 const q = {
   novelBySlug: db.prepare(`SELECT ${NOVEL_COLUMNS} FROM novels n WHERE n.slug = ?`),
-  novelById: db.prepare(`SELECT ${NOVEL_COLUMNS} FROM novels n WHERE n.id = ?`),
+  novelById: db.prepare(`SELECT ${ADMIN_NOVEL_COLUMNS} FROM novels n WHERE n.id = ?`),
   genresForNovel: db.prepare('SELECT g.* FROM genres g JOIN novel_genres ng ON ng.genre_id = g.id WHERE ng.novel_id = ? ORDER BY g.name'),
   allGenres: db.prepare(`SELECT g.*, (SELECT COUNT(*) FROM novel_genres ng WHERE ng.genre_id = g.id) AS novel_count FROM genres g ORDER BY g.name`),
   chapterByNumber: db.prepare('SELECT * FROM chapters WHERE novel_id = ? AND number = ?'),
+  visibleChapterByNumber: db.prepare(`SELECT c.*, ${RELEASED} AS released_at FROM chapters c WHERE c.novel_id = ? AND c.number = ? AND ${VISIBLE}`),
   chapterById: db.prepare('SELECT * FROM chapters WHERE id = ?'),
   chapterNumbers: db.prepare('SELECT number FROM chapters WHERE novel_id = ?'),
   maxChapterNumber: db.prepare('SELECT MAX(number) AS m FROM chapters WHERE novel_id = ?'),
@@ -27,6 +48,17 @@ const q = {
   userCount: db.prepare('SELECT COUNT(*) AS n FROM users'),
   insertUser: db.prepare('INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)'),
 };
+
+const BOT_RE = /bot|crawl|spider|slurp|preview|facebookexternalhit|embedly|discord|telegram|whatsapp|curl|wget|python|headless/i;
+
+/** Count one chapter view (skipping obvious bots) in the totals and today's daily bucket. */
+function recordView(novelId, chapterId, userAgent) {
+  if (BOT_RE.test(userAgent || '')) return;
+  db.prepare('UPDATE chapters SET views = views + 1 WHERE id = ?').run(chapterId);
+  db.prepare('UPDATE novels SET views = views + 1 WHERE id = ?').run(novelId);
+  db.prepare(`INSERT INTO novel_views_daily (novel_id, day, views) VALUES (?, date('now'), 1)
+    ON CONFLICT(novel_id, day) DO UPDATE SET views = views + 1`).run(novelId);
+}
 
 function setNovelGenres(novelId, genreIds) {
   db.prepare('DELETE FROM novel_genres WHERE novel_id = ?').run(novelId);
@@ -60,4 +92,4 @@ function register(username, password) {
   return Number(q.insertUser.run(username, hashPassword(password), role).lastInsertRowid);
 }
 
-module.exports = { NOVEL_COLUMNS, q, setNovelGenres, login, register };
+module.exports = { NOVEL_COLUMNS, ADMIN_NOVEL_COLUMNS, VISIBLE, RELEASED, q, setNovelGenres, recordView, login, register };

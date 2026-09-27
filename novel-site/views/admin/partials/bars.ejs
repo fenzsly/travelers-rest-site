@@ -1,0 +1,10 @@
+<% const max = Math.max(1, ...chart.map((d) => d.views)); const total = chart.reduce((a, d) => a + d.views, 0); %>
+<div class="bars" role="img" aria-label="Views per day for the last <%= chart.length %> days, <%= total %> in total">
+  <% chart.forEach((d, i) => { const dt = new Date(d.day + 'T00:00:00Z'); %>
+    <div class="bar" title="<%= dt.toUTCString().slice(0, 11) %>: <%= d.views.toLocaleString('en-US') %> views">
+      <span class="bar-fill" style="height: <%= Math.max(d.views ? 3 : 0, Math.round((d.views / max) * 100)) %>%"></span>
+      <% if ((chart.length - 1 - i) % 7 === 0) { %><span class="bar-label"><%= dt.getUTCDate() %>/<%= dt.getUTCMonth() + 1 %></span><% } %>
+    </div>
+  <% }) %>
+</div>
+<div class="bars-foot muted small"><span>Peak: <%= max === 1 && !chart.some((d) => d.views) ? 0 : max.toLocaleString('en-US') %>/day</span><span>Total: <%= total.toLocaleString('en-US') %> views in <%= chart.length %> days</span></div>

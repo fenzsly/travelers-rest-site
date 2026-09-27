@@ -16,6 +16,11 @@
   </section>
   <% } %>
 
+  <section class="block" id="continue-block" hidden>
+    <h2 class="block-title">Continue reading <a class="block-more" href="/history">History →</a></h2>
+    <div class="continue-list" id="continue-list"></div>
+  </section>
+
   <div class="layout">
     <div class="content">
       <section class="block">
@@ -34,12 +39,12 @@
               <div class="update-body">
                 <div class="update-head">
                   <a class="update-title" href="/novel/<%= n.slug %>"><%= n.title %></a>
-                  <span class="muted small"><%= u.timeAgo(n.updated_at) %></span>
+                  <span class="muted small"><%= u.timeAgo(n.last_release) %></span>
                 </div>
                 <div class="muted small"><%= n.genre_names || '' %></div>
                 <ul class="update-chapters">
                   <% n.recent.forEach((c) => { %>
-                    <li><a href="/novel/<%= n.slug %>/c/<%= u.formatNumber(c.number) %>"><%= u.chapterLabel(c) %></a><span class="muted small"><%= u.timeAgo(c.created_at) %></span></li>
+                    <li><a href="/novel/<%= n.slug %>/c/<%= u.formatNumber(c.number) %>"><%= u.chapterLabel(c) %></a><span class="muted small"><%= u.timeAgo(c.released_at) %></span></li>
                   <% }) %>
                 </ul>
               </div>
@@ -47,6 +52,20 @@
           <% }) %>
         </div>
       </section>
+      <% if (completed.length) { %>
+      <section class="block">
+        <h2 class="block-title">Completed novels <a class="block-more" href="/novels?status=completed&sort=popular">More →</a></h2>
+        <div class="shelf shelf-sm">
+          <% completed.forEach((n) => { %>
+            <a class="shelf-item" href="/novel/<%= n.slug %>" title="<%= n.title %>">
+              <%- include('partials/cover', { n }) %>
+              <span class="shelf-title"><%= n.title %></span>
+              <span class="shelf-meta"><%= n.chapter_count %> ch.</span>
+            </a>
+          <% }) %>
+        </div>
+      </section>
+      <% } %>
     </div>
     <%- include('partials/sidebar') %>
   </div>

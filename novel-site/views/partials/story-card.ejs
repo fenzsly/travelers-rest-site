@@ -7,14 +7,15 @@
       <span class="badge badge-<%= n.status %>"><%= u.STATUS_LABELS[n.status] %></span>
       <% if (n.rating) { %><span class="stars" title="<%= n.rating %> / 5 (<%= n.rating_count %> votes)">★ <%= n.rating %></span><% } %>
       <span>📄 <%= n.chapter_count %> ch.</span>
-      <span>👁 <%= u.compactNumber(n.views) %></span>
+      <span title="All-time views">👁 <%= u.compactNumber(n.views) %></span>
+      <% if (n.views_week) { %><span title="Views in the last 7 days">🔥 <%= u.compactNumber(n.views_week) %> this week</span><% } %>
       <% if (n.author) { %><span>✍ <%= n.author %></span><% } %>
     </div>
     <% if (n.genre_names) { %><div class="story-genres"><%= n.genre_names %></div><% } %>
     <p class="story-desc"><%= n.description.slice(0, 300) %><%= n.description.length > 300 ? '…' : '' %></p>
     <div class="story-foot">
       <% if (n.latest_number != null) { %><a href="/novel/<%= n.slug %>/c/<%= u.formatNumber(n.latest_number) %>">Latest: Chapter <%= u.formatNumber(n.latest_number) %></a><% } %>
-      <span class="muted">Updated <%= u.timeAgo(n.updated_at) %></span>
+      <span class="muted">Updated <%= u.timeAgo(n.last_release) %></span>
     </div>
   </div>
 </article>

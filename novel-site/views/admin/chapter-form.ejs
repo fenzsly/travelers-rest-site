@@ -21,6 +21,15 @@
     <textarea name="content" rows="24" class="mono" required placeholder="Paste or type the chapter here. In plain text mode, blank lines separate paragraphs."><%= chapter.content %></textarea>
     <span class="hint">Paste from Google Docs/Word works best in <em>Plain text</em>. Use <code>***</code> on its own line for a scene break.</span>
   </div>
+  <% const nowSec = Date.now() / 1000; const sched = chapter.publish_at && Number(chapter.publish_at) > nowSec ? Number(chapter.publish_at) : ''; %>
+  <div class="field schedule-field">
+    <label class="check"><input type="checkbox" id="sched-toggle" <%= sched ? 'checked' : '' %>> ⏰ Schedule this chapter for later</label>
+    <div id="sched-box" <%= sched ? '' : 'hidden' %>>
+      <input type="datetime-local" class="dt-local" data-target="publish_at" data-initial="<%= sched %>">
+      <span class="hint">Readers can't see it until this time (your local time). <%= sched ? 'Untick to release it immediately.' : '' %></span>
+    </div>
+    <input type="hidden" name="publish_at" value="<%= sched %>">
+  </div>
   <div class="form-actions">
     <button class="btn btn-primary btn-lg" type="submit">💾 <%= editing ? 'Save chapter' : 'Publish chapter' %></button>
     <% if (!editing) { %><button class="btn btn-lg" type="submit" name="and_new" value="1">Publish & write next</button><% } %>

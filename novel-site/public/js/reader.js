@@ -130,7 +130,7 @@
 
   // ---------- Remember progress (works without an account) ----------
   var progress = json('progress', {});
-  progress[slug] = { num: num, title: article.dataset.novelTitle, at: Date.now() };
+  progress[slug] = { num: num, title: article.dataset.novelTitle, chapterTitle: article.dataset.chapterTitle || '', at: Date.now() };
   ls('progress', JSON.stringify(progress));
   var read = json('read:' + slug, []);
   if (read.indexOf(num) === -1) { read.push(num); if (read.length > 5000) read.shift(); ls('read:' + slug, JSON.stringify(read)); }

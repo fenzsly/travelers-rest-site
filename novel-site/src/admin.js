@@ -8,7 +8,8 @@ const multer = require('multer');
 const { db, tx } = require('./db');
 const { baseApp, errorHandlers, UPLOAD_DIR } = require('./common');
 const { verifyCsrf, requireRole, canManageNovel, hashPassword } = require('./auth');
-const { q, NOVEL_COLUMNS, setNovelGenres, login } = require('./queries');
+const { q, ADMIN_NOVEL_COLUMNS: NOVEL_COLUMNS, VISIBLE, RELEASED, setNovelGenres, login } = require('./queries');
+const system = require('./system');
 const { getSettings, saveSettings } = require('./settings');
 const { slugify, paginate, STATUS_LABELS } = require('./util');
 const parse = require('./parse');
@@ -84,6 +85,26 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
 
   app.use((req, res, next) => (req.is('multipart/form-data') ? next() : verifyCsrf(req, res, next)));
 
+  /** A future unix timestamp for a scheduled release, or null to publish immediately. */
+  function readPublishAt(value) {
+    const t = Number(value);
+    return Number.isFinite(t) && t > Date.now() / 1000 + 30 ? Math.floor(t) : null;
+  }
+
+  /** Daily views for the last `days` days (oldest first), zero-filled. */
+  function dailyViews(days, novelIds) {
+    if (!novelIds.length) return [];
+    const rows = db.prepare(`SELECT day, SUM(views) AS views FROM novel_views_daily
+      WHERE day >= date('now', ?) AND novel_id IN (${novelIds.map(() => '?').join(',')}) GROUP BY day`).all(`-${days - 1} days`, ...novelIds);
+    const byDay = Object.fromEntries(rows.map((r) => [r.day, r.views]));
+    const out = [];
+    for (let i = days - 1; i >= 0; i--) {
+      const day = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
+      out.push({ day, views: byDay[day] || 0 });
+    }
+    return out;
+  }
+
   function novelsFor(user) {
     return user.role === 'admin'
       ? db.prepare(`SELECT ${NOVEL_COLUMNS} FROM novels n ORDER BY n.updated_at DESC`).all()
@@ -110,10 +131,19 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
     stats.users = db.prepare('SELECT COUNT(*) AS n FROM users').get().n;
     stats.comments = db.prepare('SELECT COUNT(*) AS n FROM comments').get().n;
     const recent = db.prepare(`
-      SELECT c.id, c.number, c.title, c.created_at, c.views, n.title AS novel_title, n.slug, n.id AS novel_id
-      FROM chapters c JOIN novels n ON n.id = c.novel_id ${mine}
-      ORDER BY c.created_at DESC, c.number DESC LIMIT 12`).all(...args);
-    res.render('admin/dashboard', { stats, novels: novelsFor(req.user).slice(0, 8), recent });
+      SELECT c.id, c.number, c.title, ${RELEASED} AS released_at, c.views, n.title AS novel_title, n.slug, n.id AS novel_id
+      FROM chapters c JOIN novels n ON n.id = c.novel_id ${mine ? `${mine} AND` : 'WHERE'} ${VISIBLE}
+      ORDER BY released_at DESC, c.number DESC LIMIT 10`).all(...args);
+    const scheduled = db.prepare(`
+      SELECT c.id, c.number, c.title, c.publish_at, n.title AS novel_title, n.id AS novel_id
+      FROM chapters c JOIN novels n ON n.id = c.novel_id ${mine ? `${mine} AND` : 'WHERE'} NOT ${VISIBLE}
+      ORDER BY c.publish_at ASC LIMIT 8`).all(...args);
+    const novels = novelsFor(req.user);
+    const chart = dailyViews(30, novels.map((n) => n.id));
+    stats.today = chart.at(-1)?.views || 0;
+    stats.week = chart.slice(-7).reduce((a, d) => a + d.views, 0);
+    const top = [...novels].sort((a, b) => b.views_week - a.views_week).slice(0, 5);
+    res.render('admin/dashboard', { stats, novels: novels.slice(0, 8), recent, scheduled, chart, top, update: system.status() });
   });
 
   // ---------- Novels ----------
@@ -122,6 +152,25 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
     let novels = novelsFor(req.user);
     if (search) novels = novels.filter((n) => `${n.title} ${n.alt_titles} ${n.author}`.toLowerCase().includes(search));
     res.render('admin/novels', { novels, search });
+  });
+
+  app.get('/novels/:id/stats', loadNovel, (req, res) => {
+    const novel = req.novel;
+    const chart = dailyViews(30, [novel.id]);
+    const topChapters = db.prepare(`SELECT c.id, c.number, c.title, c.views,
+        (SELECT COUNT(*) FROM comments cm WHERE cm.chapter_id = c.id) AS comment_count
+      FROM chapters c WHERE c.novel_id = ? ORDER BY c.views DESC LIMIT 15`).all(novel.id);
+    const extra = db.prepare(`SELECT
+        (SELECT COUNT(*) FROM bookmarks WHERE novel_id = ?) AS readers,
+        (SELECT COUNT(*) FROM comments cm JOIN chapters c ON c.id = cm.chapter_id WHERE c.novel_id = ?) AS comments,
+        (SELECT COALESCE(SUM(word_count), 0) FROM chapters WHERE novel_id = ?) AS words,
+        (SELECT COUNT(*) + 1 FROM novels n2 WHERE n2.views > ?) AS rank,
+        (SELECT COALESCE(SUM(views), 0) FROM novel_views_daily WHERE novel_id = ? AND day = date('now')) AS today`)
+      .get(novel.id, novel.id, novel.id, novel.views, novel.id);
+    // Rough "drop-off": how many readers reach later chapters compared to chapter 1.
+    const firstViews = db.prepare('SELECT views FROM chapters WHERE novel_id = ? ORDER BY number LIMIT 1').get(novel.id)?.views || 0;
+    const lastViews = db.prepare('SELECT views FROM chapters WHERE novel_id = ? ORDER BY number DESC LIMIT 1').get(novel.id)?.views || 0;
+    res.render('admin/stats', { novel, chart, topChapters, extra, retention: firstViews ? Math.round((lastViews / firstViews) * 100) : null });
   });
 
   function novelFormData(novel = {}) {
@@ -228,7 +277,8 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
   app.get('/novels/:id/chapters', loadNovel, (req, res) => {
     const perPage = 200;
     const pager = paginate(req.novel.chapter_count, Number(req.query.page), perPage);
-    const chapters = db.prepare(`SELECT c.id, c.number, c.title, c.word_count, c.views, c.created_at,
+    const chapters = db.prepare(`SELECT c.id, c.number, c.title, c.word_count, c.views, c.created_at, c.publish_at,
+        NOT ${VISIBLE} AS scheduled,
         (SELECT COUNT(*) FROM comments cm WHERE cm.chapter_id = c.id) AS comment_count
       FROM chapters c WHERE c.novel_id = ? ORDER BY c.number ASC LIMIT ? OFFSET ?`).all(req.novel.id, perPage, pager.offset);
     res.render('admin/chapters', { novel: req.novel, chapters, pager });
@@ -264,6 +314,21 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
         rows.forEach((r, i) => upd.run(start + i, r.id));
       });
       message = 'Renumbered all chapters in order.';
+    } else if (action === 'publish_now') {
+      const upd = db.prepare('UPDATE chapters SET publish_at = unixepoch() WHERE id = ? AND novel_id = ? AND publish_at > unixepoch()');
+      const n = tx(() => ids.reduce((acc, id) => acc + Number(upd.run(id, req.novel.id).changes), 0));
+      message = n ? `Released ${n} chapter${n === 1 ? '' : 's'} now.` : 'None of the selected chapters were scheduled.';
+    } else if (action === 'schedule') {
+      const start = readPublishAt(req.body.start_at);
+      const every = Number(req.body.every_hours);
+      if (!start) throw fail(400, 'Pick a start time in the future.');
+      if (!Number.isFinite(every) || every < 0) throw fail(400, 'Enter how many hours between releases (0 = all at once).');
+      tx(() => {
+        const rows = db.prepare(`SELECT id FROM chapters WHERE novel_id = ? AND id IN (${ids.map(() => '?').join(',') || 'NULL'}) ORDER BY number`).all(req.novel.id, ...ids);
+        const upd = db.prepare('UPDATE chapters SET publish_at = ? WHERE id = ?');
+        rows.forEach((r, i) => upd.run(Math.round(start + i * every * 3600), r.id));
+      });
+      message = `Scheduled ${ids.length} chapter${ids.length === 1 ? '' : 's'}.`;
     } else if (action === 'update') {
       const { id, title, number } = req.body;
       if (!owned(Number(id))) throw fail(404, 'Chapter not found.');
@@ -299,7 +364,7 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
     else html = raw;
     const content = parse.sanitize(html);
     if (!content) throw fail(400, 'Chapter content is empty.');
-    return { number, title: String(body.title || '').trim().slice(0, 250), content, wordCount: parse.wordCount(content) };
+    return { number, title: String(body.title || '').trim().slice(0, 250), content, wordCount: parse.wordCount(content), publishAt: readPublishAt(body.publish_at) };
   }
 
   app.get('/novels/:id/chapters/new', loadNovel, (req, res) => res.render('admin/chapter-form', chapterForm(req.novel)));
@@ -308,10 +373,10 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
     try {
       const f = readChapterForm(req.body);
       if (q.chapterByNumber.get(req.novel.id, f.number)) throw fail(400, `Chapter ${f.number} already exists.`);
-      db.prepare('INSERT INTO chapters (novel_id, number, title, content, word_count) VALUES (?, ?, ?, ?, ?)')
-        .run(req.novel.id, f.number, f.title, f.content, f.wordCount);
+      db.prepare('INSERT INTO chapters (novel_id, number, title, content, word_count, publish_at) VALUES (?, ?, ?, ?, ?, ?)')
+        .run(req.novel.id, f.number, f.title, f.content, f.wordCount, f.publishAt);
       q.touchNovel.run(req.novel.id);
-      req.flash('ok', `Chapter ${f.number} published.`);
+      req.flash('ok', f.publishAt ? `Chapter ${f.number} scheduled.` : `Chapter ${f.number} published.`);
       res.redirect(req.body.and_new ? A(`/novels/${req.novel.id}/chapters/new`) : A(`/novels/${req.novel.id}/chapters`));
     } catch (err) {
       if (!err.status) throw err;
@@ -332,8 +397,11 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
       const f = readChapterForm(req.body);
       const clash = db.prepare('SELECT id FROM chapters WHERE novel_id = ? AND number = ? AND id != ?').get(req.novel.id, f.number, chapter.id);
       if (clash) throw fail(400, `Chapter ${f.number} already exists.`);
-      db.prepare('UPDATE chapters SET number = ?, title = ?, content = ?, word_count = ? WHERE id = ?')
-        .run(f.number, f.title, f.content, f.wordCount, chapter.id);
+      // A future time keeps/sets the schedule; clearing it on a scheduled chapter releases it now.
+      const now = Math.floor(Date.now() / 1000);
+      const publishAt = f.publishAt ?? (chapter.publish_at > now ? now : chapter.publish_at);
+      db.prepare('UPDATE chapters SET number = ?, title = ?, content = ?, word_count = ?, publish_at = ? WHERE id = ?')
+        .run(f.number, f.title, f.content, f.wordCount, publishAt, chapter.id);
       req.flash('ok', 'Chapter saved.');
       res.redirect(A(`/novels/${req.novel.id}/chapters/${chapter.id}/edit`));
     } catch (err) {
@@ -385,9 +453,9 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
     const overwrite = req.body.onConflict === 'overwrite';
     if (!list.length) throw fail(400, 'Nothing to publish.');
     if (list.length > 5000) throw fail(400, 'Too many chapters in one batch (max 5000).');
-    const insert = db.prepare('INSERT INTO chapters (novel_id, number, title, content, word_count) VALUES (?, ?, ?, ?, ?)');
-    const update = db.prepare('UPDATE chapters SET title = ?, content = ?, word_count = ? WHERE id = ?');
-    const result = { created: 0, updated: 0, skipped: [], invalid: [] };
+    const insert = db.prepare('INSERT INTO chapters (novel_id, number, title, content, word_count, publish_at) VALUES (?, ?, ?, ?, ?, ?)');
+    const update = db.prepare('UPDATE chapters SET title = ?, content = ?, word_count = ?, publish_at = COALESCE(?, publish_at) WHERE id = ?');
+    const result = { created: 0, updated: 0, skipped: [], invalid: [], scheduled: 0 };
     const seen = new Set();
     tx(() => {
       for (const item of list) {
@@ -400,10 +468,12 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
         seen.add(number);
         const title = String(item.title || '').trim().slice(0, 250);
         const words = parse.wordCount(content);
+        const publishAt = readPublishAt(item.publish_at);
+        if (publishAt) result.scheduled++;
         const existing = q.chapterByNumber.get(req.novel.id, number);
         if (existing && !overwrite) result.skipped.push(number);
-        else if (existing) { update.run(title, content, words, existing.id); result.updated++; }
-        else { insert.run(req.novel.id, number, title, content, words); result.created++; }
+        else if (existing) { update.run(title, content, words, publishAt, existing.id); result.updated++; }
+        else { insert.run(req.novel.id, number, title, content, words, publishAt); result.created++; }
       }
       if (result.created || result.updated) q.touchNovel.run(req.novel.id);
     });
@@ -491,6 +561,28 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
     });
     req.flash('ok', 'Settings saved.');
     res.redirect(A('/settings'));
+  });
+
+  // ---------- System: updates & backups (admin) ----------
+  app.get('/system', adminOnly, async (req, res) => {
+    const info = await system.info(req.query.check === '1');
+    res.render('admin/system', { info, update: system.status() });
+  });
+
+  app.post('/system/update', adminOnly, (req, res) => {
+    system.startUpdate();
+    req.flash('ok', 'Update started. The site restarts by itself when it finishes (usually under a minute).');
+    res.redirect(A('/system'));
+  });
+
+  app.get('/system/status.json', adminOnly, (req, res) => res.json(system.status()));
+
+  app.get('/system/backup', adminOnly, (req, res, next) => {
+    const file = system.backupDatabase();
+    res.download(file, `site-backup-${new Date().toISOString().slice(0, 10)}.db`, (err) => {
+      fs.rm(file, { force: true }, () => {});
+      if (err && !res.headersSent) next(err);
+    });
   });
 
   errorHandlers(app, 'admin/error');

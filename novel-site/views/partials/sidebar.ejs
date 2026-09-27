@@ -1,4 +1,14 @@
 <aside class="sidebar">
+  <% if (typeof trending !== 'undefined' && trending.length) { %>
+  <section class="block">
+    <h2 class="block-title">Trending this week <a class="block-more" href="/novels?sort=trending">All →</a></h2>
+    <ol class="toplist">
+      <% trending.forEach((n, i) => { %>
+        <li><span class="rank"><%= i + 1 %></span><a href="/novel/<%= n.slug %>"><%= n.title %></a><span class="muted small" title="Views in the last 7 days">👁 <%= u.compactNumber(n.views_week) %></span></li>
+      <% }) %>
+    </ol>
+  </section>
+  <% } %>
   <% if (typeof topRated !== 'undefined' && topRated.length) { %>
   <section class="block">
     <h2 class="block-title">Top rated</h2>
@@ -18,6 +28,13 @@
           <div><a href="/novel/<%= n.slug %>"><%= n.title %></a><div class="muted small"><%= n.chapter_count %> chapters · <%= u.timeAgo(n.created_at) %></div></div></li>
       <% }) %>
     </ul>
+  </section>
+  <% } %>
+  <% if (typeof totals !== 'undefined') { %>
+  <section class="block site-stats">
+    <div><strong><%= totals.novels %></strong><span>novels</span></div>
+    <div><strong><%= u.compactNumber(totals.chapters) %></strong><span>chapters</span></div>
+    <div><strong><%= u.compactNumber(totals.views) %></strong><span>reads</span></div>
   </section>
   <% } %>
   <section class="block">

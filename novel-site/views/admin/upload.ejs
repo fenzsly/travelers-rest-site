@@ -69,6 +69,16 @@
         <tbody id="preview-body"></tbody>
       </table>
     </div>
+    <div class="release-box">
+      <strong>When should readers see these chapters?</strong>
+      <label class="radio"><input type="radio" name="release" value="now" checked> Publish all now</label>
+      <label class="radio"><input type="radio" name="release" value="schedule"> Release gradually</label>
+      <div id="release-sched" hidden>
+        <label class="small">First chapter at <input type="datetime-local" id="rel-start"></label>
+        <label class="small">then one every <input type="number" id="rel-every" value="24" min="0" step="any" class="num-input"> hours</label>
+        <span class="hint" id="rel-summary"></span>
+      </div>
+    </div>
     <div class="publish-row">
       <button type="button" class="btn btn-primary btn-lg" id="publish-go">🚀 Publish <span id="publish-count">0</span> chapters</button>
       <span class="muted small">Nothing is saved until you click publish.</span>

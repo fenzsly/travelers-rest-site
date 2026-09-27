@@ -4,12 +4,14 @@
     <nav class="mainnav">
       <a href="/" class="<%= path === '/' ? 'active' : '' %>">Home</a>
       <a href="/novels" class="<%= path === '/novels' && !query.sort ? 'active' : '' %>">Novels</a>
-      <a href="/novels?sort=popular" class="<%= query.sort === 'popular' ? 'active' : '' %>">Popular</a>
+      <a href="/novels?sort=trending" class="<%= query.sort === 'trending' ? 'active' : '' %>">Trending</a>
       <a href="/novels?sort=rating" class="<%= query.sort === 'rating' ? 'active' : '' %>">Top rated</a>
-      <% if (user) { %><a href="/library" class="<%= path === '/library' ? 'active' : '' %>">Library</a><% } %>
+      <a href="/random" title="Take me to a random novel">🎲 Random</a>
+      <% if (user) { %><a href="/library" class="<%= path === '/library' ? 'active' : '' %>">Library</a><% } else { %><a href="/history" class="<%= path === '/history' ? 'active' : '' %>">History</a><% } %>
     </nav>
     <form class="search" action="/novels" method="get" role="search">
-      <input type="search" name="q" placeholder="Search novels, authors…" value="<%= typeof search !== 'undefined' ? search : '' %>" aria-label="Search">
+      <input type="search" name="q" placeholder="Search novels, authors…" value="<%= typeof search !== 'undefined' ? search : '' %>" aria-label="Search" autocomplete="off" id="search-input">
+      <div class="suggest" id="search-suggest" hidden></div>
     </form>
     <div class="userbox">
       <button type="button" class="icon-btn" id="theme-toggle" title="Toggle night mode" aria-label="Toggle night mode">🌙</button>
@@ -19,6 +21,7 @@
           <summary><%= user.username %></summary>
           <div class="usermenu-pop">
             <a href="/library">My library</a>
+            <a href="/history">Reading history</a>
             <form method="post" action="/logout"><input type="hidden" name="_csrf" value="<%= csrf %>"><button type="submit">Log out</button></form>
           </div>
         </details>

@@ -85,7 +85,7 @@ code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monosp
 .table-scroll th { position: sticky; top: 0; z-index: 1; }
 
 /* Dashboard */
-.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin-bottom: 18px; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); gap: 14px; margin-bottom: 18px; }
 .stat { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; color: var(--muted); font-size: 13px; }
 .stat span { display: block; font-size: 26px; font-weight: 800; color: var(--text); line-height: 1.2; }
 .quick { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 18px; }
@@ -240,3 +240,28 @@ textarea { resize: vertical; }
   .tabs { margin-left: 0; }
   .bulkbar { top: 54px; }
 }
+
+/* ---------- v2 additions ---------- */
+.stat-accent { border-color: var(--primary); }
+.stat-accent span { color: var(--primary); }
+.bars { display: flex; align-items: flex-end; gap: 3px; height: 160px; padding: 0 0 20px; border-bottom: 1px solid var(--border); }
+.bar { flex: 1; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; position: relative; }
+.bar-fill { display: block; background: var(--primary); border-radius: 3px 3px 0 0; min-height: 0; opacity: .85; }
+.bar:hover .bar-fill { opacity: 1; }
+.bar-label { position: absolute; bottom: -19px; left: 50%; transform: translateX(-50%); font-size: 10.5px; color: var(--muted); white-space: nowrap; }
+.bars-foot { display: flex; justify-content: space-between; margin-top: 8px; }
+.rank-cell { width: 28px; color: var(--muted); font-weight: 700; }
+.big-number { font-size: 40px; font-weight: 800; color: var(--primary); line-height: 1.1; }
+.sched { color: #b45309; }
+.tag-sched { background: #fef3c7; color: #92400e; }
+.schedule-bar { display: block; }
+.schedule-bar summary { cursor: pointer; font-weight: 600; font-size: 13.5px; }
+.schedule-bar[open] { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.schedule-bar[open] summary { width: 100%; }
+.schedule-bar input[type=datetime-local], .schedule-field input[type=datetime-local], .release-box input[type=datetime-local] { width: auto; display: inline-block; padding: 5px 8px; }
+.release-box { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 16px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); }
+.release-box > strong { width: 100%; font-size: 14px; }
+.release-box #release-sched { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; width: 100%; }
+.release-box #release-sched[hidden] { display: none; }
+.log { background: #0f111a; color: #c9d1d9; padding: 12px; border-radius: 8px; font-size: 12.5px; max-height: 260px; overflow: auto; white-space: pre-wrap; }
+.changes { margin: 0 0 12px; padding-left: 18px; }

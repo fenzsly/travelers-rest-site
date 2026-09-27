@@ -90,3 +90,4 @@ body.reader-page { background: var(--r-page); }
   .chapter-nav form { flex: 1; display: flex; }
   .chapter-nav form .btn { width: 100%; }
 }
+.end-note { text-align: center; margin: 10px auto 18px; padding: 14px 18px; border-radius: 6px; background: var(--r-bg); color: var(--r-text); border: 1px dashed var(--border); max-width: 560px; }

@@ -59,4 +59,13 @@ function withQuery(query, overrides) {
 
 const STATUS_LABELS = { ongoing: 'Ongoing', completed: 'Completed', hiatus: 'On hiatus', dropped: 'Dropped' };
 
-module.exports = { slugify, timeAgo, formatDate, formatNumber, chapterLabel, compactNumber, paginate, withQuery, STATUS_LABELS };
+// Reader's own library lists.
+const LIST_LABELS = { reading: 'Reading', plan: 'Plan to read', completed: 'Completed', hold: 'On hold', dropped: 'Dropped' };
+const LIST_ICONS = { reading: '📖', plan: '🕒', completed: '✅', hold: '⏸', dropped: '🚫' };
+
+/** True if a unix time is within the last `hours` hours. */
+function isRecent(unixSeconds, hours = 48) {
+  return Date.now() / 1000 - unixSeconds < hours * 3600;
+}
+
+module.exports = { slugify, timeAgo, formatDate, formatNumber, chapterLabel, compactNumber, paginate, withQuery, isRecent, STATUS_LABELS, LIST_LABELS, LIST_ICONS };

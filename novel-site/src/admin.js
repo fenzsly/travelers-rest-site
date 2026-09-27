@@ -545,7 +545,15 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
     const comments = db.prepare(`SELECT cm.*, u.username, c.number, n.title AS novel_title, n.slug
       FROM comments cm JOIN users u ON u.id = cm.user_id JOIN chapters c ON c.id = cm.chapter_id JOIN novels n ON n.id = c.novel_id
       ORDER BY cm.created_at DESC LIMIT 200`).all();
-    res.render('admin/comments', { comments });
+    const reviews = db.prepare(`SELECT rv.*, u.username, n.title AS novel_title, n.slug FROM reviews rv
+      JOIN users u ON u.id = rv.user_id JOIN novels n ON n.id = rv.novel_id ORDER BY rv.updated_at DESC LIMIT 100`).all();
+    res.render('admin/comments', { comments, reviews });
+  });
+
+  app.post('/reviews/:rid/delete', adminOnly, (req, res) => {
+    db.prepare('DELETE FROM reviews WHERE id = ?').run(Number(req.params.rid));
+    req.flash('ok', 'Review deleted.');
+    res.redirect(A('/comments'));
   });
 
   app.post('/comments/:cid/delete', adminOnly, (req, res) => {

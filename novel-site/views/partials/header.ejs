@@ -1,9 +1,16 @@
 <header class="topbar">
   <div class="wrap topbar-inner">
+    <button type="button" class="icon-btn menu-toggle" id="menu-toggle" aria-label="Menu" aria-expanded="false">☰</button>
     <a class="logo" href="/"><span class="logo-mark">📖</span><%= settings.site_name %></a>
     <nav class="mainnav">
       <a href="/" class="<%= path === '/' ? 'active' : '' %>">Home</a>
-      <a href="/novels" class="<%= path === '/novels' && !query.sort ? 'active' : '' %>">Novels</a>
+      <a href="/novels" class="<%= path === '/novels' && !query.sort && !query.genre ? 'active' : '' %>">Novels</a>
+      <div class="nav-drop">
+        <button type="button" class="nav-drop-btn <%= query.genre ? 'active' : '' %>">Genres ▾</button>
+        <div class="nav-drop-menu">
+          <% navGenres.forEach((g) => { %><a href="/novels?genre=<%= g.slug %>"><%= g.name %><% if (g.novel_count) { %> <small><%= g.novel_count %></small><% } %></a><% }) %>
+        </div>
+      </div>
       <a href="/novels?sort=trending" class="<%= query.sort === 'trending' ? 'active' : '' %>">Trending</a>
       <a href="/novels?sort=rating" class="<%= query.sort === 'rating' ? 'active' : '' %>">Top rated</a>
       <a href="/random" title="Take me to a random novel">🎲 Random</a>
@@ -20,6 +27,7 @@
         <details class="usermenu">
           <summary><%= user.username %></summary>
           <div class="usermenu-pop">
+            <a href="/user/<%= encodeURIComponent(user.username) %>">My profile</a>
             <a href="/library">My library</a>
             <a href="/history">Reading history</a>
             <form method="post" action="/logout"><input type="hidden" name="_csrf" value="<%= csrf %>"><button type="submit">Log out</button></form>

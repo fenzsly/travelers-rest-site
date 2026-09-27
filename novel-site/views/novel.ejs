@@ -9,13 +9,22 @@
     <div class="novel-info">
       <h1 class="novel-title"><%= novel.title %></h1>
       <% if (novel.alt_titles) { %><div class="novel-alt"><%= novel.alt_titles.split('\n').join(' · ') %></div><% } %>
-      <div class="rating-line">
-        <span class="stars big"><% for (let i = 1; i <= 5; i++) { %><%= i <= Math.round(novel.rating || 0) ? '★' : '☆' %><% } %></span>
-        <span><strong><%= novel.rating || '—' %></strong> / 5 · <%= novel.rating_count %> vote<%= novel.rating_count === 1 ? '' : 's' %></span>
+      <div class="rating-wrap">
+        <div class="rating-line">
+          <span class="stars big"><% for (let i = 1; i <= 5; i++) { %><%= i <= Math.round(novel.rating || 0) ? '★' : '☆' %><% } %></span>
+          <span><strong><%= novel.rating || '—' %></strong> / 5 · <%= novel.rating_count %> vote<%= novel.rating_count === 1 ? '' : 's' %></span>
+        </div>
+        <% if (novel.rating_count) { %>
+        <div class="rating-dist" aria-label="Rating breakdown">
+          <% for (let s = 5; s >= 1; s--) { const n = dist[s] || 0; %>
+            <div class="rd-row"><span><%= s %>★</span><span class="rd-bar"><span style="width: <%= Math.round(n / novel.rating_count * 100) %>%"></span></span><span class="muted"><%= n %></span></div>
+          <% } %>
+        </div>
+        <% } %>
       </div>
       <table class="info-table">
         <% if (novel.author) { %><tr><th>Author</th><td><a href="/novels?q=<%= encodeURIComponent(novel.author) %>"><%= novel.author %></a></td></tr><% } %>
-        <% if (novel.translator) { %><tr><th>Translator</th><td><%= novel.translator %></td></tr><% } %>
+        <% if (novel.translator) { %><tr><th>Translator</th><td><a href="/user/<%= encodeURIComponent(novel.translator) %>"><%= novel.translator %></a></td></tr><% } %>
         <tr><th>Status</th><td><span class="badge badge-<%= novel.status %>"><%= u.STATUS_LABELS[novel.status] %></span></td></tr>
         <% if (novel.original_language) { %><tr><th>Language</th><td><%= novel.original_language %></td></tr><% } %>
         <% if (novel.year) { %><tr><th>Year</th><td><%= novel.year %></td></tr><% } %>
@@ -37,10 +46,16 @@
           <a class="btn btn-lg" href="/novel/<%= novel.slug %>/c/<%= u.formatNumber(latest.number) %>">Latest chapter</a>
         <% } %>
         <% if (user) { %>
-          <form method="post" action="/novel/<%= novel.slug %>/bookmark" class="inline">
-            <input type="hidden" name="_csrf" value="<%= csrf %>">
-            <button class="btn btn-lg <%= bookmark ? 'btn-on' : '' %>" type="submit"><%= bookmark ? '✓ In library' : '+ Add to library' %></button>
-          </form>
+          <details class="dropdown">
+            <summary class="btn btn-lg <%= bookmark ? 'btn-on' : '' %>"><%= bookmark ? `${u.LIST_ICONS[bookmark.status]} ${u.LIST_LABELS[bookmark.status]}` : '+ Add to library' %> ▾</summary>
+            <form method="post" action="/novel/<%= novel.slug %>/bookmark" class="dropdown-menu">
+              <input type="hidden" name="_csrf" value="<%= csrf %>">
+              <% Object.entries(u.LIST_LABELS).forEach(([k, v]) => { %>
+                <button type="submit" name="status" value="<%= k %>" class="<%= bookmark && bookmark.status === k ? 'on' : '' %>"><%= u.LIST_ICONS[k] %> <%= v %><% if (listCounts[k]) { %> <small><%= listCounts[k] %></small><% } %></button>
+              <% }) %>
+              <% if (bookmark) { %><button type="submit" name="status" value="remove" class="danger">✕ Remove from library</button><% } %>
+            </form>
+          </details>
         <% } else { %>
           <a class="btn btn-lg" href="/login?next=/novel/<%= novel.slug %>">+ Add to library</a>
         <% } %>
@@ -67,10 +82,36 @@
         <% if (novel.tags) { %><div class="chips tags"><% novel.tags.split(',').forEach((t) => { %><a class="chip chip-tag" href="/novels?tag=<%= encodeURIComponent(t.trim()) %>">#<%= t.trim() %></a><% }) %></div><% } %>
       </section>
 
-      <section class="block" id="chapters">
-        <h2 class="block-title">Table of contents <span class="muted small"><%= novel.chapter_count %> chapters</span>
-          <a class="block-more" href="/novel/<%= novel.slug %>?order=<%= order === 'DESC' ? 'asc' : 'desc' %>#chapters"><%= order === 'DESC' ? 'Oldest first ↑' : 'Newest first ↓' %></a>
-        </h2>
+      <section class="block tabbed" id="tabs">
+        <nav class="tabs-bar">
+          <a href="/novel/<%= novel.slug %>#tabs" class="<%= tab === 'chapters' ? 'on' : '' %>">📄 Chapters <small><%= novel.chapter_count %></small></a>
+          <a href="/novel/<%= novel.slug %>?tab=reviews#tabs" class="<%= tab === 'reviews' ? 'on' : '' %>">✍ Reviews <small><%= reviews.length %></small></a>
+          <% if (tab === 'chapters') { %><a class="tabs-extra" href="/novel/<%= novel.slug %>?order=<%= order === 'DESC' ? 'asc' : 'desc' %>#tabs"><%= order === 'DESC' ? 'Oldest first ↑' : 'Newest first ↓' %></a><% } %>
+        </nav>
+        <% if (tab === 'reviews') { %>
+          <% if (user) { %>
+            <form method="post" action="/novel/<%= novel.slug %>/review" class="review-form">
+              <input type="hidden" name="_csrf" value="<%= csrf %>">
+              <textarea name="body" rows="4" minlength="20" maxlength="8000" required placeholder="What did you think? Pacing, characters, translation quality… (please keep spoilers vague)"><%= myReview ? myReview.body : '' %></textarea>
+              <div class="review-actions"><span class="muted small"><%= myRating ? `Your rating: ${'★'.repeat(myRating)}` : 'Tip: rate the novel above so your stars show with your review.' %></span><button class="btn btn-accent" type="submit"><%= myReview ? 'Update review' : 'Post review' %></button></div>
+            </form>
+          <% } else { %><p class="muted"><a href="/login?next=<%= encodeURIComponent(`/novel/${novel.slug}?tab=reviews`) %>">Log in</a> to write a review.</p><% } %>
+          <% if (!reviews.length) { %><div class="empty">No reviews yet. Be the first!</div><% } %>
+          <% reviews.forEach((r) => { %>
+            <article class="review">
+              <div class="review-head">
+                <a class="avatar" href="/user/<%= encodeURIComponent(r.username) %>" style="--h: <%= [...r.username].reduce((a, c) => a + c.charCodeAt(0), 0) % 360 %>"><%= r.username[0].toUpperCase() %></a>
+                <div><a href="/user/<%= encodeURIComponent(r.username) %>"><strong><%= r.username %></strong></a><% if (r.role !== 'reader') { %> <span class="badge badge-role"><%= r.role %></span><% } %>
+                  <div class="muted small"><% if (r.score) { %><span class="stars"><%= '★'.repeat(r.score) %><%= '☆'.repeat(5 - r.score) %></span> · <% } %><%= u.timeAgo(r.updated_at) %></div></div>
+                <% if (user && (user.id === r.user_id || user.role === 'admin' || novel.owner_id === user.id)) { %>
+                  <form method="post" action="/review/<%= r.id %>/delete" class="inline review-del" onsubmit="return confirm('Delete this review?')"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="linklike small">delete</button></form>
+                <% } %>
+              </div>
+              <div class="review-body collapsible" id="rv<%= r.id %>"><%= r.body %></div>
+              <button class="linklike small" type="button" data-expand="rv<%= r.id %>" hidden>Show more ▾</button>
+            </article>
+          <% }) %>
+        <% } else { %>
         <% if (upcoming.length) { %>
           <div class="upcoming">
             <strong>⏰ Coming soon</strong>
@@ -83,10 +124,11 @@
         <% if (!chapters.length) { %><div class="empty">No chapters yet.</div><% } %>
         <ul class="chapter-list">
           <% chapters.forEach((c) => { %>
-            <li><a href="/novel/<%= novel.slug %>/c/<%= u.formatNumber(c.number) %>" data-num="<%= u.formatNumber(c.number) %>"><%= u.chapterLabel(c) %></a><span class="muted small"><%= u.formatDate(c.released_at) %></span></li>
+            <li><a href="/novel/<%= novel.slug %>/c/<%= u.formatNumber(c.number) %>" data-num="<%= u.formatNumber(c.number) %>"><%= u.chapterLabel(c) %></a><span class="muted small"><% if (u.isRecent(c.released_at)) { %><span class="new-badge">NEW</span> <% } %><%= u.formatDate(c.released_at) %></span></li>
           <% }) %>
         </ul>
-        <%- include('partials/pager', { pager, base: `/novel/${novel.slug}`, hash: '#chapters' }) %>
+        <%- include('partials/pager', { pager, base: `/novel/${novel.slug}`, hash: '#tabs' }) %>
+        <% } %>
       </section>
     </div>
     <aside class="sidebar">

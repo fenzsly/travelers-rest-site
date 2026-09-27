@@ -44,7 +44,7 @@
                 <div class="muted small"><%= n.genre_names || '' %></div>
                 <ul class="update-chapters">
                   <% n.recent.forEach((c) => { %>
-                    <li><a href="/novel/<%= n.slug %>/c/<%= u.formatNumber(c.number) %>"><%= u.chapterLabel(c) %></a><span class="muted small"><%= u.timeAgo(c.released_at) %></span></li>
+                    <li><a href="/novel/<%= n.slug %>/c/<%= u.formatNumber(c.number) %>"><%= u.chapterLabel(c) %></a><span class="muted small"><% if (u.isRecent(c.released_at, 24)) { %><span class="new-badge">NEW</span> <% } %><%= u.timeAgo(c.released_at) %></span></li>
                   <% }) %>
                 </ul>
               </div>

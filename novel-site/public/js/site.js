@@ -160,3 +160,26 @@
     document.addEventListener('click', function (e) { if (!e.target.closest('.search')) close(); });
   }
 })();
+
+// ---------- v3: mobile menu, genres dropdown, back to top ----------
+(function () {
+  var toggle = document.getElementById('menu-toggle');
+  var nav = document.querySelector('.mainnav');
+  if (toggle && nav) toggle.addEventListener('click', function () {
+    var open = nav.classList.toggle('open');
+    toggle.setAttribute('aria-expanded', open);
+    toggle.textContent = open ? '✕' : '☰';
+  });
+  document.querySelectorAll('.nav-drop-btn').forEach(function (b) {
+    b.addEventListener('click', function (e) { e.stopPropagation(); b.parentNode.classList.toggle('open'); });
+  });
+  document.addEventListener('click', function (e) {
+    document.querySelectorAll('.nav-drop.open').forEach(function (d) { if (!d.contains(e.target)) d.classList.remove('open'); });
+    document.querySelectorAll('details.dropdown[open], details.usermenu[open]').forEach(function (d) { if (!d.contains(e.target)) d.removeAttribute('open'); });
+  });
+  var top = document.getElementById('to-top');
+  if (top) {
+    window.addEventListener('scroll', function () { top.hidden = window.scrollY < 600; }, { passive: true });
+    top.addEventListener('click', function () { window.scrollTo({ top: 0, behavior: 'smooth' }); });
+  }
+})();

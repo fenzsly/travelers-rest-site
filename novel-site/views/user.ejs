@@ -1,0 +1,67 @@
+<%- include('partials/head', { title: profile.username }) %>
+<%- include('partials/header') %>
+<main class="wrap">
+  <section class="block profile-head">
+    <div class="avatar avatar-lg" style="--h: <%= [...profile.username].reduce((a, c) => a + c.charCodeAt(0), 0) % 360 %>"><%= profile.username[0].toUpperCase() %></div>
+    <div>
+      <h1><%= profile.username %> <% if (profile.is_owner) { %><span class="badge badge-owner">👑 Owner</span><% } else if (profile.role !== 'reader') { %><span class="badge badge-role"><%= profile.role %></span><% } %></h1>
+      <div class="muted">Joined <%= u.formatDate(profile.created_at) %></div>
+      <div class="profile-stats">
+        <% if (translated.length) { %><div><strong><%= translated.length %></strong><span>translations</span></div><% } %>
+        <div><strong><%= Object.values(lists).reduce((a, b) => a + b, 0) %></strong><span>in library</span></div>
+        <div><strong><%= lists.completed || 0 %></strong><span>completed</span></div>
+        <div><strong><%= counts.reviews %></strong><span>reviews</span></div>
+        <div><strong><%= counts.comments %></strong><span>comments</span></div>
+        <div><strong><%= counts.ratings %></strong><span>ratings</span></div>
+      </div>
+    </div>
+  </section>
+  <div class="layout">
+    <div class="content">
+      <% if (translated.length) { %>
+      <section class="block">
+        <h2 class="block-title">Translations</h2>
+        <div class="story-list"><% translated.forEach((n) => { %><%- include('partials/story-card', { n }) %><% }) %></div>
+      </section>
+      <% } %>
+      <% if (reviews.length) { %>
+      <section class="block">
+        <h2 class="block-title">Reviews</h2>
+        <% reviews.forEach((r) => { %>
+          <article class="review">
+            <div class="review-head"><div><a href="/novel/<%= r.slug %>?tab=reviews#tabs"><strong><%= r.novel_title %></strong></a>
+              <div class="muted small"><% if (r.score) { %><span class="stars"><%= '★'.repeat(r.score) %><%= '☆'.repeat(5 - r.score) %></span> · <% } %><%= u.timeAgo(r.updated_at) %></div></div></div>
+            <div class="review-body collapsible" id="rv<%= r.id %>"><%= r.body %></div>
+            <button class="linklike small" type="button" data-expand="rv<%= r.id %>" hidden>Show more ▾</button>
+          </article>
+        <% }) %>
+      </section>
+      <% } %>
+      <% if (comments.length) { %>
+      <section class="block">
+        <h2 class="block-title">Recent comments</h2>
+        <ul class="profile-comments">
+          <% comments.forEach((c) => { %>
+            <li><a href="/novel/<%= c.slug %>/c/<%= u.formatNumber(c.number) %>#comments"><%= c.novel_title %> · <%= u.chapterLabel(c) %></a> <span class="muted small"><%= u.timeAgo(c.created_at) %></span>
+              <div class="comment-body"><%= c.body.length > 280 ? c.body.slice(0, 280) + '…' : c.body %></div></li>
+          <% }) %>
+        </ul>
+      </section>
+      <% } %>
+      <% if (!translated.length && !reviews.length && !comments.length) { %><section class="block"><div class="empty">No activity yet.</div></section><% } %>
+    </div>
+    <aside class="sidebar">
+      <section class="block">
+        <h2 class="block-title">Currently reading</h2>
+        <% if (!reading.length) { %><p class="muted small">Nothing yet.</p><% } %>
+        <ul class="mini-list">
+          <% reading.forEach((n) => { %>
+            <li><a class="mini-cover" href="/novel/<%= n.slug %>"><%- include('partials/cover', { n }) %></a>
+              <div><a href="/novel/<%= n.slug %>"><%= n.title %></a><div class="muted small"><%= n.chapter_count %> chapters</div></div></li>
+          <% }) %>
+        </ul>
+      </section>
+    </aside>
+  </div>
+</main>
+<%- include('partials/footer') %>

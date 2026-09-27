@@ -49,6 +49,13 @@ A web novel hosting site for fan translations. The layout is modelled on ranobes
   - "Continue reading" row on the home page and a reading history page (works without an account)
 - **Sharing & SEO:** RSS feeds (site-wide and per novel), link previews for Discord/Twitter (Open Graph), sitemap.xml and robots.txt
 
+**Added in v3 (ranobes-style UI)**
+- Library lists: Reading / Plan to read / Completed / On hold / Dropped, with tabs, progress bars and a "move to list" menu
+- Reviews on novel pages, rating breakdown bars, Chapters/Reviews tabs, "NEW" badges on fresh chapters
+- User profile pages (translations, reviews, comments, currently reading)
+- Genres dropdown and mobile ☰ menu in the header, back-to-top button, bigger footer
+- Protected 👑 owner account: only the owner can manage admins, and nobody else can change the owner's account
+
 All uploaded HTML is sanitized, so scripts and event handlers are stripped. Forms are CSRF-protected.
 
 ## Run it on your computer

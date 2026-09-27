@@ -120,6 +120,22 @@ if (!db.prepare('SELECT 1 FROM users WHERE is_owner = 1').get()) {
   db.exec("UPDATE users SET is_owner = 1 WHERE id = (SELECT MIN(id) FROM users WHERE role = 'admin')");
 }
 
+// Library lists (ranobes-style reading statuses).
+if (!hasColumn('bookmarks', 'status')) {
+  db.exec("ALTER TABLE bookmarks ADD COLUMN status TEXT NOT NULL DEFAULT 'reading'");
+}
+db.exec(`
+CREATE TABLE IF NOT EXISTS reviews (
+  id         INTEGER PRIMARY KEY,
+  novel_id   INTEGER NOT NULL REFERENCES novels(id) ON DELETE CASCADE,
+  user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  body       TEXT NOT NULL,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+  updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
+  UNIQUE (novel_id, user_id)
+);
+`);
+
 const DEFAULT_GENRES = [
   'Action', 'Adventure', 'Comedy', 'Drama', 'Fantasy', 'Harem', 'Historical', 'Horror',
   'Isekai', 'Martial Arts', 'Mecha', 'Mystery', 'Psychological', 'Reincarnation', 'Romance',

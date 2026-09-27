@@ -2,16 +2,32 @@
 <%- include('partials/header') %>
 <main class="wrap">
   <section class="block">
-    <h2 class="block-title">My library <span class="muted small"><%= items.length %> novels</span></h2>
-    <% if (!items.length) { %><div class="empty">Your library is empty. Open any novel and click “Add to library”. Your reading progress is saved automatically.</div><% } %>
+    <h2 class="block-title">My library <span class="muted small"><%= total %> novels</span></h2>
+    <nav class="tabs-bar lib-tabs">
+      <a href="/library" class="<%= list === 'all' ? 'on' : '' %>">All <small><%= total %></small></a>
+      <% Object.entries(u.LIST_LABELS).forEach(([k, v]) => { %>
+        <a href="/library?list=<%= k %>" class="<%= list === k ? 'on' : '' %>"><%= u.LIST_ICONS[k] %> <%= v %> <small><%= counts[k] || 0 %></small></a>
+      <% }) %>
+    </nav>
+    <% if (!items.length) { %><div class="empty"><%= total ? 'Nothing in this list yet.' : 'Your library is empty. Open any novel and use “+ Add to library”. Your reading progress is saved automatically.' %></div><% } %>
     <div class="library-grid">
       <% items.forEach((n) => { const unread = n.last_number != null ? n.latest_number - n.last_number : null; %>
         <div class="lib-item">
-          <a class="lib-cover" href="/novel/<%= n.slug %>"><%- include('partials/cover', { n }) %><% if (unread > 0) { %><span class="lib-new"><%= u.formatNumber(unread) %> new</span><% } %></a>
+          <a class="lib-cover" href="/novel/<%= n.slug %>"><%- include('partials/cover', { n }) %><% if (unread > 0) { %><span class="lib-new"><%= u.formatNumber(unread) %> new</span><% } %><% if (list === 'all') { %><span class="lib-list" title="<%= u.LIST_LABELS[n.list] %>"><%= u.LIST_ICONS[n.list] %></span><% } %></a>
           <a class="lib-title" href="/novel/<%= n.slug %>"><%= n.title %></a>
-          <div class="muted small"><%= n.last_number != null ? `Read: ch. ${u.formatNumber(n.last_number)} / ${u.formatNumber(n.latest_number)}` : `${n.chapter_count} chapters · not started` %></div>
-          <% if (n.last_number != null) { %><a class="btn btn-sm btn-accent" href="/novel/<%= n.slug %>/c/<%= u.formatNumber(n.last_number) %>">Continue</a>
-          <% } else if (n.chapter_count) { %><a class="btn btn-sm" href="/novel/<%= n.slug %>">Start</a><% } %>
+          <div class="muted small"><%= n.last_number != null ? `Read: ch. ${u.formatNumber(n.last_number)} / ${u.formatNumber(n.latest_number ?? n.last_number)}` : `${n.chapter_count} chapters · not started` %></div>
+          <% if (n.last_number != null && n.latest_number != null) { %><div class="lib-progress"><span style="width: <%= Math.min(100, Math.round(n.last_number / n.latest_number * 100)) %>%"></span></div><% } %>
+          <div class="lib-actions">
+            <% if (n.last_number != null) { %><a class="btn btn-sm btn-accent" href="/novel/<%= n.slug %>/c/<%= u.formatNumber(n.last_number) %>">Continue</a>
+            <% } else if (n.chapter_count) { %><a class="btn btn-sm" href="/novel/<%= n.slug %>">Start</a><% } %>
+            <form method="post" action="/novel/<%= n.slug %>/bookmark" class="inline">
+              <input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="next" value="/library<%= list === 'all' ? '' : `?list=${list}` %>">
+              <select name="status" class="lib-move" onchange="this.form.submit()" aria-label="Move to list">
+                <% Object.entries(u.LIST_LABELS).forEach(([k, v]) => { %><option value="<%= k %>" <%= n.list === k ? 'selected' : '' %>><%= v %></option><% }) %>
+                <option value="remove">✕ Remove</option>
+              </select>
+            </form>
+          </div>
         </div>
       <% }) %>
     </div>

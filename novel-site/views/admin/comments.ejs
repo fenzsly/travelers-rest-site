@@ -1,4 +1,19 @@
-<%- include('partials/top', { title: 'Comments' }) %>
+<%- include('partials/top', { title: 'Comments & reviews' }) %>
+<% if (reviews.length) { %>
+<h2 class="section-title">Reviews</h2>
+<div class="card flush">
+  <table class="table">
+    <% reviews.forEach((r) => { %>
+      <tr>
+        <td class="nowrap"><strong><%= r.username %></strong><div class="muted small"><%= u.timeAgo(r.updated_at) %></div></td>
+        <td><div class="comment-text"><%= r.body.length > 400 ? r.body.slice(0, 400) + '…' : r.body %></div><a class="small" href="<%= site(`/novel/${r.slug}?tab=reviews#tabs`) %>" target="_blank" rel="noopener"><%= r.novel_title %></a></td>
+        <td class="right"><form method="post" action="<%= A(`/reviews/${r.id}/delete`) %>" onsubmit="return confirm('Delete this review?')"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn btn-sm btn-danger">Delete</button></form></td>
+      </tr>
+    <% }) %>
+  </table>
+</div>
+<% } %>
+<h2 class="section-title">Chapter comments</h2>
 <div class="card flush">
   <% if (!comments.length) { %><div class="empty-state"><p>No comments yet.</p></div><% } %>
   <table class="table">

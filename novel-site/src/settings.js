@@ -2,7 +2,7 @@
 const { db } = require('./db');
 
 const DEFAULTS = {
-  site_name: "Traveler's Rest",
+  site_name: 'TravellerMTL',
   site_tagline: 'Fan translations of web novels',
   announcement: '',
   footer_text: 'All translations are unofficial fan works. Original works belong to their respective authors.',

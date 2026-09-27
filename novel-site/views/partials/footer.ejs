@@ -1,8 +1,25 @@
+<button type="button" class="to-top" id="to-top" aria-label="Back to top" hidden>↑</button>
 <footer class="sitefooter">
-  <div class="wrap">
-    <div class="footer-brand"><%= settings.site_name %></div>
-    <p><%= settings.footer_text %></p>
-    <p class="muted small"><a href="/novels">All novels</a> · <a href="/novels?sort=new">New</a> · <a href="/novels?sort=popular">Popular</a></p>
+  <div class="wrap footer-grid">
+    <div>
+      <div class="footer-brand"><%= settings.site_name %></div>
+      <p><%= settings.site_tagline %></p>
+      <p class="small"><%= settings.footer_text %></p>
+    </div>
+    <div>
+      <div class="footer-head">Browse</div>
+      <a href="/novels">All novels</a><a href="/novels?sort=trending">Trending</a><a href="/novels?sort=rating">Top rated</a>
+      <a href="/novels?sort=new">New</a><a href="/novels?status=completed">Completed</a><a href="/random">Random novel</a>
+    </div>
+    <div>
+      <div class="footer-head">Genres</div>
+      <% (typeof navGenres !== 'undefined' ? navGenres : []).filter((g) => g.novel_count).slice(0, 10).forEach((g) => { %><a href="/novels?genre=<%= g.slug %>"><%= g.name %></a><% }) %>
+    </div>
+    <div>
+      <div class="footer-head">You</div>
+      <% if (user) { %><a href="/library">My library</a><a href="/user/<%= encodeURIComponent(user.username) %>">My profile</a><% } else { %><a href="/login">Log in</a><a href="/register">Sign up</a><% } %>
+      <a href="/history">Reading history</a><a href="/rss.xml">RSS feed</a>
+    </div>
   </div>
 </footer>
 <script src="/static/js/site.js" defer></script>

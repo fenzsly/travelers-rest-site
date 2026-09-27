@@ -3,7 +3,7 @@ const { db } = require('../db');
 const { q, NOVEL_COLUMNS, VISIBLE, RELEASED, recordView, login, register } = require('../queries');
 const { verifyCsrf, requireLogin } = require('../auth');
 const { getSettings } = require('../settings');
-const { paginate, chapterLabel, formatNumber, STATUS_LABELS } = require('../util');
+const { paginate, chapterLabel, formatNumber, STATUS_LABELS, LIST_LABELS } = require('../util');
 
 const router = express.Router();
 router.use(verifyCsrf);
@@ -29,6 +29,7 @@ function xmlEscape(s) {
 
 router.use((req, res, next) => {
   res.locals.baseUrl = baseUrl(req);
+  res.locals.navGenres = q.allGenres.all();
   next();
 });
 
@@ -148,6 +149,13 @@ router.get('/novel/:slug', loadNovel, (req, res) => {
     myRating = db.prepare('SELECT score FROM ratings WHERE user_id = ? AND novel_id = ?').get(req.user.id, novel.id)?.score || null;
   }
   const words = db.prepare(`SELECT COALESCE(SUM(c.word_count), 0) AS w FROM chapters c WHERE c.novel_id = ? AND ${VISIBLE}`).get(novel.id).w;
+  // Rating breakdown: how many 5★, 4★, … votes.
+  const dist = Object.fromEntries(db.prepare('SELECT score, COUNT(*) AS n FROM ratings WHERE novel_id = ? GROUP BY score').all(novel.id).map((r) => [r.score, r.n]));
+  const reviews = db.prepare(`SELECT rv.*, u.username, u.role, r.score FROM reviews rv JOIN users u ON u.id = rv.user_id
+    LEFT JOIN ratings r ON r.user_id = rv.user_id AND r.novel_id = rv.novel_id
+    WHERE rv.novel_id = ? ORDER BY rv.updated_at DESC LIMIT 100`).all(novel.id);
+  const myReview = req.user ? reviews.find((r) => r.user_id === req.user.id) || null : null;
+  const listCounts = Object.fromEntries(db.prepare('SELECT status, COUNT(*) AS n FROM bookmarks WHERE novel_id = ? GROUP BY status').all(novel.id).map((r) => [r.status, r.n]));
   const readers = db.prepare('SELECT COUNT(*) AS n FROM bookmarks WHERE novel_id = ?').get(novel.id).n;
   const rank = db.prepare(`SELECT COUNT(*) + 1 AS r FROM novels n2 WHERE n2.views > ?`).get(novel.views).r;
   const genres = q.genresForNovel.all(novel.id);
@@ -158,6 +166,7 @@ router.get('/novel/:slug', loadNovel, (req, res) => {
     LIMIT 6`).all(novel.id, novel.id, novel.id);
   res.render('novel', {
     novel, chapters, pager, order, first, latest, upcoming, upcomingCount, bookmark, myRating, words, readers, rank, genres, similar,
+    dist, reviews, myReview, listCounts, tab: req.query.tab === 'reviews' ? 'reviews' : 'chapters',
   });
 });
 
@@ -166,12 +175,16 @@ router.get('/novel/:slug/chapters.json', loadNovel, (req, res) => {
   res.set('Cache-Control', 'public, max-age=60').json(rows);
 });
 
+// Add to a library list (status), move between lists, remove, or toggle (no status given).
 router.post('/novel/:slug/bookmark', requireLogin, loadNovel, (req, res) => {
   const existing = db.prepare('SELECT 1 FROM bookmarks WHERE user_id = ? AND novel_id = ?').get(req.user.id, req.novel.id);
-  if (existing) {
+  const status = req.body.status;
+  if (status === 'remove' || (!status && existing)) {
     db.prepare('DELETE FROM bookmarks WHERE user_id = ? AND novel_id = ?').run(req.user.id, req.novel.id);
   } else {
-    db.prepare('INSERT INTO bookmarks (user_id, novel_id) VALUES (?, ?)').run(req.user.id, req.novel.id);
+    const list = LIST_LABELS[status] ? status : 'reading';
+    db.prepare(`INSERT INTO bookmarks (user_id, novel_id, status) VALUES (?, ?, ?)
+      ON CONFLICT(user_id, novel_id) DO UPDATE SET status = excluded.status, updated_at = unixepoch()`).run(req.user.id, req.novel.id, list);
   }
   res.redirect(safeNext(req.body.next) === '/' ? `/novel/${req.novel.slug}` : safeNext(req.body.next));
 });
@@ -183,6 +196,26 @@ router.post('/novel/:slug/rate', requireLogin, loadNovel, (req, res) => {
       ON CONFLICT(user_id, novel_id) DO UPDATE SET score = excluded.score`).run(req.user.id, req.novel.id, score);
   }
   res.redirect(`/novel/${req.novel.slug}`);
+});
+
+router.post('/novel/:slug/review', requireLogin, loadNovel, (req, res) => {
+  const body = String(req.body.body || '').trim().slice(0, 8000);
+  if (body.length >= 20) {
+    db.prepare(`INSERT INTO reviews (novel_id, user_id, body) VALUES (?, ?, ?)
+      ON CONFLICT(novel_id, user_id) DO UPDATE SET body = excluded.body, updated_at = unixepoch()`).run(req.novel.id, req.user.id, body);
+    req.flash('ok', 'Thanks! Your review is posted.');
+  } else {
+    req.flash('error', 'Reviews need at least 20 characters.');
+  }
+  res.redirect(`/novel/${req.novel.slug}?tab=reviews#tabs`);
+});
+
+router.post('/review/:id/delete', requireLogin, (req, res, next) => {
+  const r = db.prepare('SELECT rv.*, n.slug, n.owner_id FROM reviews rv JOIN novels n ON n.id = rv.novel_id WHERE rv.id = ?').get(Number(req.params.id));
+  if (!r) return next(notFound());
+  if (r.user_id !== req.user.id && req.user.role !== 'admin' && r.owner_id !== req.user.id) return next(Object.assign(new Error('Not allowed.'), { status: 403 }));
+  db.prepare('DELETE FROM reviews WHERE id = ?').run(r.id);
+  res.redirect(`/novel/${r.slug}?tab=reviews#tabs`);
 });
 
 // ---------- Reader ----------
@@ -239,11 +272,30 @@ router.post('/comment/:id/delete', requireLogin, (req, res, next) => {
 
 // ---------- Library & history ----------
 router.get('/library', requireLogin, (req, res) => {
+  const list = LIST_LABELS[req.query.list] ? req.query.list : 'all';
+  const counts = Object.fromEntries(db.prepare('SELECT status, COUNT(*) AS n FROM bookmarks WHERE user_id = ? GROUP BY status').all(req.user.id).map((r) => [r.status, r.n]));
   const items = db.prepare(`
-    SELECT ${NOVEL_COLUMNS}, b.updated_at AS read_at, c.number AS last_number
+    SELECT ${NOVEL_COLUMNS}, b.updated_at AS read_at, b.status AS list, c.number AS last_number
     FROM bookmarks b JOIN novels n ON n.id = b.novel_id LEFT JOIN chapters c ON c.id = b.last_chapter_id
-    WHERE b.user_id = ? ORDER BY last_release DESC`).all(req.user.id);
-  res.render('library', { items });
+    WHERE b.user_id = ? ${list === 'all' ? '' : 'AND b.status = ?'} ORDER BY last_release DESC`).all(req.user.id, ...(list === 'all' ? [] : [list]));
+  res.render('library', { items, list, counts, total: Object.values(counts).reduce((a, b) => a + b, 0) });
+});
+
+// ---------- User profiles ----------
+router.get('/user/:name', (req, res, next) => {
+  const profile = db.prepare('SELECT id, username, role, is_owner, created_at FROM users WHERE username = ? COLLATE NOCASE').get(req.params.name);
+  if (!profile) return next(notFound('User not found.'));
+  const translated = db.prepare(`SELECT ${NOVEL_COLUMNS} FROM novels n WHERE n.owner_id = ? ORDER BY last_release DESC`).all(profile.id);
+  const lists = Object.fromEntries(db.prepare('SELECT status, COUNT(*) AS n FROM bookmarks WHERE user_id = ? GROUP BY status').all(profile.id).map((r) => [r.status, r.n]));
+  const reading = db.prepare(`SELECT ${NOVEL_COLUMNS} FROM bookmarks b JOIN novels n ON n.id = b.novel_id
+    WHERE b.user_id = ? AND b.status = 'reading' ORDER BY b.updated_at DESC LIMIT 12`).all(profile.id);
+  const reviews = db.prepare(`SELECT rv.*, n.title AS novel_title, n.slug, r.score FROM reviews rv JOIN novels n ON n.id = rv.novel_id
+    LEFT JOIN ratings r ON r.user_id = rv.user_id AND r.novel_id = rv.novel_id WHERE rv.user_id = ? ORDER BY rv.updated_at DESC LIMIT 10`).all(profile.id);
+  const comments = db.prepare(`SELECT cm.body, cm.created_at, c.number, c.title, n.title AS novel_title, n.slug FROM comments cm
+    JOIN chapters c ON c.id = cm.chapter_id JOIN novels n ON n.id = c.novel_id WHERE cm.user_id = ? ORDER BY cm.created_at DESC LIMIT 10`).all(profile.id);
+  const counts = db.prepare(`SELECT (SELECT COUNT(*) FROM comments WHERE user_id = ?) AS comments,
+    (SELECT COUNT(*) FROM ratings WHERE user_id = ?) AS ratings, (SELECT COUNT(*) FROM reviews WHERE user_id = ?) AS reviews`).get(profile.id, profile.id, profile.id);
+  res.render('user', { profile, translated, lists, reading, reviews, comments, counts });
 });
 
 // Reading history is kept in the browser (works without an account); the page fills itself in.

@@ -1,0 +1,8 @@
+#cloud-config
+# Paste this whole file into the "Cloud config" box when creating a Hetzner server
+# (Ubuntu 24.04). The site installs itself on first boot, in about 5 minutes.
+#
+# Have a domain? Replace yourdomain.com below with it (e.g. mynovels.com) to get HTTPS.
+# Leave it as is to view the site first at http://<server IP>.
+runcmd:
+  - [bash, -c, "curl -fsSL https://raw.githubusercontent.com/fenzsly/travelers-rest-site/claude/beautiful-goldberg-eihic3/novel-site/deploy/install.sh | BRANCH=claude/beautiful-goldberg-eihic3 bash -s -- yourdomain.com > /var/log/novel-site-install.log 2>&1"]

@@ -52,6 +52,19 @@ npm start
 - Site: http://localhost:3000
 - Admin: http://localhost:3000/admin (the first visit creates your owner account)
 
+## Put it online on Hetzner (no command line needed)
+
+1. In the Hetzner Cloud console, click **Add Server**.
+   - **Location:** Germany (Falkenstein or Nuremberg) for worldwide readers
+   - **Image:** Ubuntu 24.04
+   - **Type:** the cheapest shared x86 plan with about 4 GB of RAM is plenty
+   - **Networking:** keep public IPv4 on
+2. Open **Cloud config** and paste the contents of [`deploy/hetzner-cloud-config.yaml`](deploy/hetzner-cloud-config.yaml). If you have a domain, replace `yourdomain.com` in it first.
+3. Click **Create & Buy now** and wait about 5 minutes.
+4. Open `http://<server IP>/admin` (or `https://yourdomain.com/admin` once your domain's A record points to the server IP) and create your owner account.
+
+The install log is at `/var/log/novel-site-install.log` on the server if anything goes wrong.
+
 ## Put it online (VPS such as Contabo, Ubuntu 22.04/24.04)
 
 1. At your domain registrar (or Cloudflare), add an **A record** for `yourdomain.com` pointing to the VPS IP address. Also add one for `www` if you want it.

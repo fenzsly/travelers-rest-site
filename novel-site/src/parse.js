@@ -61,19 +61,44 @@ function wordCount(html) {
 const HEADING_RE = /^\s*(?:chapter|chap\.?|ch\.?|episode|ep\.?|第)\s*(\d+(?:\.\d+)?)\s*(?:章|话|話)?\s*(?:[:.\-–—|]\s*)?(.*)$/i;
 const SPECIAL_RE = /^\s*(prologue|epilogue|side story|extra|interlude|afterword)\b\s*(?:[:.\-–—|]\s*)?(.*)$/i;
 
+const VOLUME_PREFIX_RE = /^\s*(?:volume|vol\.?|book|v)\s*(\d+)\s*(?:[,:.\-–—|]\s*)?(?=\S)/i;
+/**
+ * A line that only announces a volume: "Volume 2", "Vol. 3: The Northern Sea", "Book 1 The Beginning".
+ * Returns the volume number, or null. Sentences like "Volume 3 of the records was lost." don't count.
+ */
+function volumeLine(line) {
+  const m = line.match(/^\s*#*\s*(?:volume|vol\.?|book)\s*(\d+)\s*(.*)$/i);
+  if (!m) return null;
+  const rest = m[2].trim();
+  if (!rest) return Number(m[1]);
+  if (HEADING_RE.test(rest) || /^c\d/i.test(rest)) return null; // "Volume 2 Chapter 5" is a chapter heading
+  const sentence = /[.!?,;]\s|[.!?]$/;
+  const sep = rest.match(/^[:.\-–—|]\s*(.*)$/);
+  if (sep) return sep[1].length <= 60 && !sentence.test(sep[1]) ? Number(m[1]) : null;
+  return rest.length <= 40 && /^["'“‘(\[A-Z0-9\p{Lo}]/u.test(rest) && !sentence.test(rest) ? Number(m[1]) : null;
+}
+
 /**
  * Interpret a heading line like "Chapter 12 - The Gate" -> { number: 12, title: "The Gate" }.
- * Returns null if the line does not look like a chapter heading.
+ * "Volume 2 Chapter 12: …" also sets `volume`. Returns null if the line does not look like a chapter heading.
  */
 function parseHeading(line) {
-  const clean = line.replace(/^#+\s*/, '').trim();
+  let clean = line.replace(/^#+\s*/, '').trim();
   if (!clean || clean.length > 200) return null;
+  let volume = null;
+  const v = clean.match(VOLUME_PREFIX_RE);
+  if (v) {
+    const rest = clean.slice(v[0].length);
+    const vc = rest.match(/^c(\d+(?:\.\d+)?)\b\s*(?:[:.\-–—|]\s*)?(.*)$/i); // "V2C5 Title"
+    if (vc) return { number: parseFloat(vc[1]), title: vc[2].trim(), volume: Number(v[1]) };
+    if (HEADING_RE.test(rest) || SPECIAL_RE.test(rest)) { volume = Number(v[1]); clean = rest; }
+  }
   let m = clean.match(HEADING_RE);
-  if (m) return { number: parseFloat(m[1]), title: m[2].trim() };
+  if (m) return { number: parseFloat(m[1]), title: m[2].trim(), ...(volume ? { volume } : {}) };
   m = clean.match(SPECIAL_RE);
   if (m) {
     const word = m[1][0].toUpperCase() + m[1].slice(1).toLowerCase();
-    return { number: null, title: m[2].trim() ? `${word} — ${m[2].trim()}` : word };
+    return { number: null, title: m[2].trim() ? `${word} — ${m[2].trim()}` : word, ...(volume ? { volume } : {}) };
   }
   return null;
 }
@@ -125,9 +150,14 @@ async function fileToHtml(file) {
   }
 }
 
-function buildChapter({ number, title, html, source }) {
+function volumeFromPath(p) {
+  const m = String(p || '').match(/(?:^|[\/\s_-])(?:volume|vol)[\s._-]*(\d+)/i);
+  return m ? Number(m[1]) : null;
+}
+
+function buildChapter({ number, title, html, source, volume = null }) {
   const content = sanitize(html);
-  return { number, title: (title || '').slice(0, 250), content, wordCount: wordCount(content), source };
+  return { number, volume: volume || null, title: (title || '').slice(0, 250), content, wordCount: wordCount(content), source };
 }
 
 /** Each EPUB reading-order document becomes a chapter (titles from its heading or table of contents). */
@@ -138,6 +168,7 @@ function chaptersFromEpub(file) {
     return buildChapter({
       number: heading?.number ?? fromToc?.number ?? null,
       title: heading?.title || fromToc?.title || '',
+      volume: heading?.volume ?? fromToc?.volume ?? null,
       html: body,
       source: doc.name,
     });
@@ -164,7 +195,8 @@ async function parseFilesAsChapters(files) {
       const { heading, body } = extractTitleFromHtml(html);
       const number = heading?.number ?? numberFromFilename(file.originalname);
       const title = heading?.title ?? '';
-      out.push(buildChapter({ number, title, html: body, source: file.originalname }));
+      const volume = heading?.volume ?? volumeFromPath(path.dirname(file.fullpath || file.originalname));
+      out.push(buildChapter({ number, title, html: body, source: file.originalname, volume }));
     } catch (err) {
       errors.push(err.message);
     }
@@ -188,17 +220,26 @@ function splitTextIntoChapters(text, { pattern, source = 'pasted text' } = {}) {
   const lines = text.replace(/^﻿/, '').replace(/\r\n?/g, '\n').split('\n');
   const chapters = [];
   let current = null;
+  let volume = null;
   const flush = () => {
     if (current && current.lines.join('').trim()) {
       chapters.push(buildChapter({
         number: current.number,
         title: current.title,
+        volume: current.volume,
         html: textToHtml(current.lines.join('\n')),
         source,
       }));
     }
   };
   for (const line of lines) {
+    const vol = volumeLine(line);
+    if (vol !== null) {
+      flush();
+      current = null;
+      volume = vol;
+      continue;
+    }
     let heading = null;
     if (custom) {
       if (custom.test(line)) heading = parseHeading(line) || { number: null, title: line.trim() };
@@ -207,9 +248,10 @@ function splitTextIntoChapters(text, { pattern, source = 'pasted text' } = {}) {
     }
     if (heading) {
       flush();
-      current = { number: heading.number, title: heading.title, lines: [] };
+      if (heading.volume) volume = heading.volume;
+      current = { number: heading.number, title: heading.title, volume, lines: [] };
     } else {
-      if (!current) current = { number: null, title: '', lines: [] };
+      if (!current) current = { number: null, title: '', volume, lines: [] };
       current.lines.push(line);
     }
   }

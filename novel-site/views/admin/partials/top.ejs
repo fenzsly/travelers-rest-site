@@ -17,6 +17,7 @@
         ['/novels', '📚', 'Novels'],
         ['/upload', '⬆', 'Upload chapters'],
         ['/novels/new', '➕', 'New novel'],
+        ['/reports', '⚑', 'Reports'],
       ];
       if (user.role === 'admin') nav.push(['/users', '👥', 'Users'], ['/comments', '💬', 'Comments & reviews'], ['/settings', '🛠', 'Site settings'], ['/system', '🔄', 'Update & backup']);
       nav.push(['/account', '🔑', 'My account']);
@@ -24,7 +25,7 @@
       nav.forEach(([href, icon, label]) => {
         const full = A(href).replace(/\/$/, '') || '/';
         const active = href === '/' ? current === full : (current === full || (href === '/novels' && current.startsWith(full + '/') && !current.endsWith('/new') && !current.endsWith('/upload')) || (href === '/upload' && current.endsWith('/upload')) || (href === '/system' && current.startsWith(full))); %>
-        <a href="<%= A(href) %>" class="<%= active ? 'active' : '' %>"><span class="ico"><%= icon %></span><%= label %></a>
+        <a href="<%= A(href) %>" class="<%= active ? 'active' : '' %>"><span class="ico"><%= icon %></span><%= label %><% if (href === '/reports' && openReports) { %><span class="nav-badge"><%= openReports %></span><% } %></a>
       <% }) %>
     </nav>
     <div class="side-foot">

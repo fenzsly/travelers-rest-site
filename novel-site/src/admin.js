@@ -67,6 +67,16 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
   });
   const adminOnly = requireRole('admin');
 
+  // Open reader reports for the novels this person manages (shown as a badge in the sidebar).
+  function openReports(user) {
+    return db.prepare(`SELECT COUNT(*) AS n FROM reports r JOIN chapters c ON c.id = r.chapter_id JOIN novels n ON n.id = c.novel_id
+      WHERE r.status = 'open' ${user.role === 'admin' ? '' : 'AND n.owner_id = ?'}`).get(...(user.role === 'admin' ? [] : [user.id])).n;
+  }
+  app.use((req, res, next) => {
+    res.locals.openReports = openReports(req.user);
+    next();
+  });
+
   const coverUpload = multer({
     storage: multer.diskStorage({
       destination: path.join(UPLOAD_DIR, 'covers'),
@@ -80,6 +90,7 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
   });
   const chapterUpload = multer({
     storage: multer.memoryStorage(),
+    preservePath: true,
     limits: { fileSize: 100 * 1024 * 1024, files: 1000 },
   });
 
@@ -277,7 +288,8 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
   app.get('/novels/:id/chapters', loadNovel, (req, res) => {
     const perPage = 200;
     const pager = paginate(req.novel.chapter_count, Number(req.query.page), perPage);
-    const chapters = db.prepare(`SELECT c.id, c.number, c.title, c.word_count, c.views, c.created_at, c.publish_at,
+    const chapters = db.prepare(`SELECT c.id, c.number, c.volume, c.title, c.word_count, c.views, c.created_at, c.publish_at,
+        (SELECT COUNT(*) FROM reports r WHERE r.chapter_id = c.id AND r.status = 'open') AS open_reports,
         NOT ${VISIBLE} AS scheduled,
         (SELECT COUNT(*) FROM comments cm WHERE cm.chapter_id = c.id) AS comment_count
       FROM chapters c WHERE c.novel_id = ? ORDER BY c.number ASC LIMIT ? OFFSET ?`).all(req.novel.id, perPage, pager.offset);
@@ -314,6 +326,12 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
         rows.forEach((r, i) => upd.run(start + i, r.id));
       });
       message = 'Renumbered all chapters in order.';
+    } else if (action === 'set_volume') {
+      const vol = req.body.volume === '' ? null : Number(req.body.volume);
+      if (vol !== null && (!Number.isInteger(vol) || vol < 0)) throw fail(400, 'Volume must be a whole number (or empty for none).');
+      const upd = db.prepare('UPDATE chapters SET volume = ? WHERE id = ? AND novel_id = ?');
+      tx(() => ids.forEach((id) => upd.run(vol, id, req.novel.id)));
+      message = vol ? `Moved ${ids.length} chapter${ids.length === 1 ? '' : 's'} to volume ${vol}.` : `Removed the volume from ${ids.length} chapter${ids.length === 1 ? '' : 's'}.`;
     } else if (action === 'publish_now') {
       const upd = db.prepare('UPDATE chapters SET publish_at = unixepoch() WHERE id = ? AND novel_id = ? AND publish_at > unixepoch()');
       const n = tx(() => ids.reduce((acc, id) => acc + Number(upd.run(id, req.novel.id).changes), 0));
@@ -351,7 +369,8 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
 
   function chapterForm(novel, chapter, error = null) {
     const next = q.maxChapterNumber.get(novel.id).m;
-    return { novel, chapter: chapter || { number: Math.floor(next || 0) + 1, title: '', content: '' }, error };
+    const lastVol = db.prepare('SELECT volume FROM chapters WHERE novel_id = ? ORDER BY number DESC LIMIT 1').get(novel.id)?.volume ?? '';
+    return { novel, chapter: chapter || { number: Math.floor(next || 0) + 1, volume: lastVol, title: '', content: '' }, error };
   }
 
   function readChapterForm(body) {
@@ -364,7 +383,9 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
     else html = raw;
     const content = parse.sanitize(html);
     if (!content) throw fail(400, 'Chapter content is empty.');
-    return { number, title: String(body.title || '').trim().slice(0, 250), content, wordCount: parse.wordCount(content), publishAt: readPublishAt(body.publish_at) };
+    const volume = body.volume === undefined || body.volume === '' ? null : Number(body.volume);
+    if (volume !== null && (!Number.isInteger(volume) || volume < 0)) throw fail(400, 'Volume must be a whole number (or empty).');
+    return { number, volume, title: String(body.title || '').trim().slice(0, 250), content, wordCount: parse.wordCount(content), publishAt: readPublishAt(body.publish_at) };
   }
 
   app.get('/novels/:id/chapters/new', loadNovel, (req, res) => res.render('admin/chapter-form', chapterForm(req.novel)));
@@ -373,8 +394,8 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
     try {
       const f = readChapterForm(req.body);
       if (q.chapterByNumber.get(req.novel.id, f.number)) throw fail(400, `Chapter ${f.number} already exists.`);
-      db.prepare('INSERT INTO chapters (novel_id, number, title, content, word_count, publish_at) VALUES (?, ?, ?, ?, ?, ?)')
-        .run(req.novel.id, f.number, f.title, f.content, f.wordCount, f.publishAt);
+      db.prepare('INSERT INTO chapters (novel_id, number, volume, title, content, word_count, publish_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
+        .run(req.novel.id, f.number, f.volume, f.title, f.content, f.wordCount, f.publishAt);
       q.touchNovel.run(req.novel.id);
       req.flash('ok', f.publishAt ? `Chapter ${f.number} scheduled.` : `Chapter ${f.number} published.`);
       res.redirect(req.body.and_new ? A(`/novels/${req.novel.id}/chapters/new`) : A(`/novels/${req.novel.id}/chapters`));
@@ -400,8 +421,8 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
       // A future time keeps/sets the schedule; clearing it on a scheduled chapter releases it now.
       const now = Math.floor(Date.now() / 1000);
       const publishAt = f.publishAt ?? (chapter.publish_at > now ? now : chapter.publish_at);
-      db.prepare('UPDATE chapters SET number = ?, title = ?, content = ?, word_count = ?, publish_at = ? WHERE id = ?')
-        .run(f.number, f.title, f.content, f.wordCount, publishAt, chapter.id);
+      db.prepare('UPDATE chapters SET number = ?, volume = ?, title = ?, content = ?, word_count = ?, publish_at = ? WHERE id = ?')
+        .run(f.number, f.volume, f.title, f.content, f.wordCount, publishAt, chapter.id);
       req.flash('ok', 'Chapter saved.');
       res.redirect(A(`/novels/${req.novel.id}/chapters/${chapter.id}/edit`));
     } catch (err) {
@@ -453,8 +474,8 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
     const overwrite = req.body.onConflict === 'overwrite';
     if (!list.length) throw fail(400, 'Nothing to publish.');
     if (list.length > 5000) throw fail(400, 'Too many chapters in one batch (max 5000).');
-    const insert = db.prepare('INSERT INTO chapters (novel_id, number, title, content, word_count, publish_at) VALUES (?, ?, ?, ?, ?, ?)');
-    const update = db.prepare('UPDATE chapters SET title = ?, content = ?, word_count = ?, publish_at = COALESCE(?, publish_at) WHERE id = ?');
+    const insert = db.prepare('INSERT INTO chapters (novel_id, number, volume, title, content, word_count, publish_at) VALUES (?, ?, ?, ?, ?, ?, ?)');
+    const update = db.prepare('UPDATE chapters SET volume = ?, title = ?, content = ?, word_count = ?, publish_at = COALESCE(?, publish_at) WHERE id = ?');
     const result = { created: 0, updated: 0, skipped: [], invalid: [], scheduled: 0 };
     const seen = new Set();
     tx(() => {
@@ -469,15 +490,35 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
         const title = String(item.title || '').trim().slice(0, 250);
         const words = parse.wordCount(content);
         const publishAt = readPublishAt(item.publish_at);
+        const volume = Number.isInteger(Number(item.volume)) && Number(item.volume) > 0 && item.volume !== '' && item.volume !== null ? Number(item.volume) : null;
         if (publishAt) result.scheduled++;
         const existing = q.chapterByNumber.get(req.novel.id, number);
         if (existing && !overwrite) result.skipped.push(number);
-        else if (existing) { update.run(title, content, words, publishAt, existing.id); result.updated++; }
-        else { insert.run(req.novel.id, number, title, content, words, publishAt); result.created++; }
+        else if (existing) { update.run(volume, title, content, words, publishAt, existing.id); result.updated++; }
+        else { insert.run(req.novel.id, number, volume, title, content, words, publishAt); result.created++; }
       }
       if (result.created || result.updated) q.touchNovel.run(req.novel.id);
     });
     res.json(result);
+  });
+
+  // ---------- Reader reports ----------
+  app.get('/reports', (req, res) => {
+    const show = req.query.show === 'resolved' ? 'resolved' : 'open';
+    const mine = req.user.role === 'admin' ? '' : 'AND n.owner_id = ?';
+    const reports = db.prepare(`SELECT r.*, u.username, c.id AS chapter_id, c.number, c.volume, c.title, n.id AS novel_id, n.title AS novel_title, n.slug
+      FROM reports r JOIN chapters c ON c.id = r.chapter_id JOIN novels n ON n.id = c.novel_id LEFT JOIN users u ON u.id = r.user_id
+      WHERE r.status = ? ${mine} ORDER BY r.created_at DESC LIMIT 300`).all(show, ...(mine ? [req.user.id] : []));
+    res.render('admin/reports', { reports, show });
+  });
+
+  app.post('/reports/:rid', (req, res) => {
+    const r = db.prepare('SELECT r.id, n.owner_id FROM reports r JOIN chapters c ON c.id = r.chapter_id JOIN novels n ON n.id = c.novel_id WHERE r.id = ?').get(Number(req.params.rid));
+    if (!r) throw fail(404, 'Report not found.');
+    if (req.user.role !== 'admin' && r.owner_id !== req.user.id) throw fail(403, 'You can only handle reports for your own novels.');
+    if (req.body.action === 'delete') db.prepare('DELETE FROM reports WHERE id = ?').run(r.id);
+    else db.prepare('UPDATE reports SET status = ? WHERE id = ?').run(req.body.action === 'reopen' ? 'open' : 'resolved', r.id);
+    res.redirect(req.get('referer')?.includes('/reports') ? req.get('referer') : A('/reports'));
   });
 
   // ---------- Users (admin) ----------
@@ -581,12 +622,18 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
   // ---------- System: updates & backups (admin) ----------
   app.get('/system', adminOnly, async (req, res) => {
     const info = await system.info(req.query.check === '1');
-    res.render('admin/system', { info, update: system.status() });
+    res.render('admin/system', { info, update: system.status(), last: system.lastUpdate() });
   });
 
   app.post('/system/update', adminOnly, (req, res) => {
     system.startUpdate();
     req.flash('ok', 'Update started. The site restarts by itself when it finishes (usually under a minute).');
+    res.redirect(A('/system'));
+  });
+
+  app.post('/system/undo', adminOnly, (req, res) => {
+    if (system.undoLastUpdate()) req.flash('ok', 'Going back to the previous version. The site restarts by itself in under a minute.');
+    else req.flash('error', 'There is no update to undo.');
     res.redirect(A('/system'));
   });
 

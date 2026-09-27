@@ -56,32 +56,74 @@ function status() {
   return { running: state.running, ok: state.ok, finishedAt: state.finishedAt, log: state.log.slice(-40) };
 }
 
-function startUpdate() {
+const LAST_UPDATE_FILE = () => path.join(require('./db').DATA_DIR, 'last-update.json');
+
+/** The version the site was on before the most recent update, if an undo is possible. */
+function lastUpdate() {
+  try {
+    return JSON.parse(fs.readFileSync(LAST_UPDATE_FILE(), 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Switch the code to `target` (a commit, or null for the latest on the branch), install dependencies and restart.
+ * Before a normal update, remembers the current version and snapshots the database so it can be undone.
+ */
+function runJob(kind, target) {
   if (state.running) return;
   Object.assign(state, { running: true, ok: null, finishedAt: null, log: [] });
   const say = (line) => state.log.push(`[${new Date().toISOString().slice(11, 19)}] ${line}`);
   (async () => {
     const { branch } = await gitInfo();
-    say(`Fetching latest code for branch "${branch}"…`);
-    await run('git', ['fetch', 'origin', branch]);
-    const before = await run('git', ['rev-parse', '--short', 'HEAD']);
-    await run('git', ['reset', '--hard', `origin/${branch}`]);
-    const after = await run('git', ['rev-parse', '--short', 'HEAD']);
+    const before = await run('git', ['rev-parse', 'HEAD']);
+    if (kind === 'update') {
+      say(`Fetching latest code for branch "${branch}"…`);
+      await run('git', ['fetch', 'origin', branch]);
+      target = `origin/${branch}`;
+    } else {
+      say(`Going back to the previous version ${target.slice(0, 7)}…`);
+    }
+    const after = await run('git', ['rev-parse', target]);
     if (before === after) {
-      say('Already up to date. Nothing to do.');
+      say('Already on that version. Nothing to do.');
       Object.assign(state, { running: false, ok: true, finishedAt: Date.now() });
       return;
     }
-    say(`Updated ${before} → ${after}. Installing dependencies…`);
+    if (kind === 'update') {
+      const snapshot = path.join(require('./db').DATA_DIR, 'backups', `before-update-${before.slice(0, 7)}.db`);
+      fs.mkdirSync(path.dirname(snapshot), { recursive: true });
+      fs.rmSync(snapshot, { force: true });
+      db.exec(`VACUUM INTO '${snapshot.replace(/'/g, "''")}'`);
+      say('Saved a database snapshot.');
+    }
+    await run('git', ['reset', '--hard', after]);
+    fs.writeFileSync(LAST_UPDATE_FILE(), JSON.stringify(
+      kind === 'update' ? { from: before, to: after, at: Date.now() } : { undone: true, from: after, to: before, at: Date.now() },
+    ));
+    say(`Code is now at ${after.slice(0, 7)}. Installing dependencies…`);
     await run('npm', ['ci', '--omit=dev', '--no-audit', '--no-fund'], { env: { ...process.env, HOME: process.env.HOME || APP_DIR } });
     say('Done. Restarting the site…');
     Object.assign(state, { ok: true, finishedAt: Date.now() });
     // Give the admin page a moment to read the final status, then let systemd restart us.
     setTimeout(() => process.exit(0), 1500);
   })().catch((err) => {
-    say(`Update failed: ${(err.output || err.message).slice(0, 800)}`);
+    say(`${kind === 'update' ? 'Update' : 'Undo'} failed: ${(err.output || err.message).slice(0, 800)}`);
     Object.assign(state, { running: false, ok: false, finishedAt: Date.now() });
   });
+}
+
+function startUpdate() {
+  runJob('update');
+}
+
+/** Go back to the version from before the last update. Returns false if there is nothing to undo. */
+function undoLastUpdate() {
+  const last = lastUpdate();
+  if (!last || last.undone || !/^[0-9a-f]{40}$/.test(last.from)) return false;
+  runJob('undo', last.from);
+  return true;
 }
 
 /** Consistent snapshot of the database into a temp file (safe while the site is running). */
@@ -91,4 +133,4 @@ function backupDatabase() {
   return file;
 }
 
-module.exports = { info, status, startUpdate, backupDatabase };
+module.exports = { info, status, startUpdate, undoLastUpdate, lastUpdate, backupDatabase };

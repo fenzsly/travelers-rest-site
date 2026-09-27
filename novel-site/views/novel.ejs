@@ -123,7 +123,8 @@
         <% } %>
         <% if (!chapters.length) { %><div class="empty">No chapters yet.</div><% } %>
         <ul class="chapter-list">
-          <% chapters.forEach((c) => { %>
+          <% let lastVol = null; chapters.forEach((c) => { %>
+            <% if (c.volume && c.volume !== lastVol) { %><li class="vol-head">Volume <%= c.volume %></li><% } lastVol = c.volume; %>
             <li><a href="/novel/<%= novel.slug %>/c/<%= u.formatNumber(c.number) %>" data-num="<%= u.formatNumber(c.number) %>"><%= u.chapterLabel(c) %></a><span class="muted small"><% if (u.isRecent(c.released_at)) { %><span class="new-badge">NEW</span> <% } %><%= u.formatDate(c.released_at) %></span></li>
           <% }) %>
         </ul>

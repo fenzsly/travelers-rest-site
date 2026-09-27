@@ -56,6 +56,13 @@ A web novel hosting site for fan translations. The layout is modelled on ranobes
 - Genres dropdown and mobile ☰ menu in the header, back-to-top button, bigger footer
 - Protected 👑 owner account: only the owner can manage admins, and nobody else can change the owner's account
 
+**Added in v4**
+- **Undo last update:** every update first saves the previous version and a database snapshot, and Update & backup has a one-click "Undo last update"
+- **Report a problem:** readers flag typos, wrong names or missing text (selected text is quoted automatically). Reports land in an admin **Reports** inbox with a sidebar badge; "Fix in editor" opens the chapter with the reported text selected.
+- **🔔 New-chapter notifications** for novels on a reader's Reading / Plan to read lists
+- **Emoji reactions** under each chapter
+- **Volumes:** detected from "Volume 2 Chapter 5" / "V2C5" headings, standalone "Volume 2" lines, or folder names like `Volume 2/`. Editable in the upload preview, chapter editor and bulk "Set volume"; shown as groups in the table of contents.
+
 All uploaded HTML is sanitized, so scripts and event handlers are stripped. Forms are CSRF-protected.
 
 ## Run it on your computer

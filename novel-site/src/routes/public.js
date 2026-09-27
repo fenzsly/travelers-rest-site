@@ -3,7 +3,7 @@ const { db } = require('../db');
 const { q, NOVEL_COLUMNS, VISIBLE, RELEASED, recordView, login, register } = require('../queries');
 const { verifyCsrf, requireLogin } = require('../auth');
 const { getSettings } = require('../settings');
-const { paginate, chapterLabel, formatNumber, STATUS_LABELS, LIST_LABELS } = require('../util');
+const { paginate, chapterLabel, formatNumber, STATUS_LABELS, LIST_LABELS, REACTIONS, REPORT_KINDS } = require('../util');
 
 const router = express.Router();
 router.use(verifyCsrf);
@@ -30,8 +30,20 @@ function xmlEscape(s) {
 router.use((req, res, next) => {
   res.locals.baseUrl = baseUrl(req);
   res.locals.navGenres = q.allGenres.all();
+  res.locals.updates = req.user ? libraryUpdates(req.user.id) : [];
   next();
 });
+
+/** Novels in the reader's Reading / Plan to read lists with chapters they haven't reached yet. */
+function libraryUpdates(userId) {
+  return db.prepare(`SELECT n.slug, n.title, c.number AS last_number,
+      (SELECT MAX(c2.number) FROM chapters c2 WHERE c2.novel_id = n.id AND ${VISIBLE.replaceAll('c.', 'c2.')}) AS latest_number,
+      (SELECT MIN(c2.number) FROM chapters c2 WHERE c2.novel_id = n.id AND c2.number > COALESCE(c.number, -1) AND ${VISIBLE.replaceAll('c.', 'c2.')}) AS next_number,
+      (SELECT COUNT(*) FROM chapters c2 WHERE c2.novel_id = n.id AND c2.number > COALESCE(c.number, -1) AND ${VISIBLE.replaceAll('c.', 'c2.')}) AS unread
+    FROM bookmarks b JOIN novels n ON n.id = b.novel_id LEFT JOIN chapters c ON c.id = b.last_chapter_id
+    WHERE b.user_id = ? AND b.status IN ('reading', 'plan') AND b.last_chapter_id IS NOT NULL
+    ORDER BY n.updated_at DESC`).all(userId).filter((r) => r.unread > 0).slice(0, 20);
+}
 
 const HAS_CHAPTERS = `EXISTS (SELECT 1 FROM chapters c WHERE c.novel_id = n.id AND ${VISIBLE})`;
 
@@ -134,7 +146,7 @@ router.get('/novel/:slug', loadNovel, (req, res) => {
   const novel = req.novel;
   const order = req.query.order === 'asc' ? 'ASC' : 'DESC';
   const pager = paginate(novel.chapter_count, Number(req.query.page), CHAPTERS_PER_PAGE);
-  const chapters = db.prepare(`SELECT c.id, c.number, c.title, ${RELEASED} AS released_at, c.word_count FROM chapters c
+  const chapters = db.prepare(`SELECT c.id, c.number, c.volume, c.title, ${RELEASED} AS released_at, c.word_count FROM chapters c
     WHERE c.novel_id = ? AND ${VISIBLE} ORDER BY c.number ${order} LIMIT ? OFFSET ?`)
     .all(novel.id, CHAPTERS_PER_PAGE, pager.offset);
   const first = db.prepare(`SELECT c.number FROM chapters c WHERE c.novel_id = ? AND ${VISIBLE} ORDER BY c.number ASC LIMIT 1`).get(novel.id);
@@ -171,7 +183,7 @@ router.get('/novel/:slug', loadNovel, (req, res) => {
 });
 
 router.get('/novel/:slug/chapters.json', loadNovel, (req, res) => {
-  const rows = db.prepare(`SELECT c.number, c.title FROM chapters c WHERE c.novel_id = ? AND ${VISIBLE} ORDER BY c.number`).all(req.novel.id);
+  const rows = db.prepare(`SELECT c.number, c.volume, c.title FROM chapters c WHERE c.novel_id = ? AND ${VISIBLE} ORDER BY c.number`).all(req.novel.id);
   res.set('Cache-Control', 'public, max-age=60').json(rows);
 });
 
@@ -248,7 +260,9 @@ router.get('/novel/:slug/c/:num', loadNovel, (req, res, next) => {
     ? db.prepare(`SELECT cm.*, u.username, u.role FROM comments cm JOIN users u ON u.id = cm.user_id
         WHERE cm.chapter_id = ? ORDER BY cm.created_at ASC`).all(chapter.id)
     : [];
-  res.render('reader', { novel, chapter, prev, next: next_, upcoming, position, bookmarked, comments });
+  const reactionCounts = Object.fromEntries(db.prepare('SELECT emoji, COUNT(*) AS n FROM reactions WHERE chapter_id = ? GROUP BY emoji').all(chapter.id).map((r) => [r.emoji, r.n]));
+  const myReaction = req.user ? db.prepare('SELECT emoji FROM reactions WHERE chapter_id = ? AND user_id = ?').get(chapter.id, req.user.id)?.emoji || null : null;
+  res.render('reader', { novel, chapter, prev, next: next_, upcoming, position, bookmarked, comments, reactionCounts, myReaction });
 });
 
 router.post('/novel/:slug/c/:num/comment', requireLogin, loadNovel, (req, res, next) => {
@@ -258,6 +272,44 @@ router.post('/novel/:slug/c/:num/comment', requireLogin, loadNovel, (req, res, n
   const body = String(req.body.body || '').trim().slice(0, 4000);
   if (body) db.prepare('INSERT INTO comments (chapter_id, user_id, body) VALUES (?, ?, ?)').run(chapter.id, req.user.id, body);
   res.redirect(`/novel/${req.novel.slug}/c/${req.params.num}#comments`);
+});
+
+// React to a chapter (click the same emoji again to take it back). Answers JSON for the reader page.
+router.post('/novel/:slug/c/:num/react', requireLogin, loadNovel, (req, res, next) => {
+  const chapter = q.visibleChapterByNumber.get(req.novel.id, Number(req.params.num));
+  if (!chapter) return next(notFound('Chapter not found.'));
+  const emoji = REACTIONS[req.body.emoji] ? req.body.emoji : null;
+  const current = db.prepare('SELECT emoji FROM reactions WHERE chapter_id = ? AND user_id = ?').get(chapter.id, req.user.id)?.emoji;
+  if (!emoji || current === emoji) {
+    db.prepare('DELETE FROM reactions WHERE chapter_id = ? AND user_id = ?').run(chapter.id, req.user.id);
+  } else {
+    db.prepare(`INSERT INTO reactions (chapter_id, user_id, emoji) VALUES (?, ?, ?)
+      ON CONFLICT(chapter_id, user_id) DO UPDATE SET emoji = excluded.emoji, created_at = unixepoch()`).run(chapter.id, req.user.id, emoji);
+  }
+  const counts = Object.fromEntries(db.prepare('SELECT emoji, COUNT(*) AS n FROM reactions WHERE chapter_id = ? GROUP BY emoji').all(chapter.id).map((r) => [r.emoji, r.n]));
+  const mine = !emoji || current === emoji ? null : emoji;
+  if (req.accepts(['html', 'json']) === 'json') return res.json({ counts, mine });
+  res.redirect(`/novel/${req.novel.slug}/c/${req.params.num}#reactions`);
+});
+
+// Report a problem with a chapter. Works without an account (limited per session).
+router.post('/novel/:slug/c/:num/report', loadNovel, (req, res, next) => {
+  const chapter = q.visibleChapterByNumber.get(req.novel.id, Number(req.params.num));
+  if (!chapter) return next(notFound('Chapter not found.'));
+  const sent = Number(req.session.reports) || 0;
+  const kind = REPORT_KINDS[req.body.kind] ? req.body.kind : 'other';
+  const message = String(req.body.message || '').trim().slice(0, 2000);
+  const quote = String(req.body.quote || '').trim().slice(0, 1000);
+  let ok = false;
+  if (sent < 20 && (message || quote)) {
+    db.prepare('INSERT INTO reports (chapter_id, user_id, kind, quote, message) VALUES (?, ?, ?, ?, ?)')
+      .run(chapter.id, req.user?.id ?? null, kind, quote, message);
+    req.session.reports = sent + 1;
+    ok = true;
+  }
+  if (req.accepts(['html', 'json']) === 'json') return res.status(ok ? 200 : 400).json({ ok });
+  req.flash(ok ? 'ok' : 'error', ok ? 'Thanks! The translator has been notified.' : 'Please describe the problem.');
+  res.redirect(`/novel/${req.novel.slug}/c/${req.params.num}`);
 });
 
 router.post('/comment/:id/delete', requireLogin, (req, res, next) => {

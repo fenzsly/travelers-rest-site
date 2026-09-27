@@ -24,6 +24,19 @@
         </form>
         <p class="hint">Your novels, chapters, users and settings are kept. Only the site's code changes.</p>
       <% } %>
+      <% if (last && !update.running) { %>
+        <div class="undo-box">
+          <% if (last.undone) { %>
+            <p class="muted small">↩ The last update was undone on <span class="local-time" data-ts="<%= Math.round(last.at / 1000) %>"></span>. You're on the earlier version <code><%= last.from.slice(0, 7) %></code>. Installing updates again brings the newer version back.</p>
+          <% } else { %>
+            <p class="small">Last update installed <span class="local-time" data-ts="<%= Math.round(last.at / 1000) %>"></span> (<code><%= last.from.slice(0, 7) %></code> → <code><%= last.to.slice(0, 7) %></code>). Something wrong since then?</p>
+            <form method="post" action="<%= A('/system/undo') %>" onsubmit="return confirm('Go back to the version from before the last update? Your novels, chapters and accounts are kept.')">
+              <input type="hidden" name="_csrf" value="<%= csrf %>">
+              <button class="btn" type="submit">↩ Undo last update</button>
+            </form>
+          <% } %>
+        </div>
+      <% } %>
       <% if (update.log.length || update.running) { %><pre class="log" id="update-log"><%= update.log.join('\n') %></pre><% } %>
     <% } %>
   </section>

@@ -267,3 +267,12 @@ textarea { resize: vertical; }
 .changes { margin: 0 0 12px; padding-left: 18px; }
 .pill-owner { background: #fef3c7; color: #92400e; }
 .section-title { font-size: 15px; margin: 6px 0 10px; }
+.undo-box { margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--border); }
+
+.nav-badge { margin-left: auto; background: #e0413a; color: #fff; font-size: 11px; font-weight: 800; border-radius: 9px; padding: 0 7px; line-height: 18px; }
+.w-vol { width: 60px; }
+.vol-field { width: 90px; }
+.report-head { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: baseline; margin-bottom: 8px; }
+.report-quote { margin: 8px 0; padding: 8px 12px; border-left: 3px solid var(--primary); background: var(--bg); font-family: Georgia, serif; white-space: pre-wrap; }
+.report-msg { margin: 8px 0; white-space: pre-wrap; }
+.report-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }

@@ -16,6 +16,21 @@
     input.addEventListener('input', sync);
     if (!input.closest('[hidden]')) sync();
   });
+  // "Fix in editor" from a reader report: select the reported text in the chapter editor.
+  var find = new URLSearchParams(location.search).get('find');
+  var editor = document.querySelector('.chapter-editor textarea[name=content]');
+  if (find && editor) {
+    var at = editor.value.indexOf(find);
+    if (at === -1) at = editor.value.toLowerCase().indexOf(find.toLowerCase().slice(0, 40));
+    if (at !== -1) {
+      editor.focus();
+      editor.setSelectionRange(at, at + find.length);
+      // Scroll the textarea so the selection is visible.
+      var before = editor.value.slice(0, at).split('\n').length;
+      editor.scrollTop = Math.max(0, (before - 3) * parseFloat(getComputedStyle(editor).lineHeight || 22));
+    }
+  }
+
   var toggle = document.getElementById('sched-toggle');
   if (toggle) {
     var box = document.getElementById('sched-box');
@@ -156,7 +171,8 @@
     if (text != null) fd.append('text', text);
     var skipped = 0;
     (files || []).forEach(function (f) {
-      if (ACCEPT.test(f.name)) fd.append('files', f, f.name); else skipped++;
+      // Keep folder names (e.g. "Volume 2/ch01.txt") so volumes can be detected.
+      if (ACCEPT.test(f.name)) fd.append('files', f, f.webkitRelativePath || f.name); else skipped++;
     });
     if (files && files.length && skipped === files.length) {
       setStatus('None of those files are supported. Use .txt, .docx, .md, .html, .zip or .epub.', true);
@@ -168,7 +184,7 @@
       .then(function (data) {
         state.existing = {};
         data.existing.forEach(function (n) { state.existing[fmtNum(n)] = true; });
-        var added = data.chapters.map(function (c) { return { number: c.number, title: c.title, content: c.content, words: c.wordCount, source: c.source, include: true }; });
+        var added = data.chapters.map(function (c) { return { number: c.number, volume: c.volume || '', title: c.title, content: c.content, words: c.wordCount, source: c.source, include: true }; });
         state.chapters = state.chapters.concat(added);
         var msg = added.length ? 'Found ' + added.length + ' chapter' + (added.length === 1 ? '' : 's') + '.' : 'No chapters found. Check the file format or heading pattern.';
         if (skipped) msg += ' Skipped ' + skipped + ' unsupported file(s).';
@@ -223,6 +239,7 @@
       return '<tr data-i="' + i + '" class="' + (c.include ? '' : 'excluded') + '">' +
         '<td><input type="checkbox" class="pv-inc"' + (c.include ? ' checked' : '') + '></td>' +
         '<td><input class="pv-num num-input" value="' + escapeHtml(c.number) + '" inputmode="decimal"></td>' +
+        '<td><input class="pv-vol num-input" value="' + escapeHtml(c.volume) + '" inputmode="numeric" placeholder="—"></td>' +
         '<td><input class="pv-title" value="' + escapeHtml(c.title) + '" placeholder="(no title)"></td>' +
         '<td class="right muted">' + Number(c.words).toLocaleString('en-US') + '</td>' +
         '<td class="src" title="' + escapeHtml(c.source) + '">' + escapeHtml(c.source) + '</td>' +
@@ -247,6 +264,7 @@
     if (e.target.classList.contains('pv-inc')) c.include = e.target.checked;
     if (e.target.classList.contains('pv-num')) c.number = e.target.value;
     if (e.target.classList.contains('pv-title')) c.title = e.target.value;
+    if (e.target.classList.contains('pv-vol')) c.volume = e.target.value.trim();
     render();
   });
   body.addEventListener('click', function (e) {
@@ -255,7 +273,7 @@
     var c = state.chapters[tr.dataset.i];
     if (e.target.classList.contains('pv-del')) { state.chapters.splice(Number(tr.dataset.i), 1); render(); }
     if (e.target.classList.contains('pv-view')) {
-      $('#dlg-title').textContent = 'Chapter ' + c.number + (c.title ? ': ' + c.title : '');
+      $('#dlg-title').textContent = (c.volume ? 'Vol. ' + c.volume + ' · ' : '') + 'Chapter ' + c.number + (c.title ? ': ' + c.title : '');
       // Content was sanitized on the server during parsing.
       $('#dlg-body').innerHTML = c.content;
       $('#preview-dialog').showModal();
@@ -346,7 +364,7 @@
     var i = 0;
     function next() {
       if (i >= list.length) return done();
-      var slice = list.slice(i, i + BATCH).map(function (c, k) { return { number: Number(c.number), title: c.title, content: c.content, publish_at: releaseTime(i + k) }; });
+      var slice = list.slice(i, i + BATCH).map(function (c, k) { return { number: Number(c.number), volume: c.volume === '' ? null : Number(c.volume), title: c.title, content: c.content, publish_at: releaseTime(i + k) }; });
       label.textContent = 'Publishing ' + Math.min(i + BATCH, list.length) + ' / ' + list.length + '…';
       postJSON(up.dataset.commitUrl, { chapters: slice, onConflict: onConflict }).then(function (r) {
         total.created += r.created; total.updated += r.updated; total.scheduled += r.scheduled || 0;

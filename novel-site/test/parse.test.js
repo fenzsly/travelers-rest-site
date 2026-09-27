@@ -49,3 +49,17 @@ test('word count handles CJK', () => {
   assert.strictEqual(p.wordCount('<p>hello world</p>'), 2);
   assert.strictEqual(p.wordCount('<p>你好世界</p>'), 4);
 });
+
+test('volumes: headings, standalone volume lines and folder names', async () => {
+  assert.deepStrictEqual(p.parseHeading('Volume 2 Chapter 5: The Gate'), { number: 5, title: 'The Gate', volume: 2 });
+  assert.deepStrictEqual(p.parseHeading('V3C7 Sparks'), { number: 7, title: 'Sparks', volume: 3 });
+  assert.strictEqual(p.parseHeading('Volume 2'), null);
+  const chs = p.splitTextIntoChapters('Volume 1\n\nChapter 1: A\n\nx\n\nVolume 2: The Sea\n\nChapter 2: B\n\ny');
+  assert.deepStrictEqual(chs.map((c) => [c.volume, c.number, c.title]), [[1, 1, 'A'], [2, 2, 'B']]);
+  const { chapters } = await p.parseFilesAsChapters([file('Volume 4/ch9.txt', 'Chapter 9: Nine\n\nText.')]);
+  assert.strictEqual(chapters[0].volume, 4);
+  // A sentence that merely starts with "Volume" is not a volume marker.
+  const prose = p.splitTextIntoChapters('Chapter 1: A\n\nVolume 3 of the old records was missing, so they searched the library all night long.');
+  assert.strictEqual(prose.length, 1);
+  assert.match(prose[0].content, /Volume 3 of the old records/);
+});

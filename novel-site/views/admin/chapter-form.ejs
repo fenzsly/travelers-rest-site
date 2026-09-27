@@ -6,6 +6,7 @@
   <input type="hidden" name="_csrf" value="<%= csrf %>">
   <div class="row-num-title">
     <label class="field">Chapter #<input name="number" value="<%= chapter.number %>" required inputmode="decimal"></label>
+    <label class="field vol-field">Volume<input name="volume" value="<%= chapter.volume ?? '' %>" inputmode="numeric" placeholder="—"></label>
     <label class="field grow">Title<input name="title" value="<%= chapter.title %>" placeholder="Optional, e.g. The Lantern Market"></label>
   </div>
   <div class="field">

@@ -1,0 +1,27 @@
+<%- include('partials/top', { title: 'Reader reports' }) %>
+<nav class="tabs" style="margin: 0 0 16px; display: inline-flex">
+  <a href="<%= A('/reports') %>" class="<%= show === 'open' ? 'on' : '' %>">Open<%= show === 'open' ? ` (${reports.length})` : '' %></a>
+  <a href="<%= A('/reports?show=resolved') %>" class="<%= show === 'resolved' ? 'on' : '' %>">Resolved</a>
+</nav>
+<% if (!reports.length) { %>
+  <div class="card empty-state"><p><%= show === 'open' ? '🎉 No open reports. When readers flag typos or problems with “⚑ Report a problem” in the reader, they show up here.' : 'Nothing resolved yet.' %></p></div>
+<% } %>
+<% reports.forEach((r) => { %>
+  <section class="card report">
+    <div class="report-head">
+      <span class="pill"><%= u.REPORT_KINDS[r.kind] || r.kind %></span>
+      <a href="<%= site(`/novel/${r.slug}/c/${u.formatNumber(r.number)}`) %>" target="_blank" rel="noopener"><strong><%= r.novel_title %></strong> · <%= u.chapterLabel(r) %></a>
+      <span class="muted small"><%= r.username ? `by ${r.username}` : 'by a guest' %> · <%= u.timeAgo(r.created_at) %></span>
+    </div>
+    <% if (r.quote) { %><blockquote class="report-quote"><%= r.quote %></blockquote><% } %>
+    <% if (r.message) { %><p class="report-msg"><%= r.message %></p><% } %>
+    <div class="report-actions">
+      <a class="btn btn-sm btn-primary" href="<%= A(`/novels/${r.novel_id}/chapters/${r.chapter_id}/edit`) %><%= r.quote ? `?find=${encodeURIComponent(r.quote.slice(0, 80))}` : '' %>">✏ Fix in editor</a>
+      <form method="post" action="<%= A(`/reports/${r.id}`) %>" class="inline"><input type="hidden" name="_csrf" value="<%= csrf %>">
+        <% if (show === 'open') { %><button class="btn btn-sm" name="action" value="resolve">✓ Mark fixed</button><% } else { %><button class="btn btn-sm" name="action" value="reopen">↺ Reopen</button><% } %>
+        <button class="btn btn-sm btn-ghost" name="action" value="delete" onclick="return confirm('Delete this report?')">Delete</button>
+      </form>
+    </div>
+  </section>
+<% }) %>
+<%- include('partials/bottom') %>

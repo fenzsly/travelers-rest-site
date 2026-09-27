@@ -16,6 +16,9 @@
     <label class="small">Shift numbers by <input type="number" name="by" step="any" value="1" class="num-input"></label>
     <button class="btn btn-sm" name="action" value="shift" type="submit" data-needs-selection>Shift selected</button>
     <span class="sep"></span>
+    <label class="small">Volume <input type="number" name="volume" min="0" class="num-input" placeholder="—"></label>
+    <button class="btn btn-sm" name="action" value="set_volume" type="submit">Set volume</button>
+    <span class="sep"></span>
     <button class="btn btn-sm" name="action" value="renumber" type="submit" data-no-selection data-confirm="Renumber ALL chapters of this novel as 1, 2, 3… in their current order?">Renumber all 1…N</button>
   </div>
   <details class="bulkbar schedule-bar">
@@ -30,13 +33,14 @@
   <div class="card flush">
     <p class="hint pad">Tip: click a number or title to edit it in place. Changes save automatically when you leave the field.</p>
     <table class="table chapter-table">
-      <thead><tr><th class="w-check"><input type="checkbox" id="check-all" title="Select all"></th><th class="w-num">#</th><th>Title</th><th class="right">Words</th><th class="right">Views</th><th class="right">💬</th><th>Release</th><th></th></tr></thead>
+      <thead><tr><th class="w-check"><input type="checkbox" id="check-all" title="Select all"></th><th class="w-num">#</th><th class="w-vol">Vol.</th><th>Title</th><th class="right">Words</th><th class="right">Views</th><th class="right">💬</th><th>Release</th><th></th></tr></thead>
       <tbody>
       <% chapters.forEach((c) => { %>
         <tr>
           <td><input type="checkbox" name="ids" value="<%= c.id %>" class="row-check"></td>
           <td><input class="inline-edit num" data-id="<%= c.id %>" data-field="number" value="<%= u.formatNumber(c.number) %>" inputmode="decimal"></td>
-          <td><input class="inline-edit" data-id="<%= c.id %>" data-field="title" value="<%= c.title %>" placeholder="(no title)"></td>
+          <td class="muted"><%= c.volume || '' %></td>
+          <td><input class="inline-edit" data-id="<%= c.id %>" data-field="title" value="<%= c.title %>" placeholder="(no title)"><% if (c.open_reports) { %> <a class="tag tag-exists" href="<%= A('/reports') %>" title="Open reader reports">⚑ <%= c.open_reports %></a><% } %></td>
           <td class="right muted"><%= c.word_count.toLocaleString('en-US') %></td>
           <td class="right muted"><%= c.views %></td>
           <td class="right muted"><%= c.comment_count || '' %></td>

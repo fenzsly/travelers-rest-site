@@ -31,7 +31,7 @@ function formatNumber(n) {
 }
 
 function chapterLabel(ch) {
-  const base = `Chapter ${formatNumber(ch.number)}`;
+  const base = `${ch.volume ? `Vol. ${ch.volume} · ` : ''}Chapter ${formatNumber(ch.number)}`;
   return ch.title ? `${base}: ${ch.title}` : base;
 }
 
@@ -59,6 +59,11 @@ function withQuery(query, overrides) {
 
 const STATUS_LABELS = { ongoing: 'Ongoing', completed: 'Completed', hiatus: 'On hiatus', dropped: 'Dropped' };
 
+// Reactions readers can leave under a chapter.
+const REACTIONS = { like: '👍', love: '❤️', funny: '😂', wow: '😮', sad: '😢', angry: '😡' };
+// Kinds of problems readers can report.
+const REPORT_KINDS = { typo: 'Typo / grammar', name: 'Wrong or inconsistent name', missing: 'Missing or repeated text', wrong: 'Wrong chapter / order', other: 'Something else' };
+
 // Reader's own library lists.
 const LIST_LABELS = { reading: 'Reading', plan: 'Plan to read', completed: 'Completed', hold: 'On hold', dropped: 'Dropped' };
 const LIST_ICONS = { reading: '📖', plan: '🕒', completed: '✅', hold: '⏸', dropped: '🚫' };
@@ -68,4 +73,4 @@ function isRecent(unixSeconds, hours = 48) {
   return Date.now() / 1000 - unixSeconds < hours * 3600;
 }
 
-module.exports = { slugify, timeAgo, formatDate, formatNumber, chapterLabel, compactNumber, paginate, withQuery, isRecent, STATUS_LABELS, LIST_LABELS, LIST_ICONS };
+module.exports = { slugify, timeAgo, formatDate, formatNumber, chapterLabel, compactNumber, paginate, withQuery, isRecent, STATUS_LABELS, LIST_LABELS, LIST_ICONS, REACTIONS, REPORT_KINDS };

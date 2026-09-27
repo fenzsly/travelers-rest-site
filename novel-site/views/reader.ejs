@@ -54,6 +54,20 @@
     <div class="chapter-meta muted small"><%= u.formatDate(chapter.released_at) %> · 👁 <%= chapter.views.toLocaleString("en-US") %> views · <%= chapter.word_count.toLocaleString('en-US') %> words · ~<%= Math.max(1, Math.round(chapter.word_count / 230)) %> min read · chapter <%= position %> of <%= novel.chapter_count %></div>
     <div class="chapter-text" id="chapter-text"><%- chapter.content %></div>
   </article>
+  <section class="reactions" id="reactions" data-url="/novel/<%= novel.slug %>/c/<%= u.formatNumber(chapter.number) %>/react">
+    <span class="muted small">How was this chapter?</span>
+    <% Object.entries(u.REACTIONS).forEach(([k, e]) => { %>
+      <% if (user) { %>
+        <form method="post" action="/novel/<%= novel.slug %>/c/<%= u.formatNumber(chapter.number) %>/react" class="inline">
+          <input type="hidden" name="_csrf" value="<%= csrf %>">
+          <button type="submit" name="emoji" value="<%= k %>" class="react <%= myReaction === k ? 'on' : '' %>" data-emoji="<%= k %>" title="<%= k %>"><%= e %> <span><%= reactionCounts[k] || '' %></span></button>
+        </form>
+      <% } else { %>
+        <a class="react" href="/login?next=<%= encodeURIComponent(`/novel/${novel.slug}/c/${u.formatNumber(chapter.number)}#reactions`) %>" title="Log in to react"><%= e %> <span><%= reactionCounts[k] || '' %></span></a>
+      <% } %>
+    <% }) %>
+    <button type="button" class="report-btn" data-open="report" title="Report a typo or problem in this chapter">⚑ Report a problem</button>
+  </section>
   <%- include('partials/chapter-nav', { where: 'bottom' }) %>
   <% if (!next) { %>
     <div class="end-note">
@@ -97,6 +111,23 @@
     <div class="panel-head"><strong>Contents</strong><button class="icon-btn" data-close>✕</button></div>
     <input type="search" class="toc-filter" placeholder="Jump to chapter number or search title…">
     <ul class="toc-list" id="toc-list"><li class="muted">Loading…</li></ul>
+  </div>
+</div>
+
+<div class="panel" id="panel-report" hidden>
+  <div class="panel-inner">
+    <div class="panel-head"><strong>Report a problem</strong><button class="icon-btn" data-close>✕</button></div>
+    <p class="muted small">Spotted a typo, a wrong name or missing text? Tell the translator. Tip: select the text in the chapter first and it's quoted here automatically.</p>
+    <form method="post" action="/novel/<%= novel.slug %>/c/<%= u.formatNumber(chapter.number) %>/report" class="report-form" id="report-form">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <label>What's wrong?
+        <select name="kind"><% Object.entries(u.REPORT_KINDS).forEach(([k, v]) => { %><option value="<%= k %>"><%= v %></option><% }) %></select>
+      </label>
+      <label>Text in question <textarea name="quote" rows="3" maxlength="1000" id="report-quote" placeholder="(optional) the sentence with the problem"></textarea></label>
+      <label>Details <textarea name="message" rows="3" maxlength="2000" placeholder="e.g. “Lin Feng” is called “Lin Fang” here"></textarea></label>
+      <button class="btn btn-accent btn-block" type="submit">Send report</button>
+      <p class="report-done" hidden>✓ Thanks! The translator has been notified.</p>
+    </form>
   </div>
 </div>
 

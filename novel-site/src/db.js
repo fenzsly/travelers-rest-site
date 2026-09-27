@@ -136,6 +136,30 @@ CREATE TABLE IF NOT EXISTS reviews (
 );
 `);
 
+db.exec(`
+-- Reader reports about a chapter (typos, wrong names, missing text, …).
+CREATE TABLE IF NOT EXISTS reports (
+  id         INTEGER PRIMARY KEY,
+  chapter_id INTEGER NOT NULL REFERENCES chapters(id) ON DELETE CASCADE,
+  user_id    INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  kind       TEXT NOT NULL,
+  quote      TEXT NOT NULL DEFAULT '',
+  message    TEXT NOT NULL DEFAULT '',
+  status     TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open','resolved')),
+  created_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
+CREATE INDEX IF NOT EXISTS reports_open ON reports (status, created_at);
+
+-- One emoji reaction per reader per chapter.
+CREATE TABLE IF NOT EXISTS reactions (
+  chapter_id INTEGER NOT NULL REFERENCES chapters(id) ON DELETE CASCADE,
+  user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  emoji      TEXT NOT NULL,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+  PRIMARY KEY (chapter_id, user_id)
+);
+`);
+
 const DEFAULT_GENRES = [
   'Action', 'Adventure', 'Comedy', 'Drama', 'Fantasy', 'Harem', 'Historical', 'Horror',
   'Isekai', 'Martial Arts', 'Mecha', 'Mystery', 'Psychological', 'Reincarnation', 'Romance',

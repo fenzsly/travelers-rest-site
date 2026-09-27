@@ -23,6 +23,17 @@
     <div class="userbox">
       <button type="button" class="icon-btn" id="theme-toggle" title="Toggle night mode" aria-label="Toggle night mode">🌙</button>
       <% if (user) { %>
+        <details class="bell">
+          <summary class="icon-btn" title="New chapters in your library" aria-label="New chapters in your library">🔔<% if (updates.length) { %><span class="bell-count"><%= updates.length %></span><% } %></summary>
+          <div class="bell-pop">
+            <div class="bell-head">New chapters in your library</div>
+            <% if (!updates.length) { %><div class="bell-empty">You're all caught up. Novels you're reading show up here when new chapters arrive.</div><% } %>
+            <% updates.forEach((n) => { %>
+              <a href="/novel/<%= n.slug %>/c/<%= u.formatNumber(n.next_number) %>"><strong><%= n.title %></strong><span><%= n.unread %> new · continue from ch. <%= u.formatNumber(n.next_number) %></span></a>
+            <% }) %>
+            <a class="bell-all" href="/library">Open my library →</a>
+          </div>
+        </details>
         <% if (user.role !== 'reader' && adminUrl) { %><a class="btn btn-sm btn-accent" href="<%= adminUrl %>">Admin</a><% } %>
         <details class="usermenu">
           <summary><%= user.username %></summary>

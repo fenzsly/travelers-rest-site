@@ -49,6 +49,22 @@
     <p class="muted small">Node <%= info.node %> · up for <%= Math.floor(info.uptime / 3600) %>h <%= Math.floor(info.uptime % 3600 / 60) %>m</p>
   </section>
 </div>
+<section class="card">
+  <h2>📦 Novels included with updates</h2>
+  <p class="muted small">Novels written for the site are added automatically when you install an update. New chapters for them arrive the same way. Your own edits are kept, and if you delete one of these novels it won’t come back.</p>
+  <% if (!bundled.length) { %><p class="muted">None yet.</p><% } else { %>
+  <table class="table">
+    <% bundled.forEach((b) => { %>
+      <tr>
+        <td><% if (b.live_id) { %><a href="<%= A(`/novels/${b.live_id}/chapters`) %>"><strong><%= b.title %></strong></a><% } else { %><strong class="muted"><%= b.title %></strong> <span class="pill">deleted</span><% } %></td>
+        <td class="muted small"><%= b.chapters %> chapters added</td>
+        <td class="right muted small nowrap">first added <span class="local-time" data-ts="<%= b.imported_at %>"><%= u.formatDate(b.imported_at) %></span></td>
+        <td class="right"><% if (b.live_id) { %><a class="btn btn-sm btn-ghost" href="<%= site(`/novel/${b.slug}`) %>" target="_blank" rel="noopener">↗ View</a><% } %></td>
+      </tr>
+    <% }) %>
+  </table>
+  <% } %>
+</section>
 <% if (update.running) { %>
 <script>
   // Poll until the update finishes and the site comes back.

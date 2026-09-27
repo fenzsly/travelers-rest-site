@@ -10,6 +10,7 @@ const { baseApp, errorHandlers, UPLOAD_DIR } = require('./common');
 const { verifyCsrf, requireRole, canManageNovel, hashPassword } = require('./auth');
 const { q, ADMIN_NOVEL_COLUMNS: NOVEL_COLUMNS, VISIBLE, RELEASED, setNovelGenres, login } = require('./queries');
 const system = require('./system');
+const content = require('./content');
 const { getSettings, saveSettings } = require('./settings');
 const { slugify, paginate, STATUS_LABELS } = require('./util');
 const parse = require('./parse');
@@ -649,7 +650,7 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
   // ---------- System: updates & backups (admin) ----------
   app.get('/system', adminOnly, async (req, res) => {
     const info = await system.info(req.query.check === '1');
-    res.render('admin/system', { info, update: system.status(), last: system.lastUpdate() });
+    res.render('admin/system', { info, update: system.status(), last: system.lastUpdate(), bundled: content.importedPackages() });
   });
 
   app.post('/system/update', adminOnly, (req, res) => {

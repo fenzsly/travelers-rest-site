@@ -3,6 +3,10 @@ const express = require('express');
 const { baseApp, errorHandlers, UPLOAD_DIR } = require('./src/common');
 const { router: publicRouter } = require('./src/routes/public');
 const { createAdminApp } = require('./src/admin');
+const { importBundledNovels } = require('./src/content');
+
+// Publish any novels that came with this version of the site (content/novels/).
+importBundledNovels();
 
 const PORT = Number(process.env.PORT) || 3000;
 const ADMIN_PORT = Number(process.env.ADMIN_PORT) || 0;

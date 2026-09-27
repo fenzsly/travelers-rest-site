@@ -1,21 +1,22 @@
-// Builds upload test files for the sample novel: an .epub and a .zip of .txt chapters (in Volume folders).
-//   node scripts/make-test-files.js <output folder>
+// Builds upload files for a novel module: an .epub and a .zip of .txt chapters (in Volume folders when set).
+//   node scripts/make-test-files.js <output folder> [path/to/novel.js]   (default: the built-in sample novel)
 const fs = require('node:fs');
 const path = require('node:path');
 const { zipSync, strToU8 } = require('fflate');
-const demo = require('../src/demo-novel');
+const demo = require(process.argv[3] ? path.resolve(process.argv[3]) : '../src/demo-novel');
 
 const out = process.argv[2] || '.';
 fs.mkdirSync(out, { recursive: true });
 const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const heading = (c) => `Volume ${c.volume} Chapter ${c.number}: ${c.title}`;
+const heading = (c) => `${c.volume ? `Volume ${c.volume} ` : ''}Chapter ${c.number}: ${c.title}`;
 
 // ZIP: one .txt per chapter, in Volume folders.
 const zipFiles = {};
 for (const c of demo.chapters) {
-  zipFiles[`Volume ${c.volume}/ch${String(c.number).padStart(3, '0')}.txt`] = strToU8(`Chapter ${c.number}: ${c.title}\n\n${c.text}\n`);
+  zipFiles[`${c.volume ? `Volume ${c.volume}/` : ''}ch${String(c.number).padStart(3, '0')}.txt`] = strToU8(`Chapter ${c.number}: ${c.title}\n\n${c.text}\n`);
 }
-fs.writeFileSync(path.join(out, 'test-novel-chapters.zip'), zipSync(zipFiles));
+const base = process.argv[3] ? demo.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') : 'test-novel';
+fs.writeFileSync(path.join(out, `${base}-chapters.zip`), zipSync(zipFiles));
 
 // EPUB 3 with a nav document.
 const para = (t) => t.split(/\n\s*\n/).map((p) => (p.trim() === '***' ? '<hr/>' : `<p>${esc(p.trim())}</p>`)).join('\n');
@@ -41,5 +42,5 @@ files['OEBPS/content.opf'] = strToU8(`<?xml version="1.0" encoding="utf-8"?>
 <package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="uid">
 <metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="uid">travellermtl-test-novel</dc:identifier><dc:title>${esc(demo.title)}</dc:title><dc:language>en</dc:language><meta property="dcterms:modified">2026-01-01T00:00:00Z</meta></metadata>
 <manifest>${items.join('')}</manifest><spine>${spine.join('')}</spine></package>`);
-fs.writeFileSync(path.join(out, 'test-novel.epub'), zipSync(files));
-console.log(`Wrote test-novel.epub and test-novel-chapters.zip to ${out}`);
+fs.writeFileSync(path.join(out, `${base}.epub`), zipSync(files));
+console.log(`Wrote ${base}.epub and ${base}-chapters.zip to ${out}`);

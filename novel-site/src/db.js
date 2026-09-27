@@ -112,6 +112,14 @@ CREATE TABLE IF NOT EXISTS novel_views_daily (
 CREATE INDEX IF NOT EXISTS novel_views_daily_day ON novel_views_daily (day);
 `);
 
+// The site owner (the first account) is protected: other admins can't demote, delete or reset it.
+if (!hasColumn('users', 'is_owner')) {
+  db.exec('ALTER TABLE users ADD COLUMN is_owner INTEGER NOT NULL DEFAULT 0');
+}
+if (!db.prepare('SELECT 1 FROM users WHERE is_owner = 1').get()) {
+  db.exec("UPDATE users SET is_owner = 1 WHERE id = (SELECT MIN(id) FROM users WHERE role = 'admin')");
+}
+
 const DEFAULT_GENRES = [
   'Action', 'Adventure', 'Comedy', 'Drama', 'Fantasy', 'Harem', 'Historical', 'Horror',
   'Isekai', 'Martial Arts', 'Mecha', 'Mystery', 'Psychological', 'Reincarnation', 'Romance',

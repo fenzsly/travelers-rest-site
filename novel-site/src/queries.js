@@ -89,7 +89,9 @@ function register(username, password) {
   if (password.length < 8) throw Object.assign(new Error('Password must be at least 8 characters.'), { status: 400 });
   if (q.userByName.get(username)) throw Object.assign(new Error('That username is taken.'), { status: 400 });
   const role = first ? 'admin' : (getSettings().default_role === 'translator' ? 'translator' : 'reader');
-  return Number(q.insertUser.run(username, hashPassword(password), role).lastInsertRowid);
+  const id = Number(q.insertUser.run(username, hashPassword(password), role).lastInsertRowid);
+  if (first) db.prepare('UPDATE users SET is_owner = 1 WHERE id = ?').run(id);
+  return id;
 }
 
 module.exports = { NOVEL_COLUMNS, ADMIN_NOVEL_COLUMNS, VISIBLE, RELEASED, q, setNovelGenres, recordView, login, register };

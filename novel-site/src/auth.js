@@ -15,7 +15,7 @@ function verifyPassword(password, stored) {
   return crypto.timingSafeEqual(expected, actual);
 }
 
-const getUser = db.prepare('SELECT id, username, role, created_at FROM users WHERE id = ?');
+const getUser = db.prepare('SELECT id, username, role, is_owner, created_at FROM users WHERE id = ?');
 
 /** Attach req.user / res.locals.user and a CSRF token for every request. */
 function loadUser(req, res, next) {

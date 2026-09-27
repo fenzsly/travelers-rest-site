@@ -29,7 +29,7 @@
     </nav>
     <div class="side-foot">
       <a href="<%= site('/') %>" target="_blank" rel="noopener">↗ View site</a>
-      <div class="side-user">Signed in as <strong><%= user.username %></strong> <span class="pill"><%= user.role %></span></div>
+      <div class="side-user">Signed in as <strong><%= user.username %></strong> <span class="pill"><%= user.is_owner ? '👑 owner' : user.role %></span></div>
       <form method="post" action="<%= A('/logout') %>"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="link" type="submit">Log out</button></form>
     </div>
   </aside>

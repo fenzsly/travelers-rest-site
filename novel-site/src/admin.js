@@ -490,6 +490,7 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
   app.post('/users/new', adminOnly, (req, res) => {
     const username = String(req.body.username || '').trim();
     const role = ['reader', 'translator', 'admin'].includes(req.body.role) ? req.body.role : 'translator';
+    if (role === 'admin' && !req.user.is_owner) throw fail(403, 'Only the site owner can create admin accounts.');
     if (!/^[A-Za-z0-9_.-]{3,24}$/.test(username)) throw fail(400, 'Username must be 3–24 characters: letters, numbers, _ . -');
     if (q.userByName.get(username)) throw fail(400, 'That username is taken.');
     const password = String(req.body.password || '') || crypto.randomBytes(6).toString('base64url');
@@ -505,6 +506,12 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
     if (!target) throw fail(404, 'User not found.');
     const action = req.body.action;
     if (uid === req.user.id && action !== 'reset') throw fail(400, 'You cannot change or delete your own account here.');
+    // The owner account can only be managed by the owner.
+    if (target.is_owner && uid !== req.user.id) throw fail(403, 'The site owner’s account is protected and cannot be changed by anyone else.');
+    // Only the owner decides who is an admin.
+    if (!req.user.is_owner && (target.role === 'admin' || req.body.role === 'admin')) {
+      throw fail(403, 'Only the site owner can change or remove admin accounts.');
+    }
     if (action === 'role' && ['reader', 'translator', 'admin'].includes(req.body.role)) {
       db.prepare('UPDATE users SET role = ? WHERE id = ?').run(req.body.role, uid);
       req.flash('ok', `${target.username} is now ${req.body.role === 'admin' ? 'an admin' : `a ${req.body.role}`}.`);

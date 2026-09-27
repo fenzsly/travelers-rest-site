@@ -502,6 +502,32 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
     res.json(result);
   });
 
+  // ---------- Test novel ----------
+  // Adds an original sample novel (2 volumes, 8 chapters, last one scheduled for tomorrow) to try the site with.
+  app.post('/demo-novel', adminOnly, (req, res) => {
+    const demo = require('./demo-novel');
+    const cover = `demo-${Date.now()}.png`;
+    fs.copyFileSync(path.join(__dirname, '..', 'public', 'admin', 'demo-cover.png'), path.join(UPLOAD_DIR, 'covers', cover));
+    const id = tx(() => {
+      const r = db.prepare(`INSERT INTO novels (slug, title, alt_titles, author, original_language, year, status, description, tags, cover, owner_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(uniqueSlug(slugify(demo.title)), demo.title, demo.alt_titles, demo.author,
+        demo.original_language, demo.year, demo.status, demo.description, demo.tags, cover, req.user.id);
+      const novelId = Number(r.lastInsertRowid);
+      const genreIds = demo.genres.map((g) => db.prepare('SELECT id FROM genres WHERE name = ?').get(g)?.id).filter(Boolean);
+      setNovelGenres(novelId, genreIds);
+      const ins = db.prepare('INSERT INTO chapters (novel_id, number, volume, title, content, word_count, publish_at) VALUES (?, ?, ?, ?, ?, ?, ?)');
+      const last = demo.chapters.length - 1;
+      demo.chapters.forEach((c, i) => {
+        const html = parse.sanitize(parse.textToHtml(c.text));
+        // The final chapter is scheduled for tomorrow so the "coming soon" features can be seen.
+        ins.run(novelId, c.number, c.volume, c.title, html, parse.wordCount(html), i === last ? Math.floor(Date.now() / 1000) + 86400 : null);
+      });
+      return novelId;
+    });
+    req.flash('ok', `Added the test novel “${demo.title}”: 8 chapters in 2 volumes, with chapter 8 scheduled for tomorrow. Delete it any time from its Details tab.`);
+    res.redirect(A(`/novels/${id}/chapters`));
+  });
+
   // ---------- Reader reports ----------
   app.get('/reports', (req, res) => {
     const show = req.query.show === 'resolved' ? 'resolved' : 'open';

@@ -17,6 +17,10 @@
   <a class="quick-card" href="<%= A('/upload') %>"><span>⬆</span><strong>Batch upload</strong><small>Drop files or paste, preview, publish</small></a>
   <a class="quick-card" href="<%= A('/novels') %>"><span>📚</span><strong>Manage novels</strong><small>Edit details, chapters, delete</small></a>
   <% if (user.role === 'admin') { %>
+  <form method="post" action="<%= A('/demo-novel') %>" class="quick-form" onsubmit="return confirm('Add a sample novel (8 short chapters) to try the site with? You can delete it later.')">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <button type="submit" class="quick-card"><span>🧪</span><strong>Add a test novel</strong><small>A sample with covers, volumes and a scheduled chapter</small></button>
+  </form>
   <a class="quick-card" href="<%= A('/settings') %>"><span>🛠</span><strong>Site settings</strong><small>Name, announcement, sign-ups</small></a>
   <% } %>
 </div>

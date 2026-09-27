@@ -276,3 +276,5 @@ textarea { resize: vertical; }
 .report-quote { margin: 8px 0; padding: 8px 12px; border-left: 3px solid var(--primary); background: var(--bg); font-family: Georgia, serif; white-space: pre-wrap; }
 .report-msg { margin: 8px 0; white-space: pre-wrap; }
 .report-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.quick-form { display: contents; }
+button.quick-card { font: inherit; text-align: left; cursor: pointer; }

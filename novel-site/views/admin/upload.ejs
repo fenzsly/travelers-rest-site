@@ -18,19 +18,19 @@
 
     <div class="mode-pane" data-pane="files">
       <label class="dropzone" id="dropzone">
-        <input type="file" id="file-input" multiple accept=".txt,.md,.markdown,.html,.htm,.xhtml,.docx">
+        <input type="file" id="file-input" multiple accept=".txt,.md,.markdown,.html,.htm,.xhtml,.docx,.zip,.epub">
         <div class="dz-icon">⬆</div>
         <strong>Drop chapter files here</strong> or click to choose
-        <small>.txt · .docx · .md · .html. Select as many as you like. Chapter numbers come from the file's heading (“Chapter 12: …”) or the file name (“012.txt”).</small>
+        <small>.txt · .docx · .md · .html · <strong>.zip</strong> · <strong>.epub</strong>. Select as many as you like. A .zip of chapter files or an .epub e-book is unpacked into its chapters. Chapter numbers come from the file's heading (“Chapter 12: …”) or the file name (“012.txt”).</small>
       </label>
       <div class="dz-extra"><button type="button" class="btn btn-sm" id="pick-folder">📁 Choose a whole folder</button><input type="file" id="folder-input" webkitdirectory multiple hidden></div>
     </div>
 
     <div class="mode-pane" data-pane="split" hidden>
       <label class="dropzone" id="dropzone-split">
-        <input type="file" id="split-input" accept=".txt,.md,.html,.htm,.docx" multiple>
+        <input type="file" id="split-input" accept=".txt,.md,.html,.htm,.docx,.zip,.epub" multiple>
         <div class="dz-icon">📘</div>
-        <strong>Drop one document containing many chapters</strong>
+        <strong>Drop one document containing many chapters</strong> <span class="muted">(.txt, .docx, .html, or a .zip of them)</span>
         <small>A new chapter starts at every line like “Chapter 12”, “Ch. 12 - Title”, “第12章”, “Prologue”, “Epilogue”, “Side Story”…</small>
       </label>
     </div>

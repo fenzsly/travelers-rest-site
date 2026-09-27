@@ -80,7 +80,7 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
   });
   const chapterUpload = multer({
     storage: multer.memoryStorage(),
-    limits: { fileSize: 20 * 1024 * 1024, files: 1000 },
+    limits: { fileSize: 100 * 1024 * 1024, files: 1000 },
   });
 
   app.use((req, res, next) => (req.is('multipart/form-data') ? next() : verifyCsrf(req, res, next)));

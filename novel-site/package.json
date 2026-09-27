@@ -4,7 +4,9 @@
   "private": true,
   "description": "Webnovel fan-translation hosting site with batch chapter uploads and a configurable reader.",
   "main": "server.js",
-  "engines": { "node": ">=22.13" },
+  "engines": {
+    "node": ">=22.13"
+  },
   "scripts": {
     "start": "node --disable-warning=ExperimentalWarning server.js",
     "dev": "node --disable-warning=ExperimentalWarning --watch server.js",
@@ -15,6 +17,7 @@
     "cookie-session": "^2.1.1",
     "ejs": "^6.0.1",
     "express": "^5.2.1",
+    "fflate": "^0.8.3",
     "mammoth": "^1.13.0",
     "marked": "^18.0.14",
     "multer": "^2.4.0",

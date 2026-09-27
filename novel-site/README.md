@@ -22,7 +22,7 @@ A web novel hosting site for fan translations. The layout is modelled on ranobes
 - First visit to `/admin` creates your **owner account**, so no setup files are needed
 - Dashboard with stats and one-click actions
 - **Batch upload** in three modes:
-  1. *One file per chapter:* drop many `.txt`, `.docx`, `.md` or `.html` files, or a whole folder
+  1. *One file per chapter:* drop many `.txt`, `.docx`, `.md` or `.html` files, a whole folder, a **`.zip`** of chapter files, or an **`.epub`** (each section becomes a chapter, titled from its heading or the book's table of contents)
   2. *One big file, auto-split:* splits at lines like "Chapter 12", "Ch. 12 - Title", "第12章", "Prologue", "Epilogue"
   3. *Paste text:* paste many chapters at once
 - The preview is editable before anything is saved:

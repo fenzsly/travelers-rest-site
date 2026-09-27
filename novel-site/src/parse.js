@@ -4,6 +4,10 @@ const path = require('node:path');
 const sanitizeHtml = require('sanitize-html');
 const { marked } = require('marked');
 const mammoth = require('mammoth');
+const { filesFromZip, epubDocuments } = require('./archive');
+
+const isZip = (f) => /\.zip$/i.test(f.originalname);
+const isEpub = (f) => /\.epub$/i.test(f.originalname);
 
 const SANITIZE_OPTIONS = {
   allowedTags: [
@@ -126,12 +130,36 @@ function buildChapter({ number, title, html, source }) {
   return { number, title: (title || '').slice(0, 250), content, wordCount: wordCount(content), source };
 }
 
-/** One file = one chapter. */
+/** Each EPUB reading-order document becomes a chapter (titles from its heading or table of contents). */
+function chaptersFromEpub(file) {
+  return epubDocuments(file).map((doc) => {
+    const { heading, body } = extractTitleFromHtml(sanitize(doc.html));
+    const fromToc = doc.title ? parseHeading(doc.title) || { number: null, title: doc.title } : null;
+    return buildChapter({
+      number: heading?.number ?? fromToc?.number ?? null,
+      title: heading?.title || fromToc?.title || '',
+      html: body,
+      source: doc.name,
+    });
+  });
+}
+
+/** One file = one chapter. ZIP archives are unpacked; EPUBs yield one chapter per section. */
 async function parseFilesAsChapters(files) {
   const out = [];
   const errors = [];
   for (const file of files) {
     try {
+      if (isZip(file)) {
+        const inner = await parseFilesAsChapters(filesFromZip(file));
+        out.push(...inner.chapters.map((c) => ({ ...c, source: `${file.originalname} › ${c.source}` })));
+        errors.push(...inner.errors);
+        continue;
+      }
+      if (isEpub(file)) {
+        out.push(...chaptersFromEpub(file));
+        continue;
+      }
       const html = sanitize(await fileToHtml(file));
       const { heading, body } = extractTitleFromHtml(html);
       const number = heading?.number ?? numberFromFilename(file.originalname);
@@ -190,6 +218,12 @@ function splitTextIntoChapters(text, { pattern, source = 'pasted text' } = {}) {
 }
 
 async function parseSingleDocument(file, options) {
+  if (isEpub(file)) return chaptersFromEpub(file);
+  if (isZip(file)) {
+    const out = [];
+    for (const inner of filesFromZip(file)) out.push(...(await parseSingleDocument(inner, options)));
+    return out;
+  }
   const ext = path.extname(file.originalname).toLowerCase();
   let text;
   if (ext === '.docx') {

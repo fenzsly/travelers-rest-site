@@ -147,7 +147,7 @@
     statusEl.classList.toggle('err', !!isErr);
   }
 
-  var ACCEPT = /\.(txt|text|md|markdown|html?|xhtml|docx)$/i;
+  var ACCEPT = /\.(txt|text|md|markdown|html?|xhtml|docx|zip|epub)$/i;
   function sendForParsing(files, text) {
     var fd = new FormData();
     fd.append('_csrf', CSRF);
@@ -159,7 +159,7 @@
       if (ACCEPT.test(f.name)) fd.append('files', f, f.name); else skipped++;
     });
     if (files && files.length && skipped === files.length) {
-      setStatus('None of those files are supported. Use .txt, .docx, .md or .html.', true);
+      setStatus('None of those files are supported. Use .txt, .docx, .md, .html, .zip or .epub.', true);
       return;
     }
     setStatus('Reading ' + (files ? (files.length - skipped) + ' file(s)' : 'text') + '…');

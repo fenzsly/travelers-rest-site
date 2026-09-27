@@ -613,6 +613,7 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
       footer_text: String(req.body.footer_text || '').trim().slice(0, 1000),
       allow_registration: req.body.allow_registration ? '1' : '0',
       comments_enabled: req.body.comments_enabled ? '1' : '0',
+      default_theme: req.body.default_theme === 'light' ? 'light' : 'dark',
       default_role: req.body.default_role === 'translator' ? 'translator' : 'reader',
     });
     req.flash('ok', 'Settings saved.');

@@ -6,6 +6,10 @@
   <label class="field">Tagline<input name="site_tagline" value="<%= settings.site_tagline %>" maxlength="200"></label>
   <label class="field">Announcement banner<span class="hint">Shown at the top of every public page. Leave empty to hide.</span><input name="announcement" value="<%= settings.announcement %>" maxlength="1000" placeholder="e.g. Double releases this weekend!"></label>
   <label class="field">Footer text<textarea name="footer_text" rows="2"><%= settings.footer_text %></textarea></label>
+  <label class="field">Default look for visitors
+    <select name="default_theme"><option value="dark" <%= settings.default_theme !== 'light' ? 'selected' : '' %>>🌙 Dark</option><option value="light" <%= settings.default_theme === 'light' ? 'selected' : '' %>>☀️ Light</option></select>
+    <span class="hint">Readers can still switch with the 🌙/☀️ button; their choice is remembered.</span>
+  </label>
   <h2>Community</h2>
   <label class="switch"><input type="checkbox" name="allow_registration" value="1" <%= settings.allow_registration === '1' ? 'checked' : '' %>><span></span> Allow new sign-ups</label>
   <label class="switch"><input type="checkbox" name="comments_enabled" value="1" <%= settings.comments_enabled === '1' ? 'checked' : '' %>><span></span> Enable chapter comments</label>

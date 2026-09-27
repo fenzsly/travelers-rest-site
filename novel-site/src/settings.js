@@ -10,6 +10,8 @@ const DEFAULTS = {
   // Role given to newly registered accounts: 'reader' or 'translator'.
   default_role: 'reader',
   comments_enabled: '1',
+  // Theme new visitors see: 'dark' or 'light' (each reader can still switch).
+  default_theme: 'dark',
 };
 
 const selectAll = db.prepare('SELECT key, value FROM settings');

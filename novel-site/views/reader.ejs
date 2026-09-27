@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="<%= settings.default_theme === 'light' ? 'light' : 'dark' %>">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -22,7 +22,7 @@
   try {
     var p = JSON.parse(localStorage.getItem('reader-prefs') || '{}');
     var d = document.documentElement;
-    d.dataset.theme = p.theme || localStorage.getItem('site-theme') || 'light';
+    d.dataset.theme = p.theme || localStorage.getItem('site-theme') || d.dataset.theme || 'dark';
     d.dataset.rtheme = p.rtheme || '';
     d.style.setProperty('--r-size', (p.size || 19) + 'px');
     d.style.setProperty('--r-line', p.line || 1.8);
@@ -137,7 +137,8 @@
     <div class="setting">
       <label>Theme</label>
       <div class="swatches">
-        <button data-rtheme="" class="sw sw-light" title="Light">A</button>
+        <button data-rtheme="" class="sw sw-auto" title="Same as the site (dark/light)">A</button>
+        <button data-rtheme="light" class="sw sw-light" title="Light">A</button>
         <button data-rtheme="sepia" class="sw sw-sepia" title="Sepia">A</button>
         <button data-rtheme="green" class="sw sw-green" title="Soft green">A</button>
         <button data-rtheme="dark" class="sw sw-dark" title="Dark">A</button>

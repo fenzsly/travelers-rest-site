@@ -1,5 +1,6 @@
 /* Chapter reader. Preferences are CSS variables set from localStorage (see reader.js). */
 :root { --r-size: 19px; --r-line: 1.8; --r-width: 800px; --r-bg: var(--block); --r-text: var(--text); --r-page: var(--bg); }
+:root[data-rtheme="light"] { --r-bg: #ffffff; --r-text: #22252b; --r-page: #e8eaee; --border: #dde0e6; --muted: #7a808c; --block: #fff; --block-alt: #f5f6f8; --text: #22252b; color-scheme: light; }
 :root[data-rtheme="sepia"] { --r-bg: #f6ecd6; --r-text: #4a3b24; --r-page: #e9dcc0; --border: #e0d0ae; --muted: #8a7858; color-scheme: light; }
 :root[data-rtheme="green"] { --r-bg: #e3f0df; --r-text: #26361f; --r-page: #d0e2ca; --border: #c3d8bb; --muted: #647a5c; color-scheme: light; }
 :root[data-rtheme="dark"] { --r-bg: #1f2227; --r-text: #cfd3da; --r-page: #16181c; --border: #30343c; --muted: #868c97; --block: #1f2227; --block-alt: #292d34; --text: #cfd3da; color-scheme: dark; }
@@ -72,6 +73,7 @@ body.reader-page { background: var(--r-page); }
 .sw { width: 44px; height: 44px; border-radius: 50%; border: 2px solid var(--border); cursor: pointer; font-family: Georgia, serif; font-size: 17px; font-weight: 700; }
 .sw.on { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
 .sw-light { background: #fff; color: #222; }
+.sw-auto { background: linear-gradient(135deg, #fff 50%, #1f2227 50%); color: #888; }
 .sw-sepia { background: #f6ecd6; color: #4a3b24; }
 .sw-green { background: #e3f0df; color: #26361f; }
 .sw-dark { background: #1f2227; color: #cfd3da; }

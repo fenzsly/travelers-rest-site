@@ -1,0 +1,35 @@
+<%- include('partials/top', { title: 'Genres' }) %>
+<section class="card">
+  <h2>➕ Create a genre</h2>
+  <form method="post" action="<%= A('/genres/new') %>" class="inline-form">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <input name="name" placeholder="Genre name, e.g. Cultivation (comma-separate to add several)" maxlength="400" required autofocus>
+    <button class="btn btn-primary" type="submit">Add genre</button>
+  </form>
+  <p class="hint">New genres show up straight away in the header’s Genres menu, the catalog filters, the footer and the novel editor.</p>
+</section>
+<div class="card flush">
+  <table class="table table-lg">
+    <thead><tr><th>Genre</th><th class="right">Novels</th><th></th></tr></thead>
+    <tbody>
+    <% genres.forEach((g) => { %>
+      <tr>
+        <td>
+          <form method="post" action="<%= A(`/genres/${g.id}`) %>" class="genre-rename">
+            <input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="action" value="rename">
+            <input name="name" value="<%= g.name %>" maxlength="40" class="inline-edit" aria-label="Genre name">
+            <button class="btn btn-sm btn-ghost" type="submit" title="Save the new name">Rename</button>
+          </form>
+        </td>
+        <td class="right"><a href="<%= site(`/novels?genre=${g.slug}`) %>" target="_blank" rel="noopener"><%= g.novel_count %></a></td>
+        <td class="right">
+          <form method="post" action="<%= A(`/genres/${g.id}`) %>" class="inline" onsubmit="return confirm('Delete the genre “<%= g.name.replace(/'/g, '') %>”?<%= g.novel_count ? ` It will be removed from ${g.novel_count} novel(s).` : '' %>')">
+            <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn btn-sm btn-danger" name="action" value="delete">Delete</button>
+          </form>
+        </td>
+      </tr>
+    <% }) %>
+    </tbody>
+  </table>
+</div>
+<%- include('partials/bottom') %>

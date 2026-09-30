@@ -2,6 +2,7 @@
 const { db } = require('./db');
 const { hashPassword, verifyPassword } = require('./auth');
 const { getSettings } = require('./settings');
+const { slugify } = require('./util');
 
 // A chapter is public once its scheduled time (if any) has passed.
 const VISIBLE = '(c.publish_at IS NULL OR c.publish_at <= unixepoch())';
@@ -60,6 +61,23 @@ function recordView(novelId, chapterId, userAgent) {
     ON CONFLICT(novel_id, day) DO UPDATE SET views = views + 1`).run(novelId);
 }
 
+/** Clean up a genre name: trimmed, single spaces, 2–40 characters. Throws a user-facing error if invalid. */
+function cleanGenreName(name) {
+  const clean = String(name || '').replace(/\s+/g, ' ').trim();
+  if (clean.length < 2 || clean.length > 40) throw Object.assign(new Error('Genre names must be 2–40 characters.'), { status: 400 });
+  return clean;
+}
+
+/** Create a genre, or return the existing one with the same name/URL. Returns { id, name, created }. */
+function createGenre(name) {
+  const clean = cleanGenreName(name);
+  const slug = slugify(clean);
+  const existing = db.prepare('SELECT id, name FROM genres WHERE slug = ? OR name = ? COLLATE NOCASE').get(slug, clean);
+  if (existing) return { ...existing, created: false };
+  const id = Number(db.prepare('INSERT INTO genres (slug, name) VALUES (?, ?)').run(slug, clean).lastInsertRowid);
+  return { id, name: clean, created: true };
+}
+
 function setNovelGenres(novelId, genreIds) {
   db.prepare('DELETE FROM novel_genres WHERE novel_id = ?').run(novelId);
   const ins = db.prepare('INSERT OR IGNORE INTO novel_genres (novel_id, genre_id) VALUES (?, ?)');
@@ -94,4 +112,4 @@ function register(username, password) {
   return id;
 }
 
-module.exports = { NOVEL_COLUMNS, ADMIN_NOVEL_COLUMNS, VISIBLE, RELEASED, q, setNovelGenres, recordView, login, register };
+module.exports = { NOVEL_COLUMNS, ADMIN_NOVEL_COLUMNS, VISIBLE, RELEASED, q, setNovelGenres, cleanGenreName, createGenre, recordView, login, register };

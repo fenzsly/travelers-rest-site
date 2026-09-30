@@ -19,7 +19,7 @@
         ['/novels/new', '➕', 'New novel'],
         ['/reports', '⚑', 'Reports'],
       ];
-      if (user.role === 'admin') nav.push(['/users', '👥', 'Users'], ['/comments', '💬', 'Comments & reviews'], ['/settings', '🛠', 'Site settings'], ['/system', '🔄', 'Update & backup']);
+      if (user.role === 'admin') nav.push(['/genres', '🏷', 'Genres'], ['/users', '👥', 'Users'], ['/comments', '💬', 'Comments & reviews'], ['/settings', '🛠', 'Site settings'], ['/system', '🔄', 'Update & backup']);
       nav.push(['/account', '🔑', 'My account']);
       const current = path.replace(/\/$/, '') || '/';
       nav.forEach(([href, icon, label]) => {

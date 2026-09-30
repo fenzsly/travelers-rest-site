@@ -8,7 +8,7 @@ const multer = require('multer');
 const { db, tx } = require('./db');
 const { baseApp, errorHandlers, UPLOAD_DIR } = require('./common');
 const { verifyCsrf, requireRole, canManageNovel, hashPassword } = require('./auth');
-const { q, ADMIN_NOVEL_COLUMNS: NOVEL_COLUMNS, VISIBLE, RELEASED, setNovelGenres, login } = require('./queries');
+const { q, ADMIN_NOVEL_COLUMNS: NOVEL_COLUMNS, VISIBLE, RELEASED, setNovelGenres, cleanGenreName, createGenre, login } = require('./queries');
 const system = require('./system');
 const content = require('./content');
 const { getSettings, saveSettings } = require('./settings');
@@ -210,7 +210,15 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
       description: String(body.description || '').trim().slice(0, 20000),
       tags: String(body.tags || '').split(',').map((t) => t.trim()).filter(Boolean).join(', ').slice(0, 1000),
       genres: [].concat(body.genres || []).map(Number).filter(Number.isInteger),
+      newGenres: String(body.new_genres || '').split(',').map((g) => g.trim()).filter(Boolean).slice(0, 10),
     };
+  }
+
+  /** Genre ids from the form, plus any new genres an admin typed in (created site-wide). */
+  function withNewGenres(f, user) {
+    if (!f.newGenres.length) return f.genres;
+    if (user.role !== 'admin') throw fail(403, 'Only admins can create new genres.');
+    return [...f.genres, ...f.newGenres.map((name) => createGenre(name).id)];
   }
 
   function uniqueSlug(slug, exceptId = 0) {
@@ -236,7 +244,7 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
         const r = db.prepare(`INSERT INTO novels (slug, title, alt_titles, author, original_language, year, status, description, tags, cover, owner_id)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(uniqueSlug(f.slug), f.title, f.alt_titles, f.author, f.original_language,
           f.year, f.status, f.description, f.tags, req.file ? req.file.filename : null, ownerId);
-        setNovelGenres(r.lastInsertRowid, f.genres);
+        setNovelGenres(r.lastInsertRowid, withNewGenres(f, req.user));
         return Number(r.lastInsertRowid);
       });
       req.flash('ok', `“${f.title}” created. Now upload some chapters!`);
@@ -262,7 +270,7 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
         db.prepare(`UPDATE novels SET slug = ?, title = ?, alt_titles = ?, author = ?, original_language = ?, year = ?, status = ?,
           description = ?, tags = ?, cover = ?, owner_id = ? WHERE id = ?`).run(uniqueSlug(f.slug, novel.id), f.title, f.alt_titles,
           f.author, f.original_language, f.year, f.status, f.description, f.tags, cover, ownerId, novel.id);
-        setNovelGenres(novel.id, f.genres);
+        setNovelGenres(novel.id, withNewGenres(f, req.user));
       });
       if (cover !== novel.cover) removeCover(novel.cover);
       req.flash('ok', 'Novel saved.');
@@ -501,6 +509,41 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
       if (result.created || result.updated) q.touchNovel.run(req.novel.id);
     });
     res.json(result);
+  });
+
+  // ---------- Genres (admin) ----------
+  app.get('/genres', adminOnly, (req, res) => {
+    res.render('admin/genres', { genres: q.allGenres.all() });
+  });
+
+  app.post('/genres/new', adminOnly, (req, res) => {
+    const names = String(req.body.name || '').split(',').map((n) => n.trim()).filter(Boolean);
+    if (!names.length) throw fail(400, 'Type a genre name first.');
+    const results = tx(() => names.slice(0, 20).map((n) => createGenre(n)));
+    const added = results.filter((r) => r.created).map((r) => r.name);
+    const existed = results.filter((r) => !r.created).map((r) => r.name);
+    req.flash(added.length ? 'ok' : 'error', [
+      added.length ? `Added ${added.map((n) => `“${n}”`).join(', ')} to the site’s genres.` : '',
+      existed.length ? `${existed.map((n) => `“${n}”`).join(', ')} already exist${existed.length === 1 ? 's' : ''}.` : '',
+    ].filter(Boolean).join(' '));
+    res.redirect(A('/genres'));
+  });
+
+  app.post('/genres/:gid', adminOnly, (req, res) => {
+    const genre = db.prepare('SELECT * FROM genres WHERE id = ?').get(Number(req.params.gid));
+    if (!genre) throw fail(404, 'Genre not found.');
+    if (req.body.action === 'delete') {
+      db.prepare('DELETE FROM genres WHERE id = ?').run(genre.id);
+      req.flash('ok', `Deleted the genre “${genre.name}”. Novels that had it keep their other genres.`);
+    } else {
+      const name = cleanGenreName(req.body.name);
+      const slug = slugify(name);
+      const clash = db.prepare('SELECT 1 FROM genres WHERE (slug = ? OR name = ? COLLATE NOCASE) AND id != ?').get(slug, name, genre.id);
+      if (clash) throw fail(400, `A genre called “${name}” already exists.`);
+      db.prepare('UPDATE genres SET name = ?, slug = ? WHERE id = ?').run(name, slug, genre.id);
+      req.flash('ok', `Renamed “${genre.name}” to “${name}”.`);
+    }
+    res.redirect(A('/genres'));
   });
 
   // ---------- Test novel ----------

@@ -63,6 +63,9 @@ A web novel hosting site for fan translations. The layout is modelled on ranobes
 - **Emoji reactions** under each chapter
 - **Volumes:** detected from "Volume 2 Chapter 5" / "V2C5" headings, standalone "Volume 2" lines, or folder names like `Volume 2/`. Editable in the upload preview, chapter editor and bulk "Set volume"; shown as groups in the table of contents.
 
+**Genres**
+Admins can create, rename and delete genres under **Admin → 🏷 Genres** (comma-separate to add several), or type a new genre straight into the novel editor. Changes show up site-wide immediately.
+
 **Novels included with updates**
 Novels in `content/novels/<name>/` (a `novel.json` with metadata and chapters, plus an optional `cover.png`) are published automatically when the site starts, so installing an update is enough to add them. Later versions only add new chapter numbers. Edits made on the site are kept, and deleted novels are not re-imported. The list is shown under Update & backup.
 

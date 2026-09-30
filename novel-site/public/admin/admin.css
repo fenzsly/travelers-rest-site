@@ -278,3 +278,5 @@ textarea { resize: vertical; }
 .report-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .quick-form { display: contents; }
 button.quick-card { font: inherit; text-align: left; cursor: pointer; }
+.genre-rename { display: flex; gap: 6px; align-items: center; max-width: 380px; }
+.new-genre { margin-top: 12px; }

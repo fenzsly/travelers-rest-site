@@ -40,6 +40,11 @@
       <div class="checks">
         <% genres.forEach((g) => { %><label class="check-chip"><input type="checkbox" name="genres" value="<%= g.id %>" <%= selected.has(g.id) || [].concat(novel.genres || []).map(Number).includes(g.id) ? 'checked' : '' %>><span><%= g.name %></span></label><% }) %>
       </div>
+      <% if (user.role === 'admin') { %>
+        <label class="field new-genre">➕ New genre<span class="hint">Not in the list? Type it here (comma-separate several). It’s added site-wide when you save.</span>
+          <input name="new_genres" value="<%= novel.new_genres || '' %>" placeholder="e.g. Cultivation, Villainess" maxlength="200"></label>
+        <a class="small" href="<%= A('/genres') %>">Manage all genres →</a>
+      <% } %>
     </section>
     <% if (user.role === 'admin') { %>
     <section class="card">

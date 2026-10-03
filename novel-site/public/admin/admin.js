@@ -31,6 +31,31 @@
     }
   }
 
+  // Character counters for SEO fields (<span data-count="fieldName">).
+  document.querySelectorAll('[data-count]').forEach(function (el) {
+    var field = document.querySelector('[name="' + el.dataset.count + '"]');
+    if (!field) return;
+    var limit = Number((el.parentNode.textContent.match(/\/(\d+)/) || [])[1]) || 0;
+    function update() { el.textContent = field.value.length; el.classList.toggle('count-over', limit && field.value.length > limit); }
+    field.addEventListener('input', update);
+    update();
+  });
+  // Live "how it looks in Google" preview in the novel editor.
+  var serpTitle = document.getElementById('serp-title');
+  if (serpTitle) {
+    var f = function (n) { return document.querySelector('[name="' + n + '"]'); };
+    var cut = function (t, n) { t = t.replace(/\s+/g, ' ').trim(); return t.length > n ? t.slice(0, n - 1).replace(/\s+\S*$/, '') + '…' : t; };
+    var site = document.querySelector('.side-brand') ? document.querySelector('.side-brand').firstChild.nextSibling.textContent.trim() : '';
+    var renderSerp = function () {
+      var title = f('seo_title').value || ((f('title').value || 'Your novel') + ' — Read Online | ' + site);
+      serpTitle.textContent = cut(title, 62);
+      document.getElementById('serp-desc').textContent = cut(f('seo_description').value || f('description').value || 'Write a synopsis or search description to see it here.', 158);
+      if (f('slug').value) document.getElementById('serp-slug').textContent = f('slug').value;
+    };
+    ['seo_title', 'seo_description', 'title', 'description', 'slug'].forEach(function (n) { if (f(n)) f(n).addEventListener('input', renderSerp); });
+    renderSerp();
+  }
+
   var toggle = document.getElementById('sched-toggle');
   if (toggle) {
     var box = document.getElementById('sched-box');

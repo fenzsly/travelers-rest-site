@@ -3,6 +3,8 @@ const { db } = require('../db');
 const { q, NOVEL_COLUMNS, VISIBLE, RELEASED, recordView, login, register } = require('../queries');
 const { verifyCsrf, requireLogin } = require('../auth');
 const { getSettings } = require('../settings');
+const seo = require('../seo');
+const u = require('../util');
 const { paginate, chapterLabel, formatNumber, STATUS_LABELS, LIST_LABELS, REACTIONS, REPORT_KINDS } = require('../util');
 
 const router = express.Router();
@@ -29,6 +31,9 @@ function xmlEscape(s) {
 
 router.use((req, res, next) => {
   res.locals.baseUrl = baseUrl(req);
+  res.locals.seoLib = seo;
+  // Pages that don't set their own SEO info are kept out of search results.
+  res.locals.seo = { noindex: true };
   res.locals.navGenres = q.allGenres.all();
   res.locals.updates = req.user ? libraryUpdates(req.user.id) : [];
   next();
@@ -61,7 +66,16 @@ router.get('/', (req, res) => {
   const totals = db.prepare(`SELECT (SELECT COUNT(*) FROM novels) AS novels,
     (SELECT COUNT(*) FROM chapters c WHERE ${VISIBLE}) AS chapters,
     (SELECT COALESCE(SUM(views), 0) FROM novels) AS views`).get();
-  res.render('home', { popular, updated, fresh, topRated, trending, completed, totals, genres: q.allGenres.all() });
+  const s = getSettings();
+  res.render('home', {
+    popular, updated, fresh, topRated, trending, completed, totals, genres: q.allGenres.all(),
+    seo: {
+      title: `${s.site_name} — ${s.site_tagline}`,
+      description: s.site_description,
+      canonical: `${res.locals.baseUrl}/`,
+      jsonld: seo.websiteSchema(res.locals.baseUrl, s),
+    },
+  });
 });
 
 // ---------- Catalog / search ----------
@@ -107,9 +121,24 @@ router.get('/novels', (req, res) => {
   const novels = db.prepare(`SELECT ${NOVEL_COLUMNS} FROM novels n ${whereSql} ORDER BY ${SORTS[sort]} LIMIT ? OFFSET ?`)
     .all(...params, PER_PAGE, pager.offset);
   const genres = q.allGenres.all();
+  const activeGenre = genres.find((g) => g.slug === genre);
+  const site = getSettings().site_name;
+  // Genre listings are worth indexing; search results, tag and status filters and re-sorted lists are not.
+  const indexable = !search && !tag && !status && (sort === 'updated' || sort === 'popular' || sort === 'trending');
+  const pageUrl = (p) => `${res.locals.baseUrl}/novels${new URLSearchParams(Object.entries({ genre, sort: sort === 'updated' ? '' : sort, page: p > 1 ? p : '' }).filter(([, v]) => v)).toString().replace(/^(.)/, '?$1')}`;
+  const label = activeGenre ? `${activeGenre.name} Novels` : sort === 'trending' ? 'Trending Novels' : sort === 'popular' ? 'Most Popular Novels' : 'All Novels';
   res.render('catalog', {
-    novels, pager, genres, search, genre, status, sort, tag,
-    activeGenre: genres.find((g) => g.slug === genre),
+    novels, pager, genres, search, genre, status, sort, tag, activeGenre,
+    seo: {
+      title: search ? `Search: ${search} | ${site}` : `${label}${pager.current > 1 ? ` (page ${pager.current})` : ''} — Read Online | ${site}`,
+      description: activeGenre
+        ? `Read ${activeGenre.name.toLowerCase()} web novels translated into English on ${site}. ${pager.total} ${activeGenre.name.toLowerCase()} novels, updated regularly. Free to read online.`
+        : `Browse ${pager.total} translated web novels on ${site}: fantasy, xianxia, romance, isekai and more. Sort by latest updates, popularity or rating.`,
+      canonical: indexable ? pageUrl(pager.current) : undefined,
+      noindex: !indexable,
+      prev: indexable && pager.current > 1 ? pageUrl(pager.current - 1) : undefined,
+      next: indexable && pager.current < pager.pages ? pageUrl(pager.current + 1) : undefined,
+    },
   });
 });
 
@@ -179,6 +208,17 @@ router.get('/novel/:slug', loadNovel, (req, res) => {
   res.render('novel', {
     novel, chapters, pager, order, first, latest, upcoming, upcomingCount, bookmark, myRating, words, readers, rank, genres, similar,
     dist, reviews, myReview, listCounts, tab: req.query.tab === 'reviews' ? 'reviews' : 'chapters',
+    seo: {
+      title: novel.seo_title || `${novel.title} — Read Online${novel.chapter_count ? ` (${novel.chapter_count} Chapters)` : ''} | ${getSettings().site_name}`,
+      ogTitle: novel.seo_title || novel.title,
+      description: novel.seo_description || seo.excerpt(novel.description) || `Read ${novel.title} online in English.`,
+      // Other orderings/tabs of the same page point search engines at the main URL.
+      canonical: `${res.locals.baseUrl}/novel/${novel.slug}${pager.current > 1 ? `?page=${pager.current}` : ''}`,
+      image: novel.cover ? `${res.locals.baseUrl}/uploads/covers/${novel.cover}` : undefined,
+      type: 'book',
+      jsonld: seo.bookSchema(res.locals.baseUrl, novel, genres),
+      feed: { title: `${novel.title} — new chapters`, href: `/novel/${novel.slug}/rss.xml` },
+    },
   });
 });
 
@@ -262,7 +302,21 @@ router.get('/novel/:slug/c/:num', loadNovel, (req, res, next) => {
     : [];
   const reactionCounts = Object.fromEntries(db.prepare('SELECT emoji, COUNT(*) AS n FROM reactions WHERE chapter_id = ? GROUP BY emoji').all(chapter.id).map((r) => [r.emoji, r.n]));
   const myReaction = req.user ? db.prepare('SELECT emoji FROM reactions WHERE chapter_id = ? AND user_id = ?').get(chapter.id, req.user.id)?.emoji || null : null;
-  res.render('reader', { novel, chapter, prev, next: next_, upcoming, position, bookmarked, comments, reactionCounts, myReaction });
+  const base = `${res.locals.baseUrl}/novel/${novel.slug}/c/`;
+  res.render('reader', {
+    novel, chapter, prev, next: next_, upcoming, position, bookmarked, comments, reactionCounts, myReaction,
+    seo: {
+      title: `${novel.title} ${u.chapterLabel(chapter)} | ${getSettings().site_name}`,
+      ogTitle: `${novel.title} — ${u.chapterLabel(chapter)}`,
+      description: seo.excerpt(`${u.chapterLabel(chapter)}. ${seo.plainText(chapter.content)}`),
+      canonical: base + u.formatNumber(chapter.number),
+      prev: prev ? base + u.formatNumber(prev.number) : undefined,
+      next: next_ ? base + u.formatNumber(next_.number) : undefined,
+      image: novel.cover ? `${res.locals.baseUrl}/uploads/covers/${novel.cover}` : undefined,
+      type: 'article',
+      jsonld: seo.chapterSchema(res.locals.baseUrl, novel, chapter),
+    },
+  });
 });
 
 router.post('/novel/:slug/c/:num/comment', requireLogin, loadNovel, (req, res, next) => {
@@ -330,7 +384,7 @@ router.get('/library', requireLogin, (req, res) => {
     SELECT ${NOVEL_COLUMNS}, b.updated_at AS read_at, b.status AS list, c.number AS last_number
     FROM bookmarks b JOIN novels n ON n.id = b.novel_id LEFT JOIN chapters c ON c.id = b.last_chapter_id
     WHERE b.user_id = ? ${list === 'all' ? '' : 'AND b.status = ?'} ORDER BY last_release DESC`).all(req.user.id, ...(list === 'all' ? [] : [list]));
-  res.render('library', { items, list, counts, total: Object.values(counts).reduce((a, b) => a + b, 0) });
+  res.render('library', { items, list, counts, total: Object.values(counts).reduce((a, b) => a + b, 0), seo: { title: `My library | ${getSettings().site_name}`, noindex: true } });
 });
 
 // ---------- User profiles ----------
@@ -347,11 +401,19 @@ router.get('/user/:name', (req, res, next) => {
     JOIN chapters c ON c.id = cm.chapter_id JOIN novels n ON n.id = c.novel_id WHERE cm.user_id = ? ORDER BY cm.created_at DESC LIMIT 10`).all(profile.id);
   const counts = db.prepare(`SELECT (SELECT COUNT(*) FROM comments WHERE user_id = ?) AS comments,
     (SELECT COUNT(*) FROM ratings WHERE user_id = ?) AS ratings, (SELECT COUNT(*) FROM reviews WHERE user_id = ?) AS reviews`).get(profile.id, profile.id, profile.id);
-  res.render('user', { profile, translated, lists, reading, reviews, comments, counts });
+  res.render('user', {
+    profile, translated, lists, reading, reviews, comments, counts,
+    seo: {
+      title: `${profile.username}${translated.length ? ' — Translator' : ''} | ${getSettings().site_name}`,
+      description: translated.length ? `Novels translated by ${profile.username}: ${translated.map((n) => n.title).slice(0, 5).join(', ')}.` : undefined,
+      canonical: `${res.locals.baseUrl}/user/${encodeURIComponent(profile.username)}`,
+      noindex: !translated.length, // only translator profiles are useful in search results
+    },
+  });
 });
 
 // Reading history is kept in the browser (works without an account); the page fills itself in.
-router.get('/history', (req, res) => res.render('history'));
+router.get('/history', (req, res) => res.render('history', { seo: { title: `Reading history | ${getSettings().site_name}`, noindex: true } }));
 
 // ---------- Feeds & SEO ----------
 function rss(req, res, { title, link, description, items }) {
@@ -386,27 +448,77 @@ router.get('/novel/:slug/rss.xml', loadNovel, (req, res) => {
 });
 
 router.get('/robots.txt', (req, res) => {
-  res.type('text/plain').send(`User-agent: *\nDisallow: /admin\nDisallow: /login\nDisallow: /register\nDisallow: /library\nSitemap: ${res.locals.baseUrl}/sitemap.xml\n`);
+  const base = res.locals.baseUrl;
+  if (getSettings().search_indexing === '0') return res.type('text/plain').send('User-agent: *\nDisallow: /\n');
+  res.type('text/plain').send([
+    'User-agent: *',
+    'Disallow: /admin', 'Disallow: /api/', 'Disallow: /login', 'Disallow: /register', 'Disallow: /library',
+    'Disallow: /history', 'Disallow: /random', 'Disallow: /search', 'Disallow: /*?q=', 'Disallow: /*&q=',
+    '', `Sitemap: ${base}/sitemap.xml`, '',
+  ].join('\n'));
 });
+
+// Sitemaps: an index pointing at one file for pages/novels and as many chapter files as needed (max 40,000 URLs each).
+const CHAPTERS_PER_SITEMAP = 40000;
+const day = (t) => new Date(t * 1000).toISOString().slice(0, 10);
+const urlTag = (loc, lastmod, extra = '') => `<url><loc>${xmlEscape(loc)}</loc>${lastmod ? `<lastmod>${day(lastmod)}</lastmod>` : ''}${extra}</url>`;
 
 router.get('/sitemap.xml', (req, res) => {
   const base = res.locals.baseUrl;
-  const novels = db.prepare(`SELECT n.slug,
-    COALESCE((SELECT MAX(${RELEASED}) FROM chapters c WHERE c.novel_id = n.id AND ${VISIBLE}), n.updated_at) AS lastmod FROM novels n`).all();
-  const chapters = db.prepare(`SELECT n.slug, c.number, ${RELEASED} AS lastmod FROM chapters c JOIN novels n ON n.id = c.novel_id
-    WHERE ${VISIBLE} ORDER BY c.id DESC LIMIT 45000`).all();
-  const url = (loc, t) => `<url><loc>${xmlEscape(base + loc)}</loc><lastmod>${new Date(t * 1000).toISOString().slice(0, 10)}</lastmod></url>`;
+  const count = db.prepare(`SELECT COUNT(*) AS n FROM chapters c WHERE ${VISIBLE}`).get().n;
+  const parts = [`${base}/sitemap-novels.xml`];
+  for (let i = 1; i <= Math.ceil(count / CHAPTERS_PER_SITEMAP); i++) parts.push(`${base}/sitemap-chapters-${i}.xml`);
   res.type('application/xml').send(`<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-<url><loc>${xmlEscape(base)}/</loc></url>
-${novels.map((n) => url(`/novel/${n.slug}`, n.lastmod)).join('\n')}
-${chapters.map((c) => url(`/novel/${c.slug}/c/${formatNumber(c.number)}`, c.lastmod)).join('\n')}
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${parts.map((loc) => `<sitemap><loc>${xmlEscape(loc)}</loc></sitemap>`).join('\n')}
+</sitemapindex>`);
+});
+
+router.get('/sitemap-novels.xml', (req, res) => {
+  const base = res.locals.baseUrl;
+  const novels = db.prepare(`SELECT n.slug, n.title, n.cover,
+    COALESCE((SELECT MAX(${RELEASED}) FROM chapters c WHERE c.novel_id = n.id AND ${VISIBLE}), n.updated_at) AS lastmod FROM novels n ORDER BY lastmod DESC`).all();
+  const genres = db.prepare('SELECT g.slug FROM genres g WHERE EXISTS (SELECT 1 FROM novel_genres ng WHERE ng.genre_id = g.id)').all();
+  const latest = novels.length ? novels[0].lastmod : null;
+  res.type('application/xml').send(`<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+${urlTag(`${base}/`, latest)}
+${urlTag(`${base}/novels`, latest)}
+${genres.map((g) => urlTag(`${base}/novels?genre=${g.slug}`, null)).join('\n')}
+${novels.map((n) => urlTag(`${base}/novel/${n.slug}`, n.lastmod,
+    n.cover ? `<image:image><image:loc>${xmlEscape(`${base}/uploads/covers/${n.cover}`)}</image:loc></image:image>` : '')).join('\n')}
 </urlset>`);
 });
 
+router.get('/sitemap-chapters-:n.xml', (req, res, next) => {
+  const n = Number(req.params.n);
+  if (!Number.isInteger(n) || n < 1) return next(notFound());
+  const base = res.locals.baseUrl;
+  const rows = db.prepare(`SELECT n.slug, c.number, ${RELEASED} AS lastmod FROM chapters c JOIN novels n ON n.id = c.novel_id
+    WHERE ${VISIBLE} ORDER BY c.id LIMIT ? OFFSET ?`).all(CHAPTERS_PER_SITEMAP, (n - 1) * CHAPTERS_PER_SITEMAP);
+  if (!rows.length && n > 1) return next(notFound());
+  res.type('application/xml').send(`<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${rows.map((c) => urlTag(`${base}/novel/${c.slug}/c/${formatNumber(c.number)}`, c.lastmod)).join('\n')}
+</urlset>`);
+});
+
+// Lets phones "Add to home screen" with the site's name and icon.
+router.get('/manifest.webmanifest', (req, res) => {
+  const s = getSettings();
+  res.type('application/manifest+json').send(JSON.stringify({
+    name: s.site_name, short_name: s.site_name.slice(0, 12), description: s.site_description,
+    start_url: '/', display: 'standalone', background_color: '#15171c', theme_color: '#0f1115',
+    icons: [
+      { src: '/static/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { src: '/static/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+    ],
+  }));
+});
+
 // ---------- Accounts ----------
-router.get('/login', (req, res) => res.render('login', { mode: 'login', error: null, next: safeNext(req.query.next), username: '' }));
-router.get('/register', (req, res) => res.render('login', { mode: 'register', error: null, next: safeNext(req.query.next), username: '' }));
+router.get('/login', (req, res) => res.render('login', { mode: 'login', error: null, next: safeNext(req.query.next), username: '', seo: { title: `Log in | ${getSettings().site_name}`, noindex: true } }));
+router.get('/register', (req, res) => res.render('login', { mode: 'register', error: null, next: safeNext(req.query.next), username: '', seo: { title: `Sign up | ${getSettings().site_name}`, noindex: true } }));
 
 router.post('/login', (req, res) => {
   try {

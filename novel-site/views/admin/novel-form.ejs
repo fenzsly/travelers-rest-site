@@ -4,6 +4,7 @@
 <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
 <form method="post" enctype="multipart/form-data" action="<%= editing ? A(`/novels/${novel.id}/edit`) : A('/novels/new') %>" class="form-grid">
   <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <div class="stack-left">
   <section class="card">
     <h2>Basics</h2>
     <label class="field">Title <span class="req">*</span><input name="title" value="<%= novel.title || '' %>" required maxlength="250" id="f-title" placeholder="e.g. The Wandering Lantern Keeper"></label>
@@ -24,6 +25,20 @@
     <label class="field">Synopsis<span class="hint">Blank lines separate paragraphs.</span><textarea name="description" rows="8"><%= novel.description || '' %></textarea></label>
     <label class="field">Tags<span class="hint">Comma separated: weak to strong, cultivation, female lead…</span><input name="tags" value="<%= novel.tags || '' %>"></label>
   </section>
+  <section class="card seo-card">
+    <h2>🔍 Search engines <span class="muted small">(optional)</span></h2>
+    <p class="hint">Leave empty to use the title and synopsis automatically. Fill in to control exactly what Google shows.</p>
+    <label class="field">Search title <span class="hint"><span data-count="seo_title">0</span>/60 characters works best</span>
+      <input name="seo_title" maxlength="120" value="<%= novel.seo_title || '' %>" placeholder="<%= novel.title ? `${novel.title} — Read Online` : 'e.g. Lord of the Mysteries — Read the English Translation' %>"></label>
+    <label class="field">Search description <span class="hint"><span data-count="seo_description">0</span>/155 characters works best</span>
+      <textarea name="seo_description" rows="3" maxlength="300" placeholder="One or two sentences that make people want to click. Mention the genre and what makes the story special."><%= novel.seo_description || '' %></textarea></label>
+    <div class="serp" aria-label="Google preview">
+      <div class="serp-url"><%= site('/novel/') %><span id="serp-slug"><%= novel.slug || 'your-novel' %></span></div>
+      <div class="serp-title" id="serp-title"></div>
+      <div class="serp-desc" id="serp-desc"></div>
+    </div>
+  </section>
+  </div>
 
   <div class="stack">
     <section class="card">

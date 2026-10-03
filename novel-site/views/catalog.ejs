@@ -4,10 +4,10 @@
   <div class="layout">
     <div class="content">
       <section class="block">
-        <h2 class="block-title">
+        <h1 class="block-title page-h1">
           <% if (search) { %>Search results for “<%= search %>”<% } else if (tag) { %>Tagged #<%= tag %><% } else if (activeGenre) { %><%= activeGenre.name %> novels<% } else if (sort === 'trending') { %>Trending this week<% } else if (sort === 'popular') { %>Most popular<% } else { %>Novel list<% } %>
           <span class="muted small"><%= pager.total %> found</span>
-        </h2>
+        </h1>
         <form class="filters" method="get" action="/novels">
           <input type="search" name="q" value="<%= search %>" placeholder="Title, author, tag…">
           <select name="genre">

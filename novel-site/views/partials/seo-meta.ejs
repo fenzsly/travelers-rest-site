@@ -1,0 +1,42 @@
+<%#
+  Shared <head> tags for search engines and link previews.
+  Pass `seo`: { title, description, canonical, image, type, noindex, jsonld, prev, next }.
+%>
+<% const _s = typeof seo !== 'undefined' && seo ? seo : {};
+   const _base = typeof baseUrl !== 'undefined' ? baseUrl : '';
+   const _title = _s.title || `${settings.site_name} — ${settings.site_tagline}`;
+   const _desc = _s.description || settings.site_description || settings.site_tagline;
+   const _image = _s.image || `${_base}/static/icons/og-default.png`;
+   const _noindex = _s.noindex || settings.search_indexing === '0'; %>
+<title><%= _title %></title>
+<meta name="description" content="<%= _desc %>">
+<meta name="robots" content="<%= _noindex ? 'noindex, follow' : 'index, follow, max-image-preview:large, max-snippet:-1' %>">
+<% if (_s.canonical) { %><link rel="canonical" href="<%= _s.canonical %>"><% } %>
+<% if (_s.prev) { %><link rel="prev" href="<%= _s.prev %>"><% } %>
+<% if (_s.next) { %><link rel="next" href="<%= _s.next %>"><% } %>
+<meta property="og:site_name" content="<%= settings.site_name %>">
+<meta property="og:type" content="<%= _s.type || 'website' %>">
+<meta property="og:title" content="<%= _s.ogTitle || _title %>">
+<meta property="og:description" content="<%= _desc %>">
+<% if (_s.canonical) { %><meta property="og:url" content="<%= _s.canonical %>"><% } %>
+<meta property="og:image" content="<%= _image %>">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="<%= _s.ogTitle || _title %>">
+<meta name="twitter:description" content="<%= _desc %>">
+<meta name="twitter:image" content="<%= _image %>">
+<% if (/^[A-Za-z0-9_-]{10,100}$/.test(settings.google_verification || '')) { %><meta name="google-site-verification" content="<%= settings.google_verification %>"><% } %>
+<% if (/^[A-Za-z0-9_-]{10,100}$/.test(settings.bing_verification || '')) { %><meta name="msvalidate.01" content="<%= settings.bing_verification %>"><% } %>
+<meta name="theme-color" content="<%= settings.default_theme === 'light' ? '#262a33' : '#0f1115' %>">
+<link rel="icon" type="image/png" sizes="32x32" href="/static/icons/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png">
+<link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="alternate" type="application/rss+xml" title="<%= settings.site_name %> — latest chapters" href="/rss.xml">
+<% if (_s.feed) { %><link rel="alternate" type="application/rss+xml" title="<%= _s.feed.title %>" href="<%= _s.feed.href %>"><% } %>
+<% [].concat(_s.jsonld || []).forEach((data) => { %><script type="application/ld+json"><%- seoLib.jsonLd(data) %></script>
+<% }) %>
+<% if (/^G-[A-Z0-9]{4,15}$/.test(settings.ga_id || '')) { %>
+<script async src="https://www.googletagmanager.com/gtag/js?id=<%= settings.ga_id %>"></script>
+<script>window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', '<%= settings.ga_id %>');</script>
+<% } %>

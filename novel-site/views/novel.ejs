@@ -5,7 +5,7 @@
 <main class="wrap">
   <nav class="crumbs"><a href="/">Home</a> › <a href="/novels">Novels</a> › <span><%= novel.title %></span></nav>
   <section class="block novel-head">
-    <div class="novel-cover"><%- include('partials/cover', { n: novel }) %></div>
+    <div class="novel-cover"><%- include('partials/cover', { n: novel, eager: true }) %></div>
     <div class="novel-info">
       <h1 class="novel-title"><%= novel.title %></h1>
       <% if (novel.alt_titles) { %><div class="novel-alt"><%= novel.alt_titles.split('\n').join(' · ') %></div><% } %>

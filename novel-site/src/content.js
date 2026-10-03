@@ -74,8 +74,14 @@ function importBundledNovels({ log = console.log } = {}) {
             uniqueSlug(slugify(d.slug || d.title)), d.title, d.alt_titles || '', d.author || '', d.original_language || '',
             d.year || null, STATUS_LABELS[d.status] ? d.status : 'ongoing', d.description || '', d.tags || '', cover, owner);
           novelId = Number(r.lastInsertRowid);
+          db.prepare('UPDATE novels SET seo_title = ?, seo_description = ? WHERE id = ?').run(d.seo_title || '', d.seo_description || '', novelId);
           const genreIds = (d.genres || []).map((g) => db.prepare('SELECT id FROM genres WHERE name = ? COLLATE NOCASE').get(g)?.id).filter(Boolean);
           setNovelGenres(novelId, genreIds);
+        }
+        // Fill in search title/description if the package has them and they're still empty on the site.
+        if (record && (d.seo_title || d.seo_description)) {
+          db.prepare(`UPDATE novels SET seo_title = CASE WHEN seo_title = '' THEN ? ELSE seo_title END,
+            seo_description = CASE WHEN seo_description = '' THEN ? ELSE seo_description END WHERE id = ?`).run(d.seo_title || '', d.seo_description || '', novelId);
         }
         let added = 0;
         for (const c of d.chapters || []) {

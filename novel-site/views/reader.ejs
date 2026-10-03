@@ -3,20 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title><%= u.chapterLabel(chapter) %> — <%= novel.title %> — <%= settings.site_name %></title>
-<meta name="description" content="<%= novel.title %>: <%= u.chapterLabel(chapter) %>">
-<meta property="og:site_name" content="<%= settings.site_name %>">
-<meta property="og:type" content="article">
-<meta property="og:title" content="<%= novel.title %> — <%= u.chapterLabel(chapter) %>">
-<meta property="og:description" content="<%= novel.description.slice(0, 200) %>">
-<meta property="og:url" content="<%= baseUrl %>/novel/<%= novel.slug %>/c/<%= u.formatNumber(chapter.number) %>">
-<% if (novel.cover) { %><meta property="og:image" content="<%= baseUrl %>/uploads/covers/<%= novel.cover %>"><% } %>
-<link rel="canonical" href="<%= baseUrl %>/novel/<%= novel.slug %>/c/<%= u.formatNumber(chapter.number) %>">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📖</text></svg>">
+<%- include('partials/seo-meta', { seo }) %>
 <link rel="stylesheet" href="/static/css/site.css">
 <link rel="stylesheet" href="/static/css/reader.css">
-<% if (prev) { %><link rel="prev" href="/novel/<%= novel.slug %>/c/<%= u.formatNumber(prev.number) %>"><% } %>
-<% if (next) { %><link rel="next" href="/novel/<%= novel.slug %>/c/<%= u.formatNumber(next.number) %>"><% } %>
 <script>
   // Apply saved reader preferences before first paint (no flash of the wrong theme).
   try {

@@ -120,6 +120,10 @@ if (!db.prepare('SELECT 1 FROM users WHERE is_owner = 1').get()) {
   db.exec("UPDATE users SET is_owner = 1 WHERE id = (SELECT MIN(id) FROM users WHERE role = 'admin')");
 }
 
+// Optional per-novel search title/description (fall back to the title and synopsis).
+if (!hasColumn('novels', 'seo_title')) db.exec("ALTER TABLE novels ADD COLUMN seo_title TEXT NOT NULL DEFAULT ''");
+if (!hasColumn('novels', 'seo_description')) db.exec("ALTER TABLE novels ADD COLUMN seo_description TEXT NOT NULL DEFAULT ''");
+
 // Library lists (ranobes-style reading statuses).
 if (!hasColumn('bookmarks', 'status')) {
   db.exec("ALTER TABLE bookmarks ADD COLUMN status TEXT NOT NULL DEFAULT 'reading'");

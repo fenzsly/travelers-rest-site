@@ -209,6 +209,8 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
       status: STATUS_LABELS[body.status] ? body.status : 'ongoing',
       description: String(body.description || '').trim().slice(0, 20000),
       tags: String(body.tags || '').split(',').map((t) => t.trim()).filter(Boolean).join(', ').slice(0, 1000),
+      seo_title: String(body.seo_title || '').replace(/\s+/g, ' ').trim().slice(0, 120),
+      seo_description: String(body.seo_description || '').replace(/\s+/g, ' ').trim().slice(0, 300),
       genres: [].concat(body.genres || []).map(Number).filter(Number.isInteger),
       newGenres: String(body.new_genres || '').split(',').map((g) => g.trim()).filter(Boolean).slice(0, 10),
     };
@@ -244,6 +246,7 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
         const r = db.prepare(`INSERT INTO novels (slug, title, alt_titles, author, original_language, year, status, description, tags, cover, owner_id)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(uniqueSlug(f.slug), f.title, f.alt_titles, f.author, f.original_language,
           f.year, f.status, f.description, f.tags, req.file ? req.file.filename : null, ownerId);
+        db.prepare('UPDATE novels SET seo_title = ?, seo_description = ? WHERE id = ?').run(f.seo_title, f.seo_description, r.lastInsertRowid);
         setNovelGenres(r.lastInsertRowid, withNewGenres(f, req.user));
         return Number(r.lastInsertRowid);
       });
@@ -268,8 +271,8 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
       const ownerId = req.user.role === 'admin' && req.body.owner_id ? Number(req.body.owner_id) : novel.owner_id;
       tx(() => {
         db.prepare(`UPDATE novels SET slug = ?, title = ?, alt_titles = ?, author = ?, original_language = ?, year = ?, status = ?,
-          description = ?, tags = ?, cover = ?, owner_id = ? WHERE id = ?`).run(uniqueSlug(f.slug, novel.id), f.title, f.alt_titles,
-          f.author, f.original_language, f.year, f.status, f.description, f.tags, cover, ownerId, novel.id);
+          description = ?, tags = ?, cover = ?, owner_id = ?, seo_title = ?, seo_description = ? WHERE id = ?`).run(uniqueSlug(f.slug, novel.id), f.title, f.alt_titles,
+          f.author, f.original_language, f.year, f.status, f.description, f.tags, cover, ownerId, f.seo_title, f.seo_description, novel.id);
         setNovelGenres(novel.id, withNewGenres(f, req.user));
       });
       if (cover !== novel.cover) removeCover(novel.cover);
@@ -671,6 +674,33 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
     db.prepare('DELETE FROM comments WHERE id = ?').run(Number(req.params.cid));
     req.flash('ok', 'Comment deleted.');
     res.redirect(A('/comments'));
+  });
+
+  // ---------- SEO (admin) ----------
+  app.get('/seo', adminOnly, (req, res) => {
+    const seo = require('./seo');
+    const novels = db.prepare(`SELECT ${NOVEL_COLUMNS} FROM novels n ORDER BY n.title COLLATE NOCASE`).all()
+      .map((n) => ({ ...n, issues: seo.novelIssues(n) }));
+    res.render('admin/seo', { novels, problems: novels.filter((n) => n.issues.length) });
+  });
+
+  app.post('/seo', adminOnly, (req, res) => {
+    const code = (v) => String(v || '').trim().replace(/^.*content=["']?([^"'\s>]+).*$/s, '$1'); // accept a pasted <meta> tag too
+    const google = code(req.body.google_verification);
+    const bing = code(req.body.bing_verification);
+    const ga = String(req.body.ga_id || '').trim().toUpperCase();
+    if (google && !/^[A-Za-z0-9_-]{10,100}$/.test(google)) throw fail(400, 'That Google verification code doesn’t look right. Paste just the code (or the whole <meta> tag).');
+    if (bing && !/^[A-Za-z0-9_-]{10,100}$/.test(bing)) throw fail(400, 'That Bing verification code doesn’t look right.');
+    if (ga && !/^G-[A-Z0-9]{4,15}$/.test(ga)) throw fail(400, 'Google Analytics IDs look like G-ABC123XYZ.');
+    saveSettings({
+      site_description: String(req.body.site_description || '').replace(/\s+/g, ' ').trim().slice(0, 300),
+      search_indexing: req.body.search_indexing ? '1' : '0',
+      google_verification: google,
+      bing_verification: bing,
+      ga_id: ga,
+    });
+    req.flash('ok', 'SEO settings saved.');
+    res.redirect(A('/seo'));
   });
 
   // ---------- Settings (admin) ----------

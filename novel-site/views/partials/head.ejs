@@ -3,19 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title><%= typeof title !== 'undefined' && title ? `${title} — ${settings.site_name}` : `${settings.site_name} — ${settings.site_tagline}` %></title>
-<% if (typeof description !== 'undefined' && description) { %><meta name="description" content="<%= description %>"><% } %>
-<% const _t = typeof title !== 'undefined' && title ? title : settings.site_name; const _d = typeof description !== 'undefined' && description ? description : settings.site_tagline; const _og = typeof og !== 'undefined' ? og : {}; %>
-<meta property="og:site_name" content="<%= settings.site_name %>">
-<meta property="og:title" content="<%= _t %>">
-<meta property="og:description" content="<%= _d %>">
-<meta property="og:type" content="<%= _og.type || 'website' %>">
-<% if (_og.url) { %><meta property="og:url" content="<%= _og.url %>"><link rel="canonical" href="<%= _og.url %>"><% } %>
-<% if (_og.image) { %><meta property="og:image" content="<%= _og.image %>"><meta name="twitter:card" content="summary_large_image"><% } else { %><meta name="twitter:card" content="summary"><% } %>
-<meta name="theme-color" content="<%= settings.default_theme === 'light' ? '#262a33' : '#0f1115' %>">
-<link rel="alternate" type="application/rss+xml" title="<%= settings.site_name %> — latest chapters" href="/rss.xml">
-<% if (typeof feed !== 'undefined' && feed) { %><link rel="alternate" type="application/rss+xml" title="<%= feed.title %>" href="<%= feed.href %>"><% } %>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📖</text></svg>">
+<%- include('seo-meta', { seo: typeof seo !== 'undefined' ? seo : {} }) %>
 <link rel="stylesheet" href="/static/css/site.css">
 <script>
   // Apply the saved site theme before first paint.

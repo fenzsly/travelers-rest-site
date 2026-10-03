@@ -1,6 +1,7 @@
 <%- include('partials/head', { title: null }) %>
 <%- include('partials/header') %>
 <main class="wrap">
+  <h1 class="visually-hidden"><%= settings.site_name %>: <%= settings.site_tagline %></h1>
   <% if (popular.length) { %>
   <section class="block">
     <h2 class="block-title">Popular novels</h2>

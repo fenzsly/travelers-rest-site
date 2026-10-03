@@ -1,0 +1,63 @@
+<%- include('partials/top', { title: 'SEO' }) %>
+<% const base = site('').replace(/\/$/, ''); %>
+<div class="grid-2">
+  <form method="post" action="<%= A('/seo') %>" class="card">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <h2>🔍 Search settings</h2>
+    <label class="field">Site description
+      <span class="hint">Shown under your site name in Google and in link previews of the home page. <span data-count="site_description">0</span>/155 characters works best.</span>
+      <textarea name="site_description" rows="3" maxlength="300"><%= settings.site_description %></textarea></label>
+    <label class="switch"><input type="checkbox" name="search_indexing" value="1" <%= settings.search_indexing !== '0' ? 'checked' : '' %>><span></span> Allow search engines to list this site</label>
+    <p class="hint">Turn off only while the site isn’t ready. Google won’t show any page while it’s off.</p>
+    <h2 style="margin-top:20px">Webmaster tools <span class="muted small">(optional)</span></h2>
+    <label class="field">Google Search Console verification code
+      <span class="hint">In Search Console choose “URL prefix” → “HTML tag”, and paste the tag or just its code.</span>
+      <input name="google_verification" value="<%= settings.google_verification %>" placeholder="e.g. a1B2c3D4e5…"></label>
+    <label class="field">Bing Webmaster verification code
+      <input name="bing_verification" value="<%= settings.bing_verification %>" placeholder="e.g. 1A2B3C4D5E…"></label>
+    <label class="field">Google Analytics 4 measurement ID
+      <span class="hint">Counts visitors in Google Analytics. Leave empty for none (the built-in view counter works without it).</span>
+      <input name="ga_id" value="<%= settings.ga_id %>" placeholder="G-ABC123XYZ"></label>
+    <div class="form-actions"><button class="btn btn-primary" type="submit">💾 Save SEO settings</button></div>
+  </form>
+  <div class="stack-plain">
+    <section class="card">
+      <h2>✅ Already done for you</h2>
+      <ul class="check-list">
+        <li>Search-friendly titles and descriptions on every page, written automatically from your novels</li>
+        <li>Structured data so Google understands novels (author, genres, cover, rating) and chapters</li>
+        <li>Sitemap with every novel, chapter and cover image: <a href="<%= base %>/sitemap.xml" target="_blank" rel="noopener">sitemap.xml</a></li>
+        <li><a href="<%= base %>/robots.txt" target="_blank" rel="noopener">robots.txt</a> keeps logins, search results and the admin panel out of Google</li>
+        <li>Canonical links so duplicate pages (sorting, tabs) don’t compete with each other</li>
+        <li>Link previews with your cover for Discord, X/Twitter, Facebook, WhatsApp</li>
+        <li>RSS feeds, home-screen icon and fast, mobile-friendly pages</li>
+      </ul>
+    </section>
+    <section class="card">
+      <h2>🚀 Next steps (10 minutes)</h2>
+      <ol class="steps-list">
+        <li>Open <a href="https://search.google.com/search-console" target="_blank" rel="noopener">Google Search Console</a> → <em>Add property</em> → <em>URL prefix</em> → <code><%= base %>/</code></li>
+        <li>Choose <em>HTML tag</em>, paste the code into the box on the left, save, then click <em>Verify</em> in Search Console.</li>
+        <li>In Search Console open <em>Sitemaps</em> and submit <code>sitemap.xml</code>.</li>
+        <li>Optional: do the same in <a href="https://www.bing.com/webmasters" target="_blank" rel="noopener">Bing Webmaster Tools</a> (it can import from Google in one click).</li>
+      </ol>
+      <p class="hint">New sites usually start appearing in Google within a few days to a few weeks.</p>
+    </section>
+  </div>
+</div>
+
+<section class="card">
+  <h2>📋 Novel checklist <span class="muted small"><%= problems.length ? `${problems.length} of ${novels.length} novels could rank better` : 'all good!' %></span></h2>
+  <% if (!novels.length) { %><p class="muted">No novels yet.</p><% } %>
+  <table class="table">
+    <% novels.forEach((n) => { %>
+      <tr>
+        <td><a href="<%= A(`/novels/${n.id}/edit`) %>"><strong><%= n.title %></strong></a></td>
+        <td><% if (n.issues.length) { %><ul class="issue-list"><% n.issues.forEach((i) => { %><li>⚠ <%= i %></li><% }) %></ul><% } else { %><span class="ok-text">✓ Looks good</span><% } %></td>
+        <td class="right nowrap"><a class="btn btn-sm" href="<%= A(`/novels/${n.id}/edit`) %>">Fix</a> <a class="btn btn-sm btn-ghost" href="<%= site(`/novel/${n.slug}`) %>" target="_blank" rel="noopener">↗</a></td>
+      </tr>
+    <% }) %>
+  </table>
+  <p class="hint">Tips: a cover, a synopsis of a few sentences (120+ characters) and the right genres make the biggest difference. Regular new chapters help too, since search engines favour sites that update.</p>
+</section>
+<%- include('partials/bottom') %>

@@ -386,3 +386,8 @@ main.wrap { padding-top: 18px; padding-bottom: 30px; }
 /* ---------- v4: volumes in the table of contents ---------- */
 .vol-head { column-span: all; margin: 14px 0 4px; padding: 6px 10px; background: var(--block-alt); border-radius: 4px; font-weight: 700; font-size: 13.5px; text-transform: uppercase; letter-spacing: .04em; list-style: none; }
 .vol-head:first-child { margin-top: 0; }
+
+/* ---------- SEO helpers ---------- */
+.visually-hidden { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+h1.block-title { font-size: 15px; }
+img.cover-img { height: auto; }

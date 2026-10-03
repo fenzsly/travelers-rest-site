@@ -12,6 +12,13 @@ const DEFAULTS = {
   comments_enabled: '1',
   // Theme new visitors see: 'dark' or 'light' (each reader can still switch).
   default_theme: 'dark',
+  // --- SEO ---
+  // Shown under the site name in Google results and in link previews for the home page.
+  site_description: 'Read free English translations of Chinese, Korean and Japanese web novels online: fantasy, xianxia, romance, isekai and more, updated regularly.',
+  search_indexing: '1', // '0' asks search engines not to index the site (e.g. before launch)
+  google_verification: '',
+  bing_verification: '',
+  ga_id: '', // Google Analytics 4 measurement ID, e.g. G-ABC123XYZ
 };
 
 const selectAll = db.prepare('SELECT key, value FROM settings');
@@ -28,6 +35,7 @@ function getSettings() {
 }
 
 function saveSettings(values) {
+  // Unknown keys are ignored; only settings with a default can be saved.
   for (const key of Object.keys(DEFAULTS)) {
     if (values[key] !== undefined) upsert.run(key, String(values[key]));
   }

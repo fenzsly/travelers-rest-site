@@ -399,3 +399,4 @@ img.cover-img { height: auto; }
 .prose ul { padding-left: 20px; }
 /* Keep auto ads from overflowing on small screens */
 ins.adsbygoogle { max-width: 100%; }
+.site-intro p { margin: 0 0 8px; }

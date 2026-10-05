@@ -1,0 +1,24 @@
+<%- include('partials/head') %>
+<%- include('partials/header') %>
+<main class="wrap narrow-text">
+  <section class="block prose">
+    <h1 class="block-title page-h1">About <%= settings.site_name %></h1>
+    <p><strong><%= settings.site_name %></strong> is a free website for reading English translations of web novels and light novels online. <%= settings.site_description %></p>
+    <p>We currently host <strong><%= totals.novels %> novel<%= totals.novels === 1 ? '' : 's' %></strong> and <strong><%= totals.chapters.toLocaleString('en-US') %> chapters</strong><% if (genres.length) { %>, across genres like <%= genres.slice(0, 6).map((g) => g.name).join(', ') %><% } %>.</p>
+
+    <h2>Reading on <%= settings.site_name %></h2>
+    <ul>
+      <li>A comfortable reader with dark, sepia and light themes, adjustable fonts and arrow-key navigation.</li>
+      <li>Free accounts to keep a library, track your progress and get notified about new chapters.</li>
+      <li>Ratings, reviews, comments and reactions on every novel and chapter.</li>
+      <li>RSS feeds for the whole site and for each novel.</li>
+    </ul>
+
+    <h2>Follow new chapters</h2>
+    <p>Bookmark <a href="/"><%= baseUrl.replace(/^https?:\/\//, '') %></a>, add novels to your library, or subscribe to the <a href="/rss.xml">RSS feed</a>.<% const links = (settings.social_links || '').split(/\s+/).filter((l) => /^https?:\/\//.test(l)); if (links.length) { %> You can also find us here: <% links.forEach((l, i) => { %><a href="<%= l %>" rel="me noopener" target="_blank"><%= l.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '') %></a><%= i < links.length - 1 ? ', ' : '' %><% }) %>.<% } %></p>
+
+    <h2>Translations</h2>
+    <p><%= settings.footer_text %> If you are an author or rights holder and would like a work removed, please contact us and we will respond promptly.</p>
+  </section>
+</main>
+<%- include('partials/footer') %>

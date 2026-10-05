@@ -53,6 +53,11 @@
           <% }) %>
         </div>
       </section>
+      <section class="block site-intro">
+        <h2 class="block-title">Welcome to <%= settings.site_name %></h2>
+        <p><strong><%= settings.site_name %></strong> is a free place to read English translations of web novels: <%= settings.site_description.replace(/^Read free /i, '') %></p>
+        <p class="muted small"><a href="/about">More about <%= settings.site_name %> →</a></p>
+      </section>
       <% if (completed.length) { %>
       <section class="block">
         <h2 class="block-title">Completed novels <a class="block-more" href="/novels?status=completed&sort=popular">More →</a></h2>

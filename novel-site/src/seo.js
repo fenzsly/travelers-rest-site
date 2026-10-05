@@ -36,16 +36,28 @@ function breadcrumbs(base, items) {
   };
 }
 
+/** Split a setting into a clean list (undefined when empty, so it's left out of the JSON). */
+function list(value, sep) {
+  const items = String(value || '').split(sep).map((s) => s.trim()).filter(Boolean);
+  return items.length ? items : undefined;
+}
+
 function websiteSchema(base, settings) {
   return {
     '@context': 'https://schema.org',
     '@graph': [
       {
         '@type': 'WebSite', '@id': `${base}/#website`, url: `${base}/`, name: settings.site_name,
+        alternateName: list(settings.site_alternate_names, ','),
         description: settings.site_description || settings.site_tagline, inLanguage: 'en',
+        publisher: { '@id': `${base}/#org` },
         potentialAction: { '@type': 'SearchAction', target: `${base}/novels?q={search_term_string}`, 'query-input': 'required name=search_term_string' },
       },
-      { '@type': 'Organization', '@id': `${base}/#org`, name: settings.site_name, url: `${base}/`, logo: `${base}/static/icons/icon-512.png` },
+      {
+        '@type': 'Organization', '@id': `${base}/#org`, name: settings.site_name, alternateName: list(settings.site_alternate_names, ','),
+        url: `${base}/`, logo: `${base}/static/icons/icon-512.png`, description: settings.site_description || undefined,
+        sameAs: list((list(settings.social_links, /\s+/) || []).filter((u) => /^https?:\/\//.test(u)).join(' '), ' '),
+      },
     ],
   };
 }

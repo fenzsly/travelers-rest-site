@@ -484,6 +484,7 @@ router.get('/sitemap-novels.xml', (req, res) => {
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
 ${urlTag(`${base}/`, latest)}
 ${urlTag(`${base}/novels`, latest)}
+${urlTag(`${base}/about`, null)}
 ${genres.map((g) => urlTag(`${base}/novels?genre=${g.slug}`, null)).join('\n')}
 ${novels.map((n) => urlTag(`${base}/novel/${n.slug}`, n.lastmod,
     n.cover ? `<image:image><image:loc>${xmlEscape(`${base}/uploads/covers/${n.cover}`)}</image:loc></image:image>` : '')).join('\n')}
@@ -507,6 +508,20 @@ ${rows.map((c) => urlTag(`${base}/novel/${c.slug}/c/${formatNumber(c.number)}`, 
 router.get('/ads.txt', (req, res) => {
   const m = String(getSettings().adsense_client || '').match(/^ca-pub-(\d{10,20})$/);
   res.type('text/plain').send(m ? `google.com, pub-${m[1]}, DIRECT, f08c47fec0942fa0\n` : '');
+});
+
+router.get('/about', (req, res) => {
+  const s = getSettings();
+  const totals = db.prepare(`SELECT (SELECT COUNT(*) FROM novels) AS novels, (SELECT COUNT(*) FROM chapters c WHERE ${VISIBLE}) AS chapters`).get();
+  res.render('about', {
+    totals, genres: q.allGenres.all().filter((g) => g.novel_count),
+    seo: {
+      title: `About ${s.site_name} — Web Novel Translations`,
+      description: `${s.site_name} is a free site for reading English translations of web novels. Learn what we translate, how often we update and how to follow new chapters.`,
+      canonical: `${res.locals.baseUrl}/about`,
+      jsonld: { '@context': 'https://schema.org', '@type': 'AboutPage', name: `About ${s.site_name}`, url: `${res.locals.baseUrl}/about`, about: { '@id': `${res.locals.baseUrl}/#org` } },
+    },
+  });
 });
 
 router.get('/privacy', (req, res) => {

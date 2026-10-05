@@ -704,6 +704,8 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
       bing_verification: bing,
       ga_id: ga,
       adsense_client: adsense,
+      site_alternate_names: String(req.body.site_alternate_names || '').split(',').map((s) => s.trim()).filter(Boolean).slice(0, 10).join(', ').slice(0, 300),
+      social_links: String(req.body.social_links || '').split(/\s+/).filter((u) => /^https?:\/\/\S+$/.test(u)).slice(0, 10).join('\n'),
     });
     req.flash('ok', 'SEO settings saved.');
     res.redirect(A('/seo'));

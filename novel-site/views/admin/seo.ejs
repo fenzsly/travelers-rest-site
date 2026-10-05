@@ -7,6 +7,12 @@
     <label class="field">Site description
       <span class="hint">Shown under your site name in Google and in link previews of the home page. <span data-count="site_description">0</span>/155 characters works best.</span>
       <textarea name="site_description" rows="3" maxlength="300"><%= settings.site_description %></textarea></label>
+    <label class="field">Other spellings of your site name
+      <span class="hint">Comma separated. Helps Google show “<%= settings.site_name %>” when people search for it written differently.</span>
+      <input name="site_alternate_names" value="<%= settings.site_alternate_names %>" placeholder="Traveller MTL, travellermtl.com"></label>
+    <label class="field">Your profiles on other sites <span class="muted small">(optional)</span>
+      <span class="hint">One link per line: Discord invite, X/Twitter, Reddit, Ko-fi… Google uses these to recognise your brand.</span>
+      <textarea name="social_links" rows="3" placeholder="https://discord.gg/…"><%= settings.social_links %></textarea></label>
     <label class="switch"><input type="checkbox" name="search_indexing" value="1" <%= settings.search_indexing !== '0' ? 'checked' : '' %>><span></span> Allow search engines to list this site</label>
     <p class="hint">Turn off only while the site isn’t ready. Google won’t show any page while it’s off.</p>
     <h2 style="margin-top:20px">Webmaster tools <span class="muted small">(optional)</span></h2>

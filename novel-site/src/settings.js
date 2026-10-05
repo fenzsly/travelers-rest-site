@@ -19,6 +19,10 @@ const DEFAULTS = {
   google_verification: '',
   bing_verification: '',
   ga_id: '', // Google Analytics 4 measurement ID, e.g. G-ABC123XYZ
+  // Other ways people write the site's name, so Google connects them to it (comma separated).
+  site_alternate_names: 'Traveller MTL, TravellerMTL Novels, travellermtl.com',
+  // Links to the site's profiles elsewhere (Discord, X, Reddit…), one per line. Helps Google recognise the brand.
+  social_links: '',
   // --- Ads ---
   adsense_client: 'ca-pub-2543393434361716', // Google AdSense publisher ID (empty = no ads)
 };

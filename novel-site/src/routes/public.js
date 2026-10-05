@@ -503,6 +503,16 @@ ${rows.map((c) => urlTag(`${base}/novel/${c.slug}/c/${formatNumber(c.number)}`, 
 </urlset>`);
 });
 
+// ads.txt: tells ad networks which publisher accounts may sell ads on this site (required by AdSense).
+router.get('/ads.txt', (req, res) => {
+  const m = String(getSettings().adsense_client || '').match(/^ca-pub-(\d{10,20})$/);
+  res.type('text/plain').send(m ? `google.com, pub-${m[1]}, DIRECT, f08c47fec0942fa0\n` : '');
+});
+
+router.get('/privacy', (req, res) => {
+  res.render('privacy', { seo: { title: `Privacy policy | ${getSettings().site_name}`, canonical: `${res.locals.baseUrl}/privacy` } });
+});
+
 // Lets phones "Add to home screen" with the site's name and icon.
 router.get('/manifest.webmanifest', (req, res) => {
   const s = getSettings();

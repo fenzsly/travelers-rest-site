@@ -18,6 +18,11 @@
     <label class="field">Google Analytics 4 measurement ID
       <span class="hint">Counts visitors in Google Analytics. Leave empty for none (the built-in view counter works without it).</span>
       <input name="ga_id" value="<%= settings.ga_id %>" placeholder="G-ABC123XYZ"></label>
+    <h2 style="margin-top:20px">💰 Google AdSense</h2>
+    <label class="field">AdSense publisher ID
+      <span class="hint">Paste your ID (ca-pub-…) or the whole AdSense code. Ads are shown on public pages and in the reader, never in the admin panel. Choose where ads appear under <em>Ads → Auto ads</em> in your AdSense account. Leave empty to turn ads off.</span>
+      <input name="adsense_client" value="<%= settings.adsense_client %>" placeholder="ca-pub-1234567890123456"></label>
+    <% if (settings.adsense_client) { %><p class="hint">✓ <a href="<%= base %>/ads.txt" target="_blank" rel="noopener">ads.txt</a> is published automatically. A <a href="<%= base %>/privacy" target="_blank" rel="noopener">privacy policy</a> mentioning ads and cookies is linked in the footer.</p><% } %>
     <div class="form-actions"><button class="btn btn-primary" type="submit">💾 Save SEO settings</button></div>
   </form>
   <div class="stack-plain">

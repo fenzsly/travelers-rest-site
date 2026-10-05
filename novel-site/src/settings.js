@@ -19,6 +19,8 @@ const DEFAULTS = {
   google_verification: '',
   bing_verification: '',
   ga_id: '', // Google Analytics 4 measurement ID, e.g. G-ABC123XYZ
+  // --- Ads ---
+  adsense_client: 'ca-pub-2543393434361716', // Google AdSense publisher ID (empty = no ads)
 };
 
 const selectAll = db.prepare('SELECT key, value FROM settings');

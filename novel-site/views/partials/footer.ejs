@@ -18,7 +18,7 @@
     <div>
       <div class="footer-head">You</div>
       <% if (user) { %><a href="/library">My library</a><a href="/user/<%= encodeURIComponent(user.username) %>">My profile</a><% } else { %><a href="/login">Log in</a><a href="/register">Sign up</a><% } %>
-      <a href="/history">Reading history</a><a href="/rss.xml">RSS feed</a>
+      <a href="/history">Reading history</a><a href="/rss.xml">RSS feed</a><a href="/privacy">Privacy policy</a>
     </div>
   </div>
 </footer>

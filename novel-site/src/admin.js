@@ -692,12 +692,18 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
     if (google && !/^[A-Za-z0-9_-]{10,100}$/.test(google)) throw fail(400, 'That Google verification code doesn’t look right. Paste just the code (or the whole <meta> tag).');
     if (bing && !/^[A-Za-z0-9_-]{10,100}$/.test(bing)) throw fail(400, 'That Bing verification code doesn’t look right.');
     if (ga && !/^G-[A-Z0-9]{4,15}$/.test(ga)) throw fail(400, 'Google Analytics IDs look like G-ABC123XYZ.');
+    // Accept the publisher ID on its own, "pub-…", or the whole AdSense <script> snippet.
+    const adsRaw = String(req.body.adsense_client || '').trim();
+    const adsMatch = adsRaw.match(/(?:ca-)?pub-(\d{10,20})/);
+    if (adsRaw && !adsMatch) throw fail(400, 'AdSense publisher IDs look like ca-pub-1234567890123456. You can also paste the whole AdSense code.');
+    const adsense = adsMatch ? `ca-pub-${adsMatch[1]}` : '';
     saveSettings({
       site_description: String(req.body.site_description || '').replace(/\s+/g, ' ').trim().slice(0, 300),
       search_indexing: req.body.search_indexing ? '1' : '0',
       google_verification: google,
       bing_verification: bing,
       ga_id: ga,
+      adsense_client: adsense,
     });
     req.flash('ok', 'SEO settings saved.');
     res.redirect(A('/seo'));

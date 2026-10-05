@@ -36,6 +36,9 @@
 <% if (_s.feed) { %><link rel="alternate" type="application/rss+xml" title="<%= _s.feed.title %>" href="<%= _s.feed.href %>"><% } %>
 <% [].concat(_s.jsonld || []).forEach((data) => { %><script type="application/ld+json"><%- seoLib.jsonLd(data) %></script>
 <% }) %>
+<% if (/^ca-pub-\d{10,20}$/.test(settings.adsense_client || '')) { %>
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=<%= settings.adsense_client %>" crossorigin="anonymous"></script>
+<% } %>
 <% if (/^G-[A-Z0-9]{4,15}$/.test(settings.ga_id || '')) { %>
 <script async src="https://www.googletagmanager.com/gtag/js?id=<%= settings.ga_id %>"></script>
 <script>window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', '<%= settings.ga_id %>');</script>

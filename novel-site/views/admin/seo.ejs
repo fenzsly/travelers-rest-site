@@ -45,6 +45,16 @@
       </ul>
     </section>
     <section class="card">
+      <h2>⚡ Instant indexing (IndexNow)</h2>
+      <% if (!indexnow.enabled) { %>
+        <p class="muted">Starts automatically once the site runs on its own https address (after the domain setup command).</p>
+      <% } else { %>
+        <p class="small">New chapters and novels are sent to Bing, Yandex and other IndexNow search engines within 10 minutes. Google uses your sitemap instead.</p>
+        <% const st = indexnow.state; if (st && st.sentAt) { %><p class="small">Last sent: <span class="local-time" data-ts="<%= st.sentAt %>"></span>, <%= st.count %> page(s), <%= st.result === 'ok' ? '✓ accepted' : st.result %></p><% } %>
+        <form method="post" action="<%= A('/seo/indexnow') %>"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn btn-sm">Send new pages now</button></form>
+      <% } %>
+    </section>
+    <section class="card">
       <h2>🚀 Next steps (10 minutes)</h2>
       <ol class="steps-list">
         <li>Open <a href="https://search.google.com/search-console" target="_blank" rel="noopener">Google Search Console</a> → <em>Add property</em> → <em>URL prefix</em> → <code><%= base %>/</code></li>

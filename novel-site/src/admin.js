@@ -681,7 +681,13 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
     const seo = require('./seo');
     const novels = db.prepare(`SELECT ${NOVEL_COLUMNS} FROM novels n ORDER BY n.title COLLATE NOCASE`).all()
       .map((n) => ({ ...n, issues: seo.novelIssues(n) }));
-    res.render('admin/seo', { novels, problems: novels.filter((n) => n.issues.length) });
+    res.render('admin/seo', { novels, problems: novels.filter((n) => n.issues.length), indexnow: require('./indexnow').status() });
+  });
+
+  app.post('/seo/indexnow', adminOnly, async (req, res) => {
+    const r = await require('./indexnow').run({ log: () => {} });
+    req.flash(r?.result === 'ok' ? 'ok' : 'error', r ? (r.result === 'ok' ? `Sent ${r.count} page(s) to Bing and other IndexNow search engines.` : `IndexNow: ${r.result}`) : 'Nothing new to send (or the site address isn’t set up yet).');
+    res.redirect(A('/seo'));
   });
 
   app.post('/seo', adminOnly, (req, res) => {

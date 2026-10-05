@@ -1,7 +1,8 @@
 <%- include('partials/head', { title: null }) %>
 <%- include('partials/header') %>
 <main class="wrap">
-  <h1 class="visually-hidden"><%= settings.site_name %>: <%= settings.site_tagline %></h1>
+  <% const altName = (settings.site_alternate_names || '').split(',').map((x) => x.trim()).find((x) => x && !/\./.test(x) && x.toLowerCase() !== settings.site_name.toLowerCase()); %>
+  <h1 class="visually-hidden"><%= settings.site_name %><%= altName ? ` (${altName})` : '' %>: <%= settings.site_tagline %></h1>
   <% if (popular.length) { %>
   <section class="block">
     <h2 class="block-title">Popular novels</h2>
@@ -55,7 +56,7 @@
       </section>
       <section class="block site-intro">
         <h2 class="block-title">Welcome to <%= settings.site_name %></h2>
-        <p><strong><%= settings.site_name %></strong> is a free place to read English translations of web novels: <%= settings.site_description.replace(/^Read free /i, '') %></p>
+        <p><strong><%= settings.site_name %></strong><%= altName ? ` (also written ${altName})` : '' %> is a free place to read English translations of web novels: <%= settings.site_description.replace(/^Read free /i, '') %></p>
         <p class="muted small"><a href="/about">More about <%= settings.site_name %> →</a></p>
       </section>
       <% if (completed.length) { %>

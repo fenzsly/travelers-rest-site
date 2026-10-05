@@ -3,7 +3,7 @@
   <div class="wrap footer-grid">
     <div>
       <div class="footer-brand"><%= settings.site_name %></div>
-      <p><%= settings.site_tagline %></p>
+      <p><%= settings.site_tagline %><% const _alt = (settings.site_alternate_names || '').split(',').map((x) => x.trim()).find((x) => x && !/\./.test(x) && x.toLowerCase() !== settings.site_name.toLowerCase()); if (_alt) { %> · <%= _alt %><% } %></p>
       <p class="small"><%= settings.footer_text %></p>
     </div>
     <div>

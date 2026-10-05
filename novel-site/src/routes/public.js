@@ -70,7 +70,11 @@ router.get('/', (req, res) => {
   res.render('home', {
     popular, updated, fresh, topRated, trending, completed, totals, genres: q.allGenres.all(),
     seo: {
-      title: `${s.site_name} — ${s.site_tagline}`,
+      // Include the spaced spelling too ("Traveller MTL"): search engines treat "TravellerMTL" as one word.
+      title: (() => {
+        const alt = (s.site_alternate_names || '').split(',').map((x) => x.trim()).find((x) => x && !/\./.test(x) && x.toLowerCase() !== s.site_name.toLowerCase());
+        return `${s.site_name}${alt ? ` (${alt})` : ''} — ${s.site_tagline}`;
+      })(),
       description: s.site_description,
       canonical: `${res.locals.baseUrl}/`,
       jsonld: seo.websiteSchema(res.locals.baseUrl, s),
@@ -209,9 +213,10 @@ router.get('/novel/:slug', loadNovel, (req, res) => {
     novel, chapters, pager, order, first, latest, upcoming, upcomingCount, bookmark, myRating, words, readers, rank, genres, similar,
     dist, reviews, myReview, listCounts, tab: req.query.tab === 'reviews' ? 'reviews' : 'chapters',
     seo: {
-      title: novel.seo_title || `${novel.title} — Read Online${novel.chapter_count ? ` (${novel.chapter_count} Chapters)` : ''} | ${getSettings().site_name}`,
+      title: novel.seo_title || `${novel.title} Novel — Read Online${novel.chapter_count ? ` (${novel.chapter_count} Chapters)` : ''} | ${getSettings().site_name}`,
       ogTitle: novel.seo_title || novel.title,
-      description: novel.seo_description || seo.excerpt(novel.description) || `Read ${novel.title} online in English.`,
+      // Mention alternative titles: readers often search for the original or a shortened name.
+      description: novel.seo_description || seo.excerpt(`Read ${novel.title}${novel.alt_titles ? ` (${novel.alt_titles.split('\n').map((t) => t.trim()).filter(Boolean).slice(0, 2).join(', ')})` : ''} online in English on ${getSettings().site_name}. ${seo.plainText(novel.description)}`),
       // Other orderings/tabs of the same page point search engines at the main URL.
       canonical: `${res.locals.baseUrl}/novel/${novel.slug}${pager.current > 1 ? `?page=${pager.current}` : ''}`,
       image: novel.cover ? `${res.locals.baseUrl}/uploads/covers/${novel.cover}` : undefined,
@@ -523,6 +528,9 @@ router.get('/about', (req, res) => {
     },
   });
 });
+
+// IndexNow key file (proves to search engines that notifications really come from this site).
+router.get('/indexnow-key.txt', (req, res) => res.type('text/plain').send(require('../indexnow').key()));
 
 router.get('/privacy', (req, res) => {
   res.render('privacy', { seo: { title: `Privacy policy | ${getSettings().site_name}`, canonical: `${res.locals.baseUrl}/privacy` } });

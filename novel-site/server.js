@@ -7,6 +7,8 @@ const { importBundledNovels } = require('./src/content');
 
 // Publish any novels that came with this version of the site (content/novels/).
 importBundledNovels();
+// Tell IndexNow search engines (Bing, Yandex, …) about new pages every few minutes.
+require('./src/indexnow').start();
 
 const PORT = Number(process.env.PORT) || 3000;
 const ADMIN_PORT = Number(process.env.ADMIN_PORT) || 0;

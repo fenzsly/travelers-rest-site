@@ -27,6 +27,19 @@
     </ol>
   </section>
   <% } %>
+  <% if (typeof topRequests !== 'undefined') { %>
+  <section class="block">
+    <h2 class="block-title">Most requested this week <a class="block-more" href="/requests">All →</a></h2>
+    <% if (topRequests.length) { %>
+    <ol class="toplist">
+      <% topRequests.forEach((r, i) => { %>
+        <li><span class="rank"><%= i + 1 %></span><a href="/requests#r<%= r.id %>"><%= r.title %></a><span class="muted small req-votes" title="Votes in the last 7 days">👍 <%= r.week_votes %></span></li>
+      <% }) %>
+    </ol>
+    <% } else { %><p class="muted small">No votes yet this week.</p><% } %>
+    <a class="btn btn-sm btn-block" href="/requests#request-form">＋ Request a novel</a>
+  </section>
+  <% } %>
   <% if (typeof topRated !== 'undefined' && topRated.length) { %>
   <section class="block">
     <h2 class="block-title">Top rated</h2>

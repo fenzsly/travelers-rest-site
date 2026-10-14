@@ -1,15 +1,24 @@
 <!doctype html>
-<html lang="en" data-theme="<%= settings.default_theme === 'light' ? 'light' : 'dark' %>">
+<html lang="en" data-theme="<%= (user && user.prefs.theme) || (settings.default_theme === 'light' ? 'light' : 'dark') %>">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <%- include('partials/seo-meta', { seo }) %>
 <link rel="stylesheet" href="/static/css/site.css">
 <link rel="stylesheet" href="/static/css/reader.css">
+<% if (user) { %><meta name="csrf" content="<%= csrf %>"><% } %>
 <script>
+  window.ACCOUNT = <%- user ? u.jsonScript({ prefs: user.prefs }) : 'null' %>;
   // Apply saved reader preferences before first paint (no flash of the wrong theme).
+  // Settings saved on the account win, so they follow the reader to every device.
   try {
     var p = JSON.parse(localStorage.getItem('reader-prefs') || '{}');
+    if (window.ACCOUNT) {
+      var a = window.ACCOUNT.prefs || {};
+      Object.keys(a).forEach(function (k) { if (k !== 'theme') p[k] = a[k]; });
+      localStorage.setItem('reader-prefs', JSON.stringify(p));
+      if (a.theme) localStorage.setItem('site-theme', a.theme);
+    }
     var d = document.documentElement;
     d.dataset.theme = p.theme || localStorage.getItem('site-theme') || d.dataset.theme || 'dark';
     d.dataset.rtheme = p.rtheme || '';

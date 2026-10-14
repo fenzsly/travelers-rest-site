@@ -1,0 +1,41 @@
+<%- include('partials/top', { title: 'Novel requests' }) %>
+<p class="hint" style="margin-top: 0">Readers request novels on <a href="<%= site('/requests') %>" target="_blank" rel="noopener">the Requests page</a> and vote for them. <strong>This week</strong> counts votes from the last 7 days. Mark one <em>Planned</em> when you start it, then <em>Added</em> and pick the novel once it’s on the site, so voters see a “Read” button.</p>
+<nav class="tabs" style="margin: 0 0 10px; display: inline-flex; flex-wrap: wrap">
+  <% Object.entries(statusLabels).forEach(([k, v]) => { %>
+    <a href="<%= A(`/requests?show=${k}&sort=${sort}`) %>" class="<%= show === k ? 'on' : '' %>"><%= k === 'open' ? 'New' : v %> (<%= counts[k] || 0 %>)</a>
+  <% }) %>
+</nav>
+<nav class="tabs" style="margin: 0 0 16px 8px; display: inline-flex">
+  <% [['week', '🔥 Top this week'], ['all', 'Top all time'], ['new', 'Newest']].forEach(([k, v]) => { %>
+    <a href="<%= A(`/requests?show=${show}&sort=${k}`) %>" class="<%= sort === k ? 'on' : '' %>"><%= v %></a>
+  <% }) %>
+</nav>
+<% if (!items.length) { %>
+  <div class="card empty-state"><p><%= show === 'open' ? 'No new requests. When readers request novels on the site, they show up here ranked by votes.' : 'Nothing here.' %></p></div>
+<% } %>
+<% items.forEach((r) => { %>
+  <section class="card report">
+    <div class="report-head">
+      <span class="pill" title="Votes in the last 7 days / all time">👍 <%= r.week_votes %> this week · <%= r.votes %> total</span>
+      <strong style="font-size: 16px"><%= r.title %></strong>
+      <span class="muted small"><%= [r.author && `by ${r.author}`, r.language].filter(Boolean).join(' · ') %></span>
+      <span class="muted small">requested <%= r.username ? `by ${r.username}` : '' %> <%= u.timeAgo(r.created_at) %></span>
+      <% if (r.link) { %><a class="small" href="<%= r.link %>" target="_blank" rel="noopener noreferrer nofollow">link ↗</a><% } %>
+    </div>
+    <% if (r.note) { %><p class="report-msg"><%= r.note %></p><% } %>
+    <form method="post" action="<%= A(`/requests/${r.id}`) %>" class="report-actions">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <select name="status" aria-label="Status">
+        <% Object.entries(statusLabels).forEach(([k, v]) => { %><option value="<%= k %>" <%= r.status === k ? 'selected' : '' %>><%= k === 'open' ? 'Requested (new)' : v %></option><% }) %>
+      </select>
+      <select name="novel_id" aria-label="Novel on the site" style="max-width: 260px">
+        <option value="">— novel on the site (for “Added”) —</option>
+        <% novels.forEach((n) => { %><option value="<%= n.id %>" <%= r.novel_id === n.id ? 'selected' : '' %>><%= n.title %></option><% }) %>
+      </select>
+      <input name="reply" value="<%= r.reply %>" maxlength="500" placeholder="Reply shown to readers (optional), e.g. Starting next month!" style="flex: 1; min-width: 220px">
+      <button class="btn btn-sm btn-primary" type="submit">Save</button>
+      <% if (user.role === 'admin') { %><button class="btn btn-sm btn-danger" name="action" value="delete" formnovalidate onclick="return confirm('Delete this request and its votes?')">Delete</button><% } %>
+    </form>
+  </section>
+<% }) %>
+<%- include('partials/bottom') %>

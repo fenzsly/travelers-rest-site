@@ -1,0 +1,86 @@
+<%- include('partials/head') %>
+<%- include('partials/header') %>
+<main class="wrap">
+  <div class="layout">
+    <div class="content">
+      <section class="block">
+        <h1 class="block-title page-h1">Novel requests <span class="muted small">vote for what gets translated next</span></h1>
+        <p class="muted small req-intro">Want a novel on <%= settings.site_name %>? Request it below, or vote 👍 for ones already on the list. The most-voted novels each week rise to the top. <a href="#request-form">Request a novel ↓</a></p>
+        <nav class="tabs-bar">
+          <% Object.entries(tabs).forEach(([k, v]) => { %><a href="/requests<%= k === 'week' ? '' : `?tab=${k}` %>" class="<%= tab === k ? 'on' : '' %>"><%= k === 'week' ? '🔥 ' : k === 'added' ? '✅ ' : '' %><%= v %></a><% }) %>
+        </nav>
+        <% if (!items.length) { %>
+          <div class="empty"><%= tab === 'added' ? 'No requested novels have been added yet.' : 'No requests yet. Be the first!' %></div>
+        <% } %>
+        <ol class="req-list" start="<%= pager.offset + 1 %>">
+          <% items.forEach((r, i) => { const score = tab === 'week' ? r.week_votes : r.votes; %>
+            <li class="req" id="r<%= r.id %>">
+              <% if (tab !== 'added') { %>
+                <form method="post" action="/requests/<%= r.id %>/vote" class="req-vote" data-vote>
+                  <input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="next" value="/requests<%= u.withQuery(query, {}) %>">
+                  <% if (user) { %>
+                    <button type="submit" class="vote-btn <%= r.voted ? 'on' : '' %>" title="<%= r.voted ? 'Remove my vote' : 'Vote for this novel' %>" aria-pressed="<%= r.voted ? 'true' : 'false' %>">👍<strong data-count><%= score %></strong></button>
+                  <% } else { %>
+                    <a class="vote-btn" href="/login?next=/requests" title="Log in to vote">👍<strong><%= score %></strong></a>
+                  <% } %>
+                  <span class="vote-label muted"><%= tab === 'week' ? 'this week' : 'votes' %></span>
+                </form>
+              <% } else { %><span class="req-rank"><%= pager.offset + i + 1 %></span><% } %>
+              <div class="req-body">
+                <div class="req-title">
+                  <% if (tab === 'week' && pager.offset + i < 3 && score > 0) { %><span class="req-medal"><%= ['🥇', '🥈', '🥉'][pager.offset + i] %></span><% } %>
+                  <strong><%= r.title %></strong>
+                  <% if (r.status !== 'open') { %><span class="badge req-<%= r.status %>"><%= statusLabels[r.status] %></span><% } %>
+                </div>
+                <div class="muted small">
+                  <%= [r.author && `by ${r.author}`, r.language].filter(Boolean).join(' · ') %>
+                  <% if (r.link) { %><%= r.author || r.language ? ' · ' : '' %><a href="<%= r.link %>" target="_blank" rel="noopener nofollow ugc">raws / info ↗</a><% } %>
+                  · requested <%= r.username ? `by ${r.username}` : '' %> <%= u.timeAgo(r.created_at) %>
+                  <% if (tab === 'week') { %>· <%= r.votes %> vote<%= r.votes === 1 ? '' : 's' %> total<% } %>
+                </div>
+                <% if (r.note) { %><p class="req-note"><%= r.note %></p><% } %>
+                <% if (r.reply) { %><p class="req-reply"><strong>Team:</strong> <%= r.reply %></p><% } %>
+                <% if (r.status === 'added' && r.novel_slug) { %><a class="btn btn-sm btn-accent" href="/novel/<%= r.novel_slug %>">Read “<%= r.novel_title %>” →</a><% } %>
+              </div>
+            </li>
+          <% }) %>
+        </ol>
+        <%- include('partials/pager', { pager, base: '/requests' }) %>
+      </section>
+    </div>
+    <aside class="sidebar">
+      <section class="block auth" id="request-form">
+        <h2 class="block-title">Request a novel</h2>
+        <% if (error) { %><div class="flash flash-error"><%= error %></div><% } %>
+        <% if (user) { %>
+          <form method="post" action="/requests">
+            <input type="hidden" name="_csrf" value="<%= csrf %>">
+            <label>Novel title <input name="title" required minlength="2" maxlength="150" value="<%= form.title || '' %>" placeholder="English or original title"></label>
+            <label>Author <span class="muted small">(optional)</span><input name="author" maxlength="100" value="<%= form.author || '' %>"></label>
+            <label>Original language
+              <select name="language"><option value="">Not sure</option><% languages.forEach((l) => { %><option <%= form.language === l ? 'selected' : '' %>><%= l %></option><% }) %></select></label>
+            <label>Link to raws or info <span class="muted small">(optional)</span><input name="link" maxlength="300" value="<%= form.link || '' %>" placeholder="https://…"></label>
+            <label>Why should we translate it? <span class="muted small">(optional)</span><textarea name="note" rows="3" maxlength="600"><%= form.note || '' %></textarea></label>
+            <button class="btn btn-accent" type="submit">Send request</button>
+            <p class="muted small">If it’s already been requested, we just add your vote.</p>
+          </form>
+        <% } else { %>
+          <p class="small">Requesting and voting needs a free account, so every reader gets one vote per novel.</p>
+          <p><a class="btn btn-accent" href="/register">Sign up</a> <a class="btn" href="/login?next=/requests">Log in</a></p>
+        <% } %>
+      </section>
+      <% if (mine.length) { %>
+      <section class="block">
+        <h2 class="block-title">My requests</h2>
+        <ul class="req-mine">
+          <% mine.forEach((m) => { %>
+            <li><a href="<%= m.status === 'added' && m.novel_slug ? `/novel/${m.novel_slug}` : `/requests?tab=new#r${m.id}` %>"><%= m.title %></a> <span class="badge req-<%= m.status %>"><%= statusLabels[m.status] %></span>
+              <% if (m.reply) { %><div class="muted small"><%= m.reply %></div><% } %></li>
+          <% }) %>
+        </ul>
+      </section>
+      <% } %>
+    </aside>
+  </div>
+</main>
+<%- include('partials/footer') %>

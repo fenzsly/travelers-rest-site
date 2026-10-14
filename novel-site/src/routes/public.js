@@ -2,6 +2,8 @@ const express = require('express');
 const { db } = require('../db');
 const { q, NOVEL_COLUMNS, VISIBLE, RELEASED, recordView, login, register, checkEmail } = require('../queries');
 const mail = require('../mail');
+const { savePrefs } = require('../prefs');
+const requests = require('../requests');
 const { hashPassword, verifyPassword } = require('../auth');
 const { verifyCsrf, requireLogin } = require('../auth');
 const { getSettings } = require('../settings');
@@ -79,8 +81,9 @@ router.get('/', (req, res) => {
     (SELECT COUNT(*) FROM chapters c WHERE ${VISIBLE}) AS chapters,
     (SELECT COALESCE(SUM(views), 0) FROM novels) AS views`).get();
   const s = getSettings();
+  const topRequests = requests.topThisWeek(5);
   res.render('home', {
-    popular, updated, fresh, topRated, trending, completed, totals, latestComments, genres: q.allGenres.all(),
+    popular, updated, fresh, topRated, trending, completed, totals, latestComments, topRequests, genres: q.allGenres.all(),
     seo: {
       // Include the spaced spelling too ("Traveller MTL"): search engines treat "TravellerMTL" as one word.
       title: (() => {
@@ -404,6 +407,64 @@ router.get('/library', requireLogin, (req, res) => {
   res.render('library', { items, list, counts, total: Object.values(counts).reduce((a, b) => a + b, 0), seo: { title: `My library | ${getSettings().site_name}`, noindex: true } });
 });
 
+// ---------- Novel requests ----------
+const REQUEST_TABS = { week: 'This week', all: 'All time', new: 'Newest', added: 'Added' };
+const REQUESTS_PER_PAGE = 30;
+
+router.get('/requests', (req, res) => {
+  const tab = REQUEST_TABS[req.query.tab] ? req.query.tab : 'week';
+  const statuses = tab === 'added' ? ['added'] : ['open', 'planned'];
+  const pager = paginate(requests.countRequests(statuses), Number(req.query.page), REQUESTS_PER_PAGE);
+  const items = requests.listRequests({ statuses, sort: tab === 'added' ? 'new' : tab, userId: req.user?.id || 0, limit: REQUESTS_PER_PAGE, offset: pager.offset });
+  const mine = req.user ? db.prepare(`SELECT r.id, r.title, r.status, r.reply, n.slug AS novel_slug FROM novel_requests r LEFT JOIN novels n ON n.id = r.novel_id
+    WHERE r.user_id = ? ORDER BY r.created_at DESC LIMIT 10`).all(req.user.id) : [];
+  const s = getSettings();
+  const form = req.session.requestForm || {};
+  const error = req.session.requestError || null;
+  req.session.requestForm = null;
+  req.session.requestError = null;
+  res.render('requests', {
+    items, tab, tabs: REQUEST_TABS, pager, mine, languages: requests.LANGUAGES, statusLabels: requests.REQUEST_STATUS, form, error,
+    seo: {
+      title: `Novel requests — vote for the next translation | ${s.site_name}`,
+      description: `Request a web novel for ${s.site_name} to translate and vote for others. The most-voted novels each week are ranked here.`,
+      canonical: `${res.locals.baseUrl}/requests`,
+      noindex: tab !== 'week' || pager.current > 1,
+    },
+  });
+});
+
+router.post('/requests', requireLogin, (req, res) => {
+  try {
+    const { request, duplicate, novel } = requests.createRequest(req.user.id, req.body);
+    if (novel) {
+      req.flash('ok', `Good news: “${novel.title}” is already on the site!`);
+      return res.redirect(`/novel/${novel.slug}`);
+    }
+    req.flash('ok', duplicate
+      ? `“${request.title}” was already requested, so we added your vote to it.`
+      : `Thanks! “${request.title}” is now on the list. Share it so others can vote.`);
+    res.redirect(`/requests?tab=${duplicate ? 'week' : 'new'}#r${request.id}`);
+  } catch (err) {
+    if (err.status !== 400) throw err;
+    req.session.requestError = err.message;
+    req.session.requestForm = Object.fromEntries(['title', 'author', 'language', 'link', 'note'].map((k) => [k, String(req.body[k] || '').slice(0, k === 'note' ? 600 : 300)]));
+    res.redirect('/requests#request-form');
+  }
+});
+
+router.post('/requests/:id/vote', requireLogin, (req, res) => {
+  let result;
+  try {
+    result = requests.toggleVote(req.params.id, req.user.id);
+  } catch (err) {
+    if (req.accepts(['html', 'json']) === 'json') return res.status(err.status || 500).json({ error: err.message });
+    throw err;
+  }
+  if (req.accepts(['html', 'json']) === 'json') return res.json(result);
+  res.redirect(`${safeNext(req.body.next) === '/' ? '/requests' : safeNext(req.body.next)}#r${Number(req.params.id)}`);
+});
+
 // ---------- User profiles ----------
 router.get('/user/:name', (req, res, next) => {
   const profile = db.prepare('SELECT id, username, role, is_owner, created_at FROM users WHERE username = ? COLLATE NOCASE').get(req.params.name);
@@ -694,6 +755,15 @@ router.post('/account/password', requireLogin, (req, res) => {
   if (String(req.body.password || '').length < 8) return accountPage(req, res, { error: 'New password must be at least 8 characters.' });
   db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hashPassword(req.body.password), req.user.id);
   req.flash('ok', 'Password changed.');
+  res.redirect('/account');
+});
+
+// Reader settings (theme, font, size…) saved on the account. Sent by the reader page as JSON.
+router.post('/account/prefs', requireLogin, (req, res) => {
+  const reset = req.body.reset === '1' || req.body.reset === true;
+  const prefs = savePrefs(req.user.id, reset ? {} : req.body, { replace: reset });
+  if (req.accepts(['html', 'json']) === 'json') return res.json({ ok: true, prefs });
+  req.flash('ok', reset ? 'Reading settings reset to the defaults.' : 'Reading settings saved.');
   res.redirect('/account');
 });
 

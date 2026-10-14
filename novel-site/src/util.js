@@ -73,4 +73,9 @@ function isRecent(unixSeconds, hours = 48) {
   return Date.now() / 1000 - unixSeconds < hours * 3600;
 }
 
-module.exports = { slugify, timeAgo, formatDate, formatNumber, chapterLabel, compactNumber, paginate, withQuery, isRecent, STATUS_LABELS, LIST_LABELS, LIST_ICONS, REACTIONS, REPORT_KINDS };
+/** JSON that is safe to put inside an inline <script>. */
+function jsonScript(value) {
+  return JSON.stringify(value ?? null).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
+}
+
+module.exports = { jsonScript, slugify, timeAgo, formatDate, formatNumber, chapterLabel, compactNumber, paginate, withQuery, isRecent, STATUS_LABELS, LIST_LABELS, LIST_ICONS, REACTIONS, REPORT_KINDS };

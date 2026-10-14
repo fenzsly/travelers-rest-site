@@ -1,13 +1,17 @@
 <!doctype html>
-<html lang="en" data-theme="<%= settings.default_theme === 'light' ? 'light' : 'dark' %>">
+<% const accountTheme = user && user.prefs && user.prefs.theme; %>
+<html lang="en" data-theme="<%= accountTheme || (settings.default_theme === 'light' ? 'light' : 'dark') %>">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <%- include('seo-meta', { seo: typeof seo !== 'undefined' ? seo : {} }) %>
 <link rel="stylesheet" href="/static/css/site.css">
+<% if (user) { %><meta name="csrf" content="<%= csrf %>"><% } %>
 <script>
-  // Apply the saved site theme before first paint.
-  try { var t = localStorage.getItem('site-theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+  // Apply the saved site theme before first paint (an account's saved theme wins on every device).
+  <% if (accountTheme) { %>try { localStorage.setItem('site-theme', '<%= accountTheme %>'); } catch (e) {}
+  <% } else { %>try { var t = localStorage.getItem('site-theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+  <% } %>window.ACCOUNT = <%- user ? u.jsonScript({ prefs: user.prefs }) : 'null' %>;
 </script>
 </head>
 <body class="<%= typeof bodyClass !== 'undefined' ? bodyClass : '' %>">

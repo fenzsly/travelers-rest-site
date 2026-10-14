@@ -14,6 +14,26 @@
   var DEFAULTS = { rtheme: '', font: 'serif', size: 19, line: 1.8, width: 800, align: 'left' };
   var prefs = Object.assign({}, DEFAULTS, json('reader-prefs', {}));
 
+  // Logged-in readers: settings are also saved on the account, so they follow them to every device.
+  var account = window.ACCOUNT;
+  var csrfMeta = document.querySelector('meta[name=csrf]');
+  var syncTimer = null;
+  function syncToAccount() {
+    if (!account || !csrfMeta) return;
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(function () {
+      var body = {};
+      Object.keys(DEFAULTS).forEach(function (k) { body[k] = prefs[k]; });
+      fetch('/account/prefs', {
+        method: 'POST', credentials: 'same-origin', keepalive: true,
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfMeta.content, Accept: 'application/json' },
+        body: JSON.stringify(body),
+      }).catch(function () {});
+    }, 800);
+  }
+  // First visit after logging in: keep the settings this browser already had.
+  if (account && !Object.keys(account.prefs || {}).some(function (k) { return k !== 'theme'; }) && ls('reader-prefs')) syncToAccount();
+
   function apply() {
     root.dataset.rtheme = prefs.rtheme;
     root.dataset.font = prefs.font;
@@ -30,7 +50,7 @@
       document.getElementById('o-' + p[0]).textContent = prefs[p[0]] + p[1];
     });
   }
-  function save() { ls('reader-prefs', JSON.stringify(prefs)); apply(); }
+  function save() { ls('reader-prefs', JSON.stringify(prefs)); apply(); syncToAccount(); }
 
   document.querySelectorAll('[data-rtheme]').forEach(function (b) { b.addEventListener('click', function () { prefs.rtheme = b.dataset.rtheme; save(); }); });
   document.querySelectorAll('button[data-font]').forEach(function (b) { b.addEventListener('click', function () { prefs.font = b.dataset.font; save(); }); });

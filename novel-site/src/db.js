@@ -178,6 +178,36 @@ CREATE TABLE IF NOT EXISTS reactions (
 );
 `);
 
+// Reader settings (font, size, theme…) saved to the account so they follow the reader to any device.
+if (!hasColumn('users', 'prefs')) db.exec("ALTER TABLE users ADD COLUMN prefs TEXT NOT NULL DEFAULT '{}'");
+
+db.exec(`
+-- Novels readers would like translated. Ranked by votes (this week / all time).
+CREATE TABLE IF NOT EXISTS novel_requests (
+  id         INTEGER PRIMARY KEY,
+  user_id    INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  title      TEXT NOT NULL,
+  title_key  TEXT NOT NULL,
+  author     TEXT NOT NULL DEFAULT '',
+  language   TEXT NOT NULL DEFAULT '',
+  link       TEXT NOT NULL DEFAULT '',
+  note       TEXT NOT NULL DEFAULT '',
+  status     TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open','planned','added','declined')),
+  reply      TEXT NOT NULL DEFAULT '',
+  novel_id   INTEGER REFERENCES novels(id) ON DELETE SET NULL,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+  updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
+CREATE INDEX IF NOT EXISTS novel_requests_key ON novel_requests (title_key);
+CREATE TABLE IF NOT EXISTS request_votes (
+  request_id INTEGER NOT NULL REFERENCES novel_requests(id) ON DELETE CASCADE,
+  user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+  PRIMARY KEY (request_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS request_votes_recent ON request_votes (created_at);
+`);
+
 const DEFAULT_GENRES = [
   'Action', 'Adventure', 'Comedy', 'Drama', 'Fantasy', 'Harem', 'Historical', 'Horror',
   'Isekai', 'Martial Arts', 'Mecha', 'Mystery', 'Psychological', 'Reincarnation', 'Romance',

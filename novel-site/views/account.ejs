@@ -14,6 +14,16 @@
       <p class="muted small">Used only to reset your password<% if (emailReady) { %> and confirm it’s you<% } %>. Never shown publicly.</p>
       <button class="btn btn-accent" type="submit">Save email</button>
     </form>
+    <h2 class="sub-h">Reading settings</h2>
+    <% const p = user.prefs || {}; const has = Object.keys(p).length; %>
+    <p class="muted small">Your text size, font, line spacing, page width and colours from the <strong>Aa</strong> button in any chapter are saved to your account, so they’re the same on your phone, tablet and computer.</p>
+    <% if (has) { %>
+      <p class="small">Saved: <%= [p.theme && `${p.theme} mode`, p.rtheme && `${p.rtheme} page`, p.font && `${p.font === 'dyslexic' ? 'readable' : p.font} font`, p.size && `${p.size}px text`, p.line && `${p.line} line spacing`, p.width && `${p.width}px width`, p.align === 'justify' && 'justified'].filter(Boolean).join(' · ') %></p>
+      <form method="post" action="/account/prefs" onsubmit="try { localStorage.removeItem('reader-prefs'); localStorage.removeItem('site-theme'); } catch (e) {}">
+        <input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="reset" value="1">
+        <button class="btn" type="submit">Reset to defaults</button>
+      </form>
+    <% } else { %><p class="small">Nothing saved yet. Open any chapter and tap <strong>Aa</strong> to set it up.</p><% } %>
     <h2 class="sub-h">Password</h2>
     <form method="post" action="/account/password">
       <input type="hidden" name="_csrf" value="<%= csrf %>">

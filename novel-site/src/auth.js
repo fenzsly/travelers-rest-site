@@ -15,12 +15,13 @@ function verifyPassword(password, stored) {
   return crypto.timingSafeEqual(expected, actual);
 }
 
-const getUser = db.prepare('SELECT id, username, role, is_owner, created_at FROM users WHERE id = ?');
+const getUser = db.prepare('SELECT id, username, role, is_owner, prefs, created_at FROM users WHERE id = ?');
 
 /** Attach req.user / res.locals.user and a CSRF token for every request. */
 function loadUser(req, res, next) {
   req.user = req.session.uid ? getUser.get(req.session.uid) || null : null;
   if (!req.user && req.session.uid) req.session.uid = null;
+  if (req.user) req.user.prefs = require('./prefs').parsePrefs(req.user.prefs);
   if (!req.session.csrf) req.session.csrf = crypto.randomBytes(24).toString('hex');
   res.locals.user = req.user;
   res.locals.csrf = req.session.csrf;

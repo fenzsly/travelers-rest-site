@@ -75,6 +75,7 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
   }
   app.use((req, res, next) => {
     res.locals.openReports = openReports(req.user);
+    res.locals.openRequests = db.prepare("SELECT COUNT(*) AS n FROM novel_requests WHERE status = 'open'").get().n;
     next();
   });
 
@@ -592,6 +593,40 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
     if (req.body.action === 'delete') db.prepare('DELETE FROM reports WHERE id = ?').run(r.id);
     else db.prepare('UPDATE reports SET status = ? WHERE id = ?').run(req.body.action === 'reopen' ? 'open' : 'resolved', r.id);
     res.redirect(req.get('referer')?.includes('/reports') ? req.get('referer') : A('/reports'));
+  });
+
+  // ---------- Novel requests from readers ----------
+  app.get('/requests', (req, res) => {
+    const { REQUEST_STATUS, listRequests } = require('./requests');
+    const show = REQUEST_STATUS[req.query.show] ? req.query.show : 'open';
+    const sort = ['week', 'all', 'new'].includes(req.query.sort) ? req.query.sort : 'week';
+    const items = listRequests({ statuses: [show], sort, limit: 300 });
+    const counts = Object.fromEntries(db.prepare('SELECT status, COUNT(*) AS n FROM novel_requests GROUP BY status').all().map((r) => [r.status, r.n]));
+    const novels = db.prepare('SELECT id, title FROM novels ORDER BY title COLLATE NOCASE').all();
+    res.render('admin/requests', { items, show, sort, counts, novels, statusLabels: REQUEST_STATUS });
+  });
+
+  app.post('/requests/:rid', (req, res) => {
+    const { REQUEST_STATUS } = require('./requests');
+    const r = db.prepare('SELECT id FROM novel_requests WHERE id = ?').get(Number(req.params.rid));
+    if (!r) throw fail(404, 'Request not found.');
+    if (req.body.action === 'delete') {
+      if (req.user.role !== 'admin') throw fail(403, 'Only admins can delete requests.');
+      db.prepare('DELETE FROM novel_requests WHERE id = ?').run(r.id);
+      req.flash('ok', 'Request deleted.');
+    } else {
+      const status = REQUEST_STATUS[req.body.status] ? req.body.status : 'open';
+      const novelId = Number(req.body.novel_id) || null;
+      if (status === 'added' && !novelId) {
+        req.flash('error', 'To mark it Added, also pick which novel on the site it became, so voters get a “Read” button.');
+        return res.redirect(req.get('referer')?.includes('/requests') ? req.get('referer') : A('/requests'));
+      }
+      if (novelId && !db.prepare('SELECT 1 FROM novels WHERE id = ?').get(novelId)) throw fail(400, 'That novel doesn’t exist.');
+      db.prepare('UPDATE novel_requests SET status = ?, reply = ?, novel_id = ?, updated_at = unixepoch() WHERE id = ?')
+        .run(status, String(req.body.reply || '').trim().slice(0, 500), novelId, r.id);
+      req.flash('ok', 'Request updated.');
+    }
+    res.redirect(req.get('referer')?.includes('/requests') ? req.get('referer') : A('/requests'));
   });
 
   // ---------- Users (admin) ----------

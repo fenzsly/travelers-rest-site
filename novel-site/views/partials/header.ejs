@@ -13,6 +13,7 @@
       </div>
       <a href="/novels?sort=trending" class="<%= query.sort === 'trending' ? 'active' : '' %>">Trending</a>
       <a href="/novels?sort=rating" class="<%= query.sort === 'rating' ? 'active' : '' %>">Top rated</a>
+      <a href="/requests" class="<%= path === '/requests' ? 'active' : '' %>">Requests</a>
       <a href="/random" title="Take me to a random novel">🎲 Random</a>
       <% if (user) { %><a href="/library" class="<%= path === '/library' ? 'active' : '' %>">Library</a><% } else { %><a href="/history" class="<%= path === '/history' ? 'active' : '' %>">History</a><% } %>
     </nav>

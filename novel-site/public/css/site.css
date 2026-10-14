@@ -414,3 +414,29 @@ ins.adsbygoogle { max-width: 100%; }
 .lc-where { color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sub-h { font-size: 15px; margin: 18px 0 8px; }
 .auth h1.block-title { font-size: 15px; }
+
+/* ---------- Novel requests ---------- */
+.auth select, .auth textarea { padding: 9px 12px; border: 1px solid var(--border); border-radius: 4px; font: inherit; font-weight: 400; background: var(--block); color: var(--text); resize: vertical; }
+.req-intro { margin: -4px 0 10px; }
+.req-list { list-style: none; margin: 0; padding: 0; }
+.req { display: flex; gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--border); scroll-margin-top: 80px; }
+.req:last-child { border-bottom: 0; }
+.req:target { background: var(--accent-soft); margin: 0 -18px; padding: 14px 18px; }
+.req-vote { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 58px; }
+.vote-btn { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 58px; padding: 6px 0; border: 1px solid var(--border); border-radius: 6px; background: var(--block); color: var(--text); font: inherit; font-size: 16px; cursor: pointer; }
+.vote-btn strong { font-size: 15px; }
+.vote-btn:hover { border-color: var(--accent); text-decoration: none; color: var(--text); }
+.vote-btn.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.vote-label { font-size: 11px; }
+.req-rank { min-width: 58px; text-align: center; font-weight: 700; color: var(--muted); padding-top: 4px; }
+.req-body { flex: 1; min-width: 0; }
+.req-title { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 16px; margin-bottom: 3px; }
+.req-title strong { overflow-wrap: anywhere; }
+.req-note { margin: 8px 0 0; font-size: 14px; white-space: pre-line; overflow-wrap: anywhere; }
+.req-reply { margin: 8px 0 0; padding: 8px 10px; border-left: 3px solid var(--accent); background: var(--block-alt); font-size: 14px; }
+.req-body .btn { margin-top: 8px; }
+.badge.req-planned { background: #fff2dc; color: #a86a00; }
+.badge.req-added { background: #e3f5e6; color: #237a33; }
+.badge.req-declined { background: #fde7e7; color: #b13232; }
+.req-mine { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; font-size: 14px; }
+.toplist .req-votes { white-space: nowrap; }

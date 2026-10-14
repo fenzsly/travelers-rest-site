@@ -13,6 +13,15 @@
     root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
     store('site-theme', root.dataset.theme);
     paintToggle();
+    // Logged in: remember the choice on the account too (applies on every device).
+    var csrf = document.querySelector('meta[name=csrf]');
+    if (window.ACCOUNT && csrf) {
+      fetch('/account/prefs', {
+        method: 'POST', credentials: 'same-origin', keepalive: true,
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf.content, Accept: 'application/json' },
+        body: JSON.stringify({ theme: root.dataset.theme }),
+      }).catch(function () {});
+    }
   });
 
   // "Continue reading" + read markers on the novel page (works for guests via localStorage)
@@ -182,4 +191,24 @@
     window.addEventListener('scroll', function () { top.hidden = window.scrollY < 600; }, { passive: true });
     top.addEventListener('click', function () { window.scrollTo({ top: 0, behavior: 'smooth' }); });
   }
+})();
+
+// ---------- Novel requests: vote without reloading the page ----------
+(function () {
+  document.querySelectorAll('form[data-vote]').forEach(function (form) {
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var btn = form.querySelector('.vote-btn');
+      fetch(form.action, { method: 'POST', body: new URLSearchParams(new FormData(form)), headers: { Accept: 'application/json' }, credentials: 'same-origin' })
+        .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.error || 'Failed'); return d; }); })
+        .then(function (d) {
+          btn.classList.toggle('on', d.voted);
+          btn.setAttribute('aria-pressed', d.voted ? 'true' : 'false');
+          btn.title = d.voted ? 'Remove my vote' : 'Vote for this novel';
+          var weekly = /[?&]tab=(all|new)/.test(location.search) ? d.votes : d.week_votes;
+          btn.querySelector('[data-count]').textContent = weekly;
+        })
+        .catch(function (err) { alert(err.message === 'Failed' ? 'Could not save your vote. Please try again.' : err.message); });
+    });
+  });
 })();

@@ -61,7 +61,7 @@
   <nav class="crumbs"><a href="/">Home</a> › <a href="/novel/<%= novel.slug %>"><%= novel.title %></a> › <span>Chapter <%= u.formatNumber(chapter.number) %></span></nav>
   <%- include('partials/chapter-nav', { where: 'top' }) %>
   <article class="chapter" id="chapter" data-slug="<%= novel.slug %>" data-num="<%= u.formatNumber(chapter.number) %>" data-novel-title="<%= novel.title %>" data-chapter-title="<%= chapter.title %>">
-    <div class="chapter-eyebrow">Chapter <%= position %> of <%= novel.chapter_count %></div>
+    <div class="chapter-eyebrow">Chapter <%= u.formatNumber(chapter.number) %> of <%= u.formatNumber(novel.latest_number ?? chapter.number) %></div>
     <h1 class="chapter-title"><span class="ct-full"><%= u.chapterLabel(chapter) %></span><span class="ct-dash"><%= dashLabel %></span></h1>
     <div class="chapter-meta muted small"><%= u.formatDate(chapter.released_at) %> · 👁 <%= chapter.views.toLocaleString("en-US") %> views · <%= chapter.word_count.toLocaleString('en-US') %> words · ~<%= Math.max(1, Math.round(chapter.word_count / 230)) %> min read · chapter <%= position %> of <%= novel.chapter_count %></div>
     <div class="chapter-text" id="chapter-text"><%- chapter.content %></div>

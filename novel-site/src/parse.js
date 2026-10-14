@@ -155,8 +155,27 @@ function volumeFromPath(p) {
   return m ? Number(m[1]) : null;
 }
 
+/** Drop a heading at the very start of the text that just repeats the chapter title (the reader shows the title already). */
+function stripRepeatedTitle(html, title) {
+  if (!title) return html;
+  const norm = (t) => String(t).replace(/<[^>]+>/g, '').replace(/&[a-z#0-9]+;/gi, ' ').replace(/[^\p{L}\p{N}]+/gu, ' ').trim().toLowerCase();
+  const m = html.match(/^\s*<(h[1-4]|p)\b[^>]*>([\s\S]*?)<\/\1>\s*/i);
+  return m && norm(m[2]) && norm(m[2]) === norm(title) ? html.slice(m[0].length) : html;
+}
+
+/** "CHAPTER 3" followed by a separate title heading: use that heading as the title. */
+function takeTitleHeading(html) {
+  const m = html.match(/^\s*<(h[1-4])\b[^>]*>([\s\S]*?)<\/\1>\s*/i);
+  const text = m && m[2].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+  return text && text.length <= 150 ? { title: text, html: html.slice(m[0].length) } : null;
+}
+
 function buildChapter({ number, title, html, source, volume = null }) {
-  const content = sanitize(html);
+  let content = stripRepeatedTitle(sanitize(html), title);
+  if (!title) {
+    const found = takeTitleHeading(content);
+    if (found) ({ title, html: content } = found);
+  }
   return { number, volume: volume || null, title: (title || '').slice(0, 250), content, wordCount: wordCount(content), source };
 }
 

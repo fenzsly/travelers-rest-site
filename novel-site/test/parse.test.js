@@ -63,3 +63,11 @@ test('volumes: headings, standalone volume lines and folder names', async () => 
   assert.strictEqual(prose.length, 1);
   assert.match(prose[0].content, /Volume 3 of the old records/);
 });
+
+test('a heading that repeats the chapter title is not shown twice', async () => {
+  const html = '<p class="chapter-number">CHAPTER 3</p><h2>The Red Cord</h2><p>Story text here, long enough to be a chapter.</p>';
+  const { chapters } = await require('../src/parse').parseFilesAsChapters([{ buffer: Buffer.from(html), originalname: 'chapter-03.html', mimetype: 'text/html' }]);
+  assert.strictEqual(chapters[0].number, 3);
+  assert.strictEqual(chapters[0].title, 'The Red Cord');
+  assert.ok(chapters[0].content.startsWith('<p>Story text'), chapters[0].content);
+});

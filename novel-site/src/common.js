@@ -12,6 +12,20 @@ const util = require('./util');
 const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, '..', 'uploads');
 fs.mkdirSync(path.join(UPLOAD_DIR, 'covers'), { recursive: true });
 
+// "/static/js/reader.js" -> "/static/js/reader.js?v=3f9a1c2b": the version changes whenever the file does,
+// so browsers (Safari especially) never keep running an old script or stylesheet after an update.
+const assetVersions = new Map();
+function assetUrl(urlPath, dir = path.join(__dirname, '..', 'public'), prefix = '/static') {
+  const key = `${dir}|${urlPath}`;
+  if (!assetVersions.has(key)) {
+    let v = '';
+    try { v = crypto.createHash('md5').update(fs.readFileSync(path.join(dir, urlPath.slice(prefix.length)))).digest('hex').slice(0, 8); } catch { /* missing file */ }
+    assetVersions.set(key, v);
+  }
+  const v = assetVersions.get(key);
+  return v ? `${urlPath}?v=${v}` : urlPath;
+}
+
 function sessionSecret() {
   if (process.env.SESSION_SECRET) return process.env.SESSION_SECRET;
   const file = path.join(DATA_DIR, 'session-secret');
@@ -46,6 +60,7 @@ function baseApp(viewsDir, { mounted = false } = {}) {
   app.use((req, res, next) => {
     res.locals.settings = getSettings();
     res.locals.u = util;
+    res.locals.asset = (p) => assetUrl(p);
     res.locals.path = req.path;
     res.locals.query = req.query;
     res.locals.flash = req.session.flash || null;
@@ -68,4 +83,4 @@ function errorHandlers(app, view) {
   });
 }
 
-module.exports = { baseApp, errorHandlers, UPLOAD_DIR };
+module.exports = { baseApp, errorHandlers, assetUrl, UPLOAD_DIR };

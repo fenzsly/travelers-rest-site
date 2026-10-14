@@ -202,46 +202,62 @@
     });
   });
 
-  // ---------- Replies: open the reply box under the thread ----------
-  document.querySelectorAll('[data-reply]').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      var thread = document.getElementById('thread-' + btn.dataset.root);
-      var form = thread.querySelector('.reply-form');
-      thread.hidden = false;
-      thread.classList.remove('collapsed');
-      form.hidden = false;
-      var box = form.querySelector('textarea');
-      // Replying inside a chain: mention who you're answering.
-      if (btn.dataset.reply !== btn.dataset.root || !box.value) {
-        var mention = '@' + btn.dataset.name + ' ';
-        if (box.value.indexOf(mention) !== 0) box.value = mention + box.value.replace(/^@\S+\s/, '');
-      }
-      form.querySelector('[name=parent_id]').value = btn.dataset.reply;
-      box.focus();
-      box.setSelectionRange(box.value.length, box.value.length);
-    });
-  });
-  document.querySelectorAll('[data-cancel-reply]').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      var form = btn.closest('.reply-form');
-      var thread = form.closest('.comment-thread');
-      form.hidden = true;
-      form.querySelector('textarea').value = '';
-      if (!thread.querySelector('.reply-list .comment')) thread.hidden = true;
-    });
-  });
-  document.querySelectorAll('[data-thread]').forEach(function (btn) {
-    var n = btn.textContent.match(/\d+/)[0];
-    btn.addEventListener('click', function () {
-      var collapsed = btn.closest('.comment-thread').classList.toggle('collapsed');
-      btn.textContent = collapsed ? '▸ Show ' + n + ' replies' : '▾ Hide ' + n + ' replies';
-    });
-  });
-
   // ---------- Remember progress (works without an account) ----------
   var progress = json('progress', {});
   progress[slug] = { num: num, title: article.dataset.novelTitle, chapterTitle: article.dataset.chapterTitle || '', at: Date.now() };
   ls('progress', JSON.stringify(progress));
   var read = json('read:' + slug, []);
   if (read.indexOf(num) === -1) { read.push(num); if (read.length > 5000) read.shift(); ls('read:' + slug, JSON.stringify(read)); }
+})();
+
+// ---------- Comment replies ----------
+// Kept separate from the reader code above, and listening on the whole page,
+// so nothing else on the page can stop the Reply buttons from working.
+(function () {
+  function openReply(btn) {
+    var thread = document.getElementById('thread-' + btn.getAttribute('data-root'));
+    if (!thread) return;
+    var form = thread.querySelector('.reply-form');
+    if (!form) return;
+    thread.hidden = false;
+    thread.classList.remove('collapsed');
+    form.hidden = false;
+    var box = form.querySelector('textarea');
+    var name = btn.getAttribute('data-name');
+    var isChain = btn.getAttribute('data-reply') !== btn.getAttribute('data-root');
+    // Replying inside a chain: start with @name of the person you're answering.
+    if (isChain || !box.value) {
+      var mention = '@' + name + ' ';
+      if (box.value.indexOf(mention) !== 0) box.value = isChain ? mention + box.value.replace(/^@\S+\s/, '') : box.value;
+    }
+    form.querySelector('[name=parent_id]').value = btn.getAttribute('data-reply');
+    form.scrollIntoView({ block: 'nearest' });
+    box.focus();
+    try { box.setSelectionRange(box.value.length, box.value.length); } catch (e) {}
+  }
+
+  document.addEventListener('click', function (e) {
+    var t = e.target;
+    if (!t || !t.closest) return;
+    var reply = t.closest('[data-reply]');
+    if (reply) { e.preventDefault(); openReply(reply); return; }
+    var cancel = t.closest('[data-cancel-reply]');
+    if (cancel) {
+      e.preventDefault();
+      var form = cancel.closest('.reply-form');
+      var thread = form.closest('.comment-thread');
+      form.hidden = true;
+      form.querySelector('textarea').value = '';
+      if (!thread.querySelector('.reply-list .comment')) thread.hidden = true;
+      return;
+    }
+    var toggle = t.closest('[data-thread]');
+    if (toggle) {
+      e.preventDefault();
+      var n = toggle.getAttribute('data-count') || (toggle.textContent.match(/\d+/) || [''])[0];
+      toggle.setAttribute('data-count', n);
+      var collapsed = toggle.closest('.comment-thread').classList.toggle('collapsed');
+      toggle.textContent = collapsed ? '▸ Show ' + n + ' replies' : '▾ Hide ' + n + ' replies';
+    }
+  });
 })();

@@ -5,7 +5,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <%- include('seo-meta', { seo: typeof seo !== 'undefined' ? seo : {} }) %>
-<link rel="stylesheet" href="/static/css/site.css">
+<link rel="stylesheet" href="<%= asset('/static/css/site.css') %>">
 <% if (user) { %><meta name="csrf" content="<%= csrf %>"><% } %>
 <script>
   // Apply the saved site theme before first paint (an account's saved theme wins on every device).

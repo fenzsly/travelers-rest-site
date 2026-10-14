@@ -6,7 +6,7 @@ const crypto = require('node:crypto');
 const express = require('express');
 const multer = require('multer');
 const { db, tx } = require('./db');
-const { baseApp, errorHandlers, UPLOAD_DIR } = require('./common');
+const { baseApp, errorHandlers, assetUrl, UPLOAD_DIR } = require('./common');
 const { verifyCsrf, requireRole, canManageNovel, hashPassword } = require('./auth');
 const { q, ADMIN_NOVEL_COLUMNS: NOVEL_COLUMNS, VISIBLE, RELEASED, setNovelGenres, cleanGenreName, createGenre, login } = require('./queries');
 const system = require('./system');
@@ -23,6 +23,8 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
   app.use('/uploads', express.static(UPLOAD_DIR, { maxAge: '7d' }));
   app.use((req, res, next) => {
     res.locals.A = A;
+    // Versioned admin CSS/JS links, so browsers load the new files after an update.
+    res.locals.AV = (p) => A(assetUrl(p, path.join(__dirname, '..', 'public', 'admin'), '/assets'));
     res.locals.site = (p = '/') => `${publicUrl}${p}`;
     res.locals.STATUS_LABELS = STATUS_LABELS;
     next();

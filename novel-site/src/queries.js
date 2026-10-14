@@ -131,4 +131,4 @@ function register(username, password, email) {
   return id;
 }
 
-module.exports = { checkEmail, NOVEL_COLUMNS, ADMIN_NOVEL_COLUMNS, VISIBLE, RELEASED, q, setNovelGenres, cleanGenreName, createGenre, recordView, login, register };
+module.exports = { BOT_RE, checkEmail, NOVEL_COLUMNS, ADMIN_NOVEL_COLUMNS, VISIBLE, RELEASED, q, setNovelGenres, cleanGenreName, createGenre, recordView, login, register };

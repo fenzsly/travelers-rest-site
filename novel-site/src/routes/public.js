@@ -8,6 +8,7 @@ const updateRequests = require('../update-requests');
 const guard = require('../guard');
 const notifications = require('../notifications');
 const security = require('../security');
+const visitors = require('../visitors');
 const { hashPassword, verifyPassword } = require('../auth');
 const { verifyCsrf, requireLogin } = require('../auth');
 const { getSettings } = require('../settings');
@@ -45,6 +46,8 @@ router.use((req, res, next) => {
   res.locals.navGenres = q.allGenres.all();
   res.locals.updates = req.user ? libraryUpdates(req.user.id) : [];
   res.locals.notes = req.user ? notifications.unread(req.user.id) : [];
+  // Daily unique visitors (pages only: not feeds, sitemaps or background requests).
+  if (req.method === 'GET' && !/^\/(api|notifications\/\d)|\.(xml|txt|json|webmanifest)$/.test(req.path)) visitors.recordVisit(req);
   next();
 });
 
@@ -341,6 +344,7 @@ router.get('/novel/:slug/c/:num', loadNovel, async (req, res, next) => {
   const upcoming = next_ ? null : db.prepare(`SELECT c.number, c.publish_at FROM chapters c WHERE c.novel_id = ? AND c.number > ? AND NOT ${VISIBLE} ORDER BY c.number ASC LIMIT 1`).get(novel.id, chapter.number);
   const position = db.prepare(`SELECT COUNT(*) AS c FROM chapters c WHERE c.novel_id = ? AND c.number <= ? AND ${VISIBLE}`).get(novel.id, chapter.number).c;
 
+  visitors.recordReader(req, novel.id);
   // Count a view once per session per chapter (keeps the last few ids in the cookie).
   const seen = Array.isArray(req.session.seen) ? req.session.seen : [];
   if (!seen.includes(chapter.id)) {

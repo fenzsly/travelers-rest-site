@@ -34,6 +34,11 @@ function decrypt(value) {
   decipher.setAuthTag(raw.subarray(12, 28));
   return Buffer.concat([decipher.update(raw.subarray(28)), decipher.final()]).toString('utf8');
 }
+/** Keyed one-way hash (for anonymous IDs that can't be turned back into the original). */
+function keyedHash(text) {
+  return crypto.createHmac('sha256', key()).update(String(text)).digest('hex');
+}
+
 const isEncrypted = (v) => typeof v === 'string' && v.startsWith(PREFIX);
 
 // ---------- Security log ----------
@@ -215,6 +220,6 @@ function checkPasswordStrength(password, username) {
 }
 
 module.exports = {
-  encrypt, decrypt, isEncrypted, log, EVENT_LABELS, checkLock, recordFailure, clearFailures,
+  encrypt, decrypt, isEncrypted, keyedHash, log, EVENT_LABELS, checkLock, recordFailure, clearFailures,
   newTotpSecret, totpAt, matchTotp, newBackupCodes, verifySecondFactor, bumpTokenVersion, startSession, checkPasswordStrength,
 };

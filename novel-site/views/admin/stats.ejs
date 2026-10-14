@@ -2,7 +2,9 @@
 <%- include('partials/novel-tabs', { tab: 'stats' }) %>
 <div class="stats">
   <div class="stat stat-accent"><span><%= novel.views.toLocaleString('en-US') %></span>All-time views</div>
-  <div class="stat"><span><%= extra.today.toLocaleString('en-US') %></span>Today</div>
+  <div class="stat" title="Different people who read this novel today"><span><%= extra.readersToday.toLocaleString('en-US') %></span>Unique readers today</div>
+  <div class="stat" title="Average unique readers per day over the last 7 days"><span><%= extra.readersAvg.toLocaleString('en-US') %></span>Readers/day (7-day avg)</div>
+  <div class="stat"><span><%= extra.today.toLocaleString('en-US') %></span>Views today</div>
   <div class="stat"><span><%= novel.views_week.toLocaleString('en-US') %></span>Last 7 days</div>
   <div class="stat"><span><%= novel.views_month.toLocaleString('en-US') %></span>Last 30 days</div>
   <div class="stat"><span>#<%= extra.rank %></span>Rank on site</div>
@@ -10,10 +12,16 @@
   <div class="stat"><span><%= novel.rating || '—' %></span>Rating (<%= novel.rating_count %> votes)</div>
   <div class="stat"><span><%= extra.comments %></span>Comments</div>
 </div>
-<section class="card">
-  <h2>Views per day, last 30 days</h2>
-  <%- include('partials/bars', { chart }) %>
-</section>
+<div class="grid-2">
+  <section class="card">
+    <h2>👥 Unique readers per day</h2>
+    <%- include('partials/bars', { chart: readerChart, unit: 'readers' }) %>
+  </section>
+  <section class="card">
+    <h2>Views per day, last 30 days</h2>
+    <%- include('partials/bars', { chart }) %>
+  </section>
+</div>
 <div class="grid-2">
   <section class="card">
     <h2>Most-read chapters</h2>

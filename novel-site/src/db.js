@@ -286,6 +286,23 @@ CREATE INDEX IF NOT EXISTS security_log_recent ON security_log (created_at);
 CREATE INDEX IF NOT EXISTS security_log_user ON security_log (user_id, event);
 `);
 
+db.exec(`
+-- Daily unique visitors: one row per visitor per day (guests are a daily-changing anonymous hash).
+CREATE TABLE IF NOT EXISTS site_visitors_daily (
+  day     TEXT NOT NULL,
+  visitor TEXT NOT NULL,
+  PRIMARY KEY (day, visitor)
+) WITHOUT ROWID;
+-- Daily unique readers per novel (people who opened at least one chapter).
+CREATE TABLE IF NOT EXISTS novel_readers_daily (
+  novel_id INTEGER NOT NULL REFERENCES novels(id) ON DELETE CASCADE,
+  day      TEXT NOT NULL,
+  visitor  TEXT NOT NULL,
+  PRIMARY KEY (novel_id, day, visitor)
+) WITHOUT ROWID;
+CREATE INDEX IF NOT EXISTS novel_readers_daily_day ON novel_readers_daily (day);
+`);
+
 const DEFAULT_GENRES = [
   'Action', 'Adventure', 'Comedy', 'Drama', 'Fantasy', 'Harem', 'Historical', 'Horror',
   'Isekai', 'Martial Arts', 'Mecha', 'Mystery', 'Psychological', 'Reincarnation', 'Romance',

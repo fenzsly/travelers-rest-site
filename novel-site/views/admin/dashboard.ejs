@@ -6,7 +6,12 @@
   · <a href="<%= A('/update-requests') %>">see leaderboard →</a></div>
 <% } %>
 <div class="stats">
-  <div class="stat stat-accent"><span><%= stats.today.toLocaleString('en-US') %></span>Views today</div>
+  <% if (people.visitorsToday !== null) { %>
+  <div class="stat stat-accent" title="Different people who visited the site today (each person counts once, bots excluded)"><span><%= people.visitorsToday.toLocaleString('en-US') %></span>Unique visitors today</div>
+  <div class="stat" title="Unique visitors yesterday · average over the last 7 days"><span><%= people.visitorsYesterday.toLocaleString('en-US') %></span>Yesterday <small class="muted">(7-day avg <%= people.visitorsAvg.toLocaleString('en-US') %>)</small></div>
+  <% } %>
+  <div class="stat<%= people.visitorsToday === null ? ' stat-accent' : '' %>" title="Different people who opened at least one chapter today"><span><%= people.readersToday.toLocaleString('en-US') %></span>Unique readers today</div>
+  <div class="stat"><span><%= stats.today.toLocaleString('en-US') %></span>Views today</div>
   <div class="stat"><span><%= u.compactNumber(stats.week) %></span>Views this week</div>
   <div class="stat"><span><%= stats.novels %></span>Novels</div>
   <div class="stat"><span><%= stats.chapters.toLocaleString('en-US') %></span>Chapters</div>
@@ -29,6 +34,25 @@
   <a class="quick-card" href="<%= A('/settings') %>"><span>🛠</span><strong>Site settings</strong><small>Name, announcement, sign-ups</small></a>
   <% } %>
 </div>
+
+<% if (visitorChart) { %>
+<div class="grid-2">
+  <section class="card">
+    <h2>👥 Unique visitors per day <span class="muted small" style="font-weight: 400">whole site, last 30 days</span></h2>
+    <%- include('partials/bars', { chart: visitorChart, unit: 'visitors' }) %>
+  </section>
+  <section class="card">
+    <h2>📖 Unique readers per day <span class="muted small" style="font-weight: 400">opened a chapter</span></h2>
+    <%- include('partials/bars', { chart: readerChart, unit: 'readers' }) %>
+  </section>
+</div>
+<% } else { %>
+<section class="card">
+  <h2>📖 Unique readers per day <span class="muted small" style="font-weight: 400">your novels, last 30 days</span></h2>
+  <%- include('partials/bars', { chart: readerChart, unit: 'readers' }) %>
+</section>
+<% } %>
+<p class="hint" style="margin: -6px 0 18px">Each person counts once per day (logged-in readers by account, guests by an anonymous code that changes daily). Bots aren’t counted. Counting started with this update.</p>
 
 <div class="grid-2">
   <section class="card">

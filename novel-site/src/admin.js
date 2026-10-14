@@ -253,8 +253,19 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
     stats.today = chart.at(-1)?.views || 0;
     stats.week = chart.slice(-7).reduce((a, d) => a + d.views, 0);
     const top = [...novels].sort((a, b) => b.views_week - a.views_week).slice(0, 5);
+    // Daily unique visitors (whole site, admins) and unique readers (people who opened a chapter of these novels).
+    const visitors = require('./visitors');
+    const readerChart = visitors.readersByDay(30, novels.map((n) => n.id));
+    const visitorChart = req.user.role === 'admin' ? visitors.siteVisitorsByDay(30) : null;
+    const people = {
+      visitorsToday: visitorChart ? visitorChart.at(-1).views : null,
+      visitorsYesterday: visitorChart ? visitorChart.at(-2).views : null,
+      visitorsAvg: visitorChart ? Math.round(visitorChart.slice(-7).reduce((a, d) => a + d.views, 0) / 7) : null,
+      readersToday: readerChart.at(-1).views,
+      readersYesterday: readerChart.at(-2).views,
+    };
     const wantUpdates = require('./update-requests').leaderboard({ ownerId: req.user.role === 'admin' ? null : req.user.id, limit: 5 }).filter((n) => n.waiting);
-    res.render('admin/dashboard', { stats, novels: novels.slice(0, 8), recent, scheduled, chart, top, wantUpdates, update: system.status() });
+    res.render('admin/dashboard', { stats, novels: novels.slice(0, 8), recent, scheduled, chart, top, wantUpdates, people, visitorChart, readerChart, update: system.status() });
   });
 
   // ---------- Novels ----------
@@ -281,7 +292,10 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
     // Rough "drop-off": how many readers reach later chapters compared to chapter 1.
     const firstViews = db.prepare('SELECT views FROM chapters WHERE novel_id = ? ORDER BY number LIMIT 1').get(novel.id)?.views || 0;
     const lastViews = db.prepare('SELECT views FROM chapters WHERE novel_id = ? ORDER BY number DESC LIMIT 1').get(novel.id)?.views || 0;
-    res.render('admin/stats', { novel, chart, topChapters, extra, retention: firstViews ? Math.round((lastViews / firstViews) * 100) : null });
+    const readerChart = require('./visitors').readersByDay(30, [novel.id]);
+    extra.readersToday = readerChart.at(-1).views;
+    extra.readersAvg = Math.round(readerChart.slice(-7).reduce((a, d) => a + d.views, 0) / 7);
+    res.render('admin/stats', { novel, chart, readerChart, topChapters, extra, retention: firstViews ? Math.round((lastViews / firstViews) * 100) : null });
   });
 
   function novelFormData(novel = {}) {

@@ -328,3 +328,5 @@ button.quick-card { font: inherit; text-align: left; cursor: pointer; }
   .stats { grid-template-columns: repeat(2, 1fr); }
   .login-card { margin: 24px 12px; }
 }
+.stat small { display: block; font-size: 11.5px; font-weight: 400; }
+.bars-people .bar-fill { background: #14a37f; }

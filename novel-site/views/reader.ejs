@@ -64,7 +64,7 @@
         <a class="react" href="/login?next=<%= encodeURIComponent(`/novel/${novel.slug}/c/${u.formatNumber(chapter.number)}#reactions`) %>" title="Log in to react"><%= e %> <span><%= reactionCounts[k] || '' %></span></a>
       <% } %>
     <% }) %>
-    <button type="button" class="report-btn" data-open="report" title="Report a typo or problem in this chapter">⚑ Report a problem</button>
+    <% if (user) { %><button type="button" class="report-btn" data-open="report" title="Report a typo or problem in this chapter">⚑ Report an error</button><% } else { %><a class="report-btn" href="/login?next=<%= encodeURIComponent(`/novel/${novel.slug}/c/${u.formatNumber(chapter.number)}#report-error`) %>" title="Log in to report an error">⚑ Report an error</a><% } %>
   </section>
   <%- include('partials/chapter-nav', { where: 'bottom' }) %>
   <% if (!next) { %>
@@ -76,6 +76,26 @@
   <% } %>
   <p class="muted small center">Tip: use ← → arrow keys to switch chapters.</p>
 
+
+  <section class="report-error" id="report-error">
+    <details>
+      <summary>🛠 Found an error in this chapter? <span class="muted small">Typo, wrong name, missing text…</span></summary>
+      <% if (user) { %>
+      <form method="post" action="/novel/<%= novel.slug %>/c/<%= u.formatNumber(chapter.number) %>/report" class="report-form" data-report>
+        <input type="hidden" name="_csrf" value="<%= csrf %>">
+        <label>What's wrong?
+          <select name="kind"><% Object.entries(u.REPORT_KINDS).forEach(([k, v]) => { %><option value="<%= k %>"><%= v %></option><% }) %></select>
+        </label>
+        <label>Text in question <textarea name="quote" rows="2" maxlength="1000" placeholder="(optional) copy the sentence with the error"></textarea></label>
+        <label>Details <textarea name="message" rows="2" maxlength="2000" placeholder="e.g. “Lin Feng” is called “Lin Fang” here"></textarea></label>
+        <button class="btn btn-accent" type="submit">Send report</button>
+        <p class="report-done" hidden>✓ Thanks! Sent to the team to fix.</p>
+      </form>
+      <% } else { %>
+      <p class="muted small"><a href="/login?next=<%= encodeURIComponent(`/novel/${novel.slug}/c/${u.formatNumber(chapter.number)}#report-error`) %>">Log in</a> or <a href="/register?next=<%= encodeURIComponent(`/novel/${novel.slug}/c/${u.formatNumber(chapter.number)}#report-error`) %>">sign up</a> to report errors.</p>
+      <% } %>
+    </details>
+  </section>
   <% if (settings.comments_enabled === '1') { %>
   <section class="comments" id="comments">
     <h2>Comments <span class="muted small"><%= comments.length %></span></h2>
@@ -112,11 +132,12 @@
   </div>
 </div>
 
+<% if (user) { %>
 <div class="panel" id="panel-report" hidden>
   <div class="panel-inner">
     <div class="panel-head"><strong>Report a problem</strong><button class="icon-btn" data-close>✕</button></div>
     <p class="muted small">Spotted a typo, a wrong name or missing text? Tell the translator. Tip: select the text in the chapter first and it's quoted here automatically.</p>
-    <form method="post" action="/novel/<%= novel.slug %>/c/<%= u.formatNumber(chapter.number) %>/report" class="report-form" id="report-form">
+    <form method="post" action="/novel/<%= novel.slug %>/c/<%= u.formatNumber(chapter.number) %>/report" class="report-form" id="report-form" data-report>
       <input type="hidden" name="_csrf" value="<%= csrf %>">
       <label>What's wrong?
         <select name="kind"><% Object.entries(u.REPORT_KINDS).forEach(([k, v]) => { %><option value="<%= k %>"><%= v %></option><% }) %></select>
@@ -128,6 +149,7 @@
     </form>
   </div>
 </div>
+<% } %>
 
 <div class="panel" id="panel-settings" hidden>
   <div class="panel-inner">

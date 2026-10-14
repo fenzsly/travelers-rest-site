@@ -40,7 +40,7 @@
           <td><input type="checkbox" name="ids" value="<%= c.id %>" class="row-check"></td>
           <td><input class="inline-edit num" data-id="<%= c.id %>" data-field="number" value="<%= u.formatNumber(c.number) %>" inputmode="decimal"></td>
           <td class="muted"><%= c.volume || '' %></td>
-          <td><input class="inline-edit" data-id="<%= c.id %>" data-field="title" value="<%= c.title %>" placeholder="(no title)"><% if (c.open_reports) { %> <a class="tag tag-exists" href="<%= A('/reports') %>" title="Open reader reports">⚑ <%= c.open_reports %></a><% } %></td>
+          <td><input class="inline-edit" data-id="<%= c.id %>" data-field="title" value="<%= c.title %>" placeholder="(no title)"><% if (c.open_reports) { %> <a class="tag tag-exists" href="<%= A('/reports') %>" title="Errors reported by readers (Fixes)">🔧 <%= c.open_reports %></a><% } %></td>
           <td class="right muted"><%= c.word_count.toLocaleString('en-US') %></td>
           <td class="right muted"><%= c.views %></td>
           <td class="right muted"><%= c.comment_count || '' %></td>

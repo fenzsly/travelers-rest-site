@@ -403,23 +403,30 @@ router.post('/novel/:slug/c/:num/react', requireLogin, loadNovel, (req, res, nex
 });
 
 // Report a problem with a chapter. Works without an account (limited per session).
+// Error reports ("typo in this chapter") from logged-in readers. They go to Admin → Fixes.
 router.post('/novel/:slug/c/:num/report', loadNovel, (req, res, next) => {
+  const json = req.accepts(['html', 'json']) === 'json';
+  const back = `/novel/${req.novel.slug}/c/${req.params.num}`;
+  if (!req.user) {
+    if (json) return res.status(401).json({ error: 'Please log in to report errors.' });
+    return res.redirect(`/login?next=${encodeURIComponent(`${back}#report-error`)}`);
+  }
   const chapter = q.visibleChapterByNumber.get(req.novel.id, Number(req.params.num));
   if (!chapter) return next(notFound('Chapter not found.'));
-  const sent = Number(req.session.reports) || 0;
   const kind = REPORT_KINDS[req.body.kind] ? req.body.kind : 'other';
   const message = String(req.body.message || '').trim().slice(0, 2000);
   const quote = String(req.body.quote || '').trim().slice(0, 1000);
-  let ok = false;
-  if (sent < 20 && (message || quote)) {
+  const today = db.prepare('SELECT COUNT(*) AS n FROM reports WHERE user_id = ? AND created_at >= unixepoch() - 86400').get(req.user.id).n;
+  let error = null;
+  if (!message && !quote) error = 'Please describe the error.';
+  else if (today >= 30) error = 'You’ve sent a lot of reports today. Thank you! Please try again tomorrow.';
+  else {
     db.prepare('INSERT INTO reports (chapter_id, user_id, kind, quote, message) VALUES (?, ?, ?, ?, ?)')
-      .run(chapter.id, req.user?.id ?? null, kind, quote, message);
-    req.session.reports = sent + 1;
-    ok = true;
+      .run(chapter.id, req.user.id, kind, quote, message);
   }
-  if (req.accepts(['html', 'json']) === 'json') return res.status(ok ? 200 : 400).json({ ok });
-  req.flash(ok ? 'ok' : 'error', ok ? 'Thanks! The translator has been notified.' : 'Please describe the problem.');
-  res.redirect(`/novel/${req.novel.slug}/c/${req.params.num}`);
+  if (json) return res.status(error ? 400 : 200).json(error ? { error } : { ok: true });
+  req.flash(error ? 'error' : 'ok', error || 'Thanks! Your report was sent to the team to fix.');
+  res.redirect(back);
 });
 
 router.post('/comment/:id/delete', requireLogin, (req, res, next) => {

@@ -108,3 +108,11 @@ body.reader-page { background: var(--r-page); }
 .report-form select, .report-form textarea { padding: 8px 10px; border: 1px solid var(--border); border-radius: 4px; background: transparent; color: inherit; font: inherit; font-weight: 400; }
 .report-form select option { color: #222; }
 .report-done { color: #2f9e44; font-weight: 600; margin: 0; }
+
+/* "Found an error?" box above the comments */
+.report-error { background: var(--r-bg); color: var(--r-text); border: 1px solid var(--border); border-radius: 6px; padding: 12px 22px; margin-top: 24px; scroll-margin-top: 70px; }
+.report-error summary { cursor: pointer; font-weight: 700; padding: 4px 0; }
+.report-error summary .muted { font-weight: 400; margin-left: 4px; }
+.report-error .report-form { margin-top: 12px; }
+.report-error .report-form .btn { align-self: flex-end; }
+.report-error p { margin: 10px 0 4px; }

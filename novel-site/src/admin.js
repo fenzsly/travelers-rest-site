@@ -579,6 +579,7 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
   });
 
   // ---------- Reader reports ----------
+  app.get('/fixes', (req, res) => res.redirect(A('/reports')));
   app.get('/reports', (req, res) => {
     const show = req.query.show === 'resolved' ? 'resolved' : 'open';
     const mine = req.user.role === 'admin' ? '' : 'AND n.owner_id = ?';

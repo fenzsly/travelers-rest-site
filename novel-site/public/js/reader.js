@@ -184,23 +184,23 @@
         .catch(function () { btn.closest('form').submit(); });
     });
   }
-  var reportForm = document.getElementById('report-form');
-  if (reportForm) {
+  if (location.hash === '#report-error') { var box = document.querySelector('#report-error details'); if (box) box.open = true; }
+  document.querySelectorAll('form[data-report]').forEach(function (reportForm) {
     reportForm.addEventListener('submit', function (e) {
       e.preventDefault();
       var data = new URLSearchParams(new FormData(reportForm));
-      if (!data.get('quote').trim() && !data.get('message').trim()) { alert('Please describe the problem.'); return; }
+      if (!data.get('quote').trim() && !data.get('message').trim()) { alert('Please describe the error.'); return; }
       fetch(reportForm.action, { method: 'POST', body: data, headers: { Accept: 'application/json' }, credentials: 'same-origin' })
-        .then(function (r) { if (!r.ok) throw new Error(); })
+        .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.error || ''); return d; }); })
         .then(function () {
           reportForm.querySelector('.report-done').hidden = false;
           reportForm.querySelector('[name=quote]').value = '';
           reportForm.querySelector('[name=message]').value = '';
-          setTimeout(closePanels, 1600);
+          if (reportForm.id === 'report-form') setTimeout(closePanels, 1600);
         })
-        .catch(function () { alert('Could not send the report. Please try again.'); });
+        .catch(function (err) { alert(err.message || 'Could not send the report. Please try again.'); });
     });
-  }
+  });
 
   // ---------- Remember progress (works without an account) ----------
   var progress = json('progress', {});

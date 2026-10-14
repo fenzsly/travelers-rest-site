@@ -1,10 +1,11 @@
-<%- include('partials/top', { title: 'Reader reports' }) %>
+<%- include('partials/top', { title: 'Fixes: errors reported by readers' }) %>
+<p class="hint" style="margin-top: 0">Logged-in readers report typos, wrong names and missing text from the <strong>🛠 Found an error?</strong> box under each chapter (or ⚑ Report an error). Open the editor straight at the quoted text, fix it, then mark it fixed.</p>
 <nav class="tabs" style="margin: 0 0 16px; display: inline-flex">
-  <a href="<%= A('/reports') %>" class="<%= show === 'open' ? 'on' : '' %>">Open<%= show === 'open' ? ` (${reports.length})` : '' %></a>
-  <a href="<%= A('/reports?show=resolved') %>" class="<%= show === 'resolved' ? 'on' : '' %>">Resolved</a>
+  <a href="<%= A('/reports') %>" class="<%= show === 'open' ? 'on' : '' %>">To fix<%= show === 'open' ? ` (${reports.length})` : '' %></a>
+  <a href="<%= A('/reports?show=resolved') %>" class="<%= show === 'resolved' ? 'on' : '' %>">Fixed</a>
 </nav>
 <% if (!reports.length) { %>
-  <div class="card empty-state"><p><%= show === 'open' ? '🎉 No open reports. When readers flag typos or problems with “⚑ Report a problem” in the reader, they show up here.' : 'Nothing resolved yet.' %></p></div>
+  <div class="card empty-state"><p><%= show === 'open' ? '🎉 Nothing to fix. When readers report errors in a chapter, they show up here.' : 'Nothing resolved yet.' %></p></div>
 <% } %>
 <% reports.forEach((r) => { %>
   <section class="card report">

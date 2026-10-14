@@ -134,7 +134,7 @@ body.reader-page { background: var(--r-page); }
 /* ======================================================================
    Immersive reading (phones/tablets): just the text. Double-tap shows the controls.
    ====================================================================== */
-.rb-back, .reader-dock, .tap-hint { display: none; }
+.rb-back, .rb-title, .rb-progress, .ct-dash, .tap-hint { display: none; }
 
 .immersive body.reader-page { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .immersive .progress { height: 2px; opacity: .7; }
@@ -142,33 +142,18 @@ body.reader-page { background: var(--r-page); }
 
 /* Top bar: floats over the text, slides in with the controls */
 .immersive .reader-bar { position: fixed; left: 0; right: 0; top: 0; transform: translateY(-110%); transition: transform .22s ease;
-  padding-top: env(safe-area-inset-top); box-shadow: 0 4px 18px rgba(0,0,0,.18); }
-.immersive.ui-on .reader-bar { transform: none; }
+  padding-top: env(safe-area-inset-top); box-shadow: none; }
+.immersive.ui-on .reader-bar, .immersive.at-top .reader-bar { transform: none; }
 .immersive .reader-bar.hide { transform: translateY(-110%); }
-.immersive.ui-on .reader-bar.hide { transform: none; }
+.immersive.ui-on .reader-bar.hide, .immersive.at-top .reader-bar.hide { transform: none; }
 .immersive .reader-bar-inner { height: 52px; gap: 8px; padding: 0 8px 0 4px; }
-.immersive .rb-back { display: grid; place-items: center; width: 40px; height: 40px; font-size: 30px; line-height: 1; color: var(--r-text); }
+.immersive .rb-back { display: grid; place-items: center; width: 40px; height: 40px; color: var(--muted); }
 .immersive .rb-back:hover { text-decoration: none; }
-.immersive .rb-home { display: none; }
+.immersive .rb-home, .immersive .rb-novel, .immersive .rb-chapter { display: none; }
+.immersive .rb-title { display: block; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; font-size: 15px; color: var(--r-text); }
+.immersive .rb-progress { display: block; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; }
+.immersive .rb-progress span { display: block; height: 100%; width: 0; background: var(--r-accent); transition: width .1s linear; }
 .immersive .rb-actions .icon-btn { width: 40px; height: 40px; }
-
-/* Bottom dock */
-.immersive .reader-dock { display: block; position: fixed; left: 0; right: 0; bottom: 0; z-index: 35; background: var(--r-bg); color: var(--r-text);
-  border-top: 1px solid var(--border); box-shadow: 0 -4px 18px rgba(0,0,0,.18); padding: 8px 10px calc(6px + env(safe-area-inset-bottom));
-  transform: translateY(110%); transition: transform .22s ease; }
-.immersive.ui-on .reader-dock { transform: none; }
-.dock-info { display: flex; justify-content: space-between; gap: 10px; font-size: 12.5px; color: var(--muted); padding: 0 4px; }
-.dock-chapter { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.dock-track { height: 3px; border-radius: 3px; background: var(--border); margin: 6px 4px 4px; overflow: hidden; }
-.dock-track span { display: block; height: 100%; width: 0; background: var(--accent); }
-.dock-buttons { display: grid; grid-template-columns: repeat(5, 1fr); }
-.dock-buttons a, .dock-buttons button, .dock-buttons .off { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 6px 0 2px; background: none; border: 0;
-  color: var(--r-text); font: inherit; cursor: pointer; }
-.dock-buttons a:hover { text-decoration: none; }
-.dock-buttons b { font-size: 20px; line-height: 1.2; height: 24px; display: grid; place-items: center; }
-.dock-buttons small { font-size: 10.5px; color: var(--muted); }
-.dock-buttons .off { opacity: .35; cursor: default; }
-.dock-buttons .dock-next b { color: var(--accent); }
 
 /* Hint shown on the first few chapters */
 .immersive .tap-hint { display: block; position: fixed; left: 50%; bottom: calc(28px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 36;
@@ -178,12 +163,17 @@ body.reader-page { background: var(--r-page); }
 .immersive .tap-hint.fade { opacity: 0; }
 
 /* The page itself: edge to edge, comfortable margins, no boxes */
-.immersive .reader { margin: 0 auto 24px; padding: calc(18px + env(safe-area-inset-top)) 0 0; max-width: none; }
+.immersive .progress { display: none; }
+.immersive .reader { margin: 0 auto 24px; padding: calc(60px + env(safe-area-inset-top)) 0 0; max-width: none; }
 .immersive .chapter { border: 0; border-radius: 0; background: transparent; padding: 10px 20px 8px; max-width: var(--r-width); margin: 0 auto; }
 .immersive body.reader-page { background: var(--r-bg); }
-.immersive .chapter-title { font-size: calc(var(--r-size) * 1.2); line-height: 1.3; }
-.immersive .chapter-meta { margin-bottom: 20px; padding-bottom: 14px; font-size: 12px; }
-.immersive .chapter-text p { margin-bottom: .9em; }
+.immersive .chapter-eyebrow { text-align: left; margin-top: 4px; }
+.immersive .chapter-title { font-family: "Source Serif 4", Georgia, serif; font-size: calc(var(--r-size) * 1.32); line-height: 1.22; text-align: left; margin: 0 0 30px; }
+.immersive .ct-full { display: none; }
+.immersive .ct-dash { display: inline; }
+.immersive .chapter-meta { display: none; }
+.immersive .chapter-text { hyphens: auto; -webkit-hyphens: auto; }
+.immersive .chapter-text p { margin-bottom: 1.05em; }
 .immersive .reactions, .immersive .chapter-nav-bottom, .immersive .end-note, .immersive .report-error, .immersive .comments { margin-left: 12px; margin-right: 12px; }
 .immersive .chapter-nav-bottom { margin-top: 18px; }
 .immersive .chapter-nav-bottom .btn { padding: 12px 8px; }
@@ -203,3 +193,15 @@ body.reader-page { background: var(--r-page); }
   .toc-list a { padding: 11px 8px; font-size: 15px; }
   .toc-filter { font-size: 16px; padding: 10px 12px; }
 }
+
+/* Thin line icons in the reader bar */
+.reader-bar svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; display: block; }
+.rb-actions .icon-btn { display: grid; place-items: center; color: var(--muted); }
+.rb-actions .icon-btn:hover { color: var(--r-text); }
+/* Small "Chapter 2 of 6" label above the title */
+:root { --r-accent: #e0a24a; }
+.chapter-eyebrow { text-align: center; font-size: 12.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--r-accent); font-weight: 600; margin-bottom: 8px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; }
+/* Serif reading font (Source Serif, with system fallbacks) */
+:root[data-font="serif"] .chapter-text { font-family: "Source Serif 4", Georgia, "Iowan Old Style", "Palatino Linotype", "Noto Serif", serif; }
+/* Phones in dark mode: deep navy page with soft blue-grey text, like a reading app */
+.immersive[data-theme="dark"][data-rtheme=""] { --r-bg: #12151c; --r-page: #12151c; --r-text: #d2d7e1; --border: #232833; --muted: #8b93a4; --block: #12151c; --block-alt: #1b1f29; }

@@ -6,6 +6,8 @@
 <%- include('partials/seo-meta', { seo }) %>
 <link rel="stylesheet" href="<%= asset('/static/css/site.css') %>">
 <link rel="stylesheet" href="<%= asset('/static/css/reader.css') %>">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,700;1,8..60,400&display=swap">
 <% if (user) { %><meta name="csrf" content="<%= csrf %>"><% } %>
 <script>
   window.ACCOUNT = <%- user ? u.jsonScript({ prefs: user.prefs }) : 'null' %>;
@@ -26,8 +28,9 @@
     var d = document.documentElement;
     d.dataset.theme = p.theme || localStorage.getItem('site-theme') || d.dataset.theme || 'dark';
     d.dataset.rtheme = p.rtheme || '';
-    d.style.setProperty('--r-size', (p.size || 19) + 'px');
-    d.style.setProperty('--r-line', p.line || 1.8);
+    var phone = d.classList.contains('immersive');
+    d.style.setProperty('--r-size', (p.size || (phone ? 20 : 19)) + 'px');
+    d.style.setProperty('--r-line', p.line || (phone ? 1.9 : 1.8));
     d.style.setProperty('--r-width', (p.width || 800) + 'px');
     d.dataset.font = p.font || 'serif';
     d.dataset.align = p.align || 'left';
@@ -36,38 +39,30 @@
 </head>
 <body class="reader-page">
 <div class="progress"><div class="progress-bar" id="progress"></div></div>
+<% const dashLabel = `Chapter ${u.formatNumber(chapter.number)}${chapter.title ? ` — ${chapter.title}` : ''}`; %>
 <header class="reader-bar" id="reader-bar">
   <div class="reader-bar-inner">
-    <a class="rb-back" href="/novel/<%= novel.slug %>" aria-label="Back to the novel">‹</a>
+    <a class="rb-back" href="/novel/<%= novel.slug %>" aria-label="Back to <%= novel.title %>"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></a>
     <a class="rb-home" href="/" title="Home">📖</a>
     <a class="rb-novel" href="/novel/<%= novel.slug %>"><%= novel.title %></a>
     <span class="rb-chapter muted"><%= u.chapterLabel(chapter) %></span>
+    <span class="rb-title"><%= dashLabel %></span>
     <div class="rb-actions">
-      <button type="button" class="icon-btn" data-open="toc" title="Contents (C)">☰</button>
-      <button type="button" class="icon-btn" data-open="settings" title="Reader settings (S)">Aa</button>
+      <button type="button" class="icon-btn" data-open="toc" title="Contents (C)" aria-label="Contents"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h12M4 17h14"/></svg></button>
+      <button type="button" class="icon-btn" data-open="settings" title="Reader settings (S)" aria-label="Reader settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h9M17 8h3M4 16h3M11 16h9"/><circle cx="15" cy="8" r="2"/><circle cx="9" cy="16" r="2"/></svg></button>
     </div>
   </div>
+  <div class="rb-progress"><span id="rb-fill"></span></div>
 </header>
 
-<%# Bottom controls for immersive (phone) reading: hidden until you double-tap. %>
-<nav class="reader-dock" id="reader-dock" aria-label="Chapter controls">
-  <div class="dock-info"><span class="dock-chapter"><%= u.chapterLabel(chapter) %></span><span id="dock-pct">0%</span></div>
-  <div class="dock-track"><span id="dock-fill"></span></div>
-  <div class="dock-buttons">
-    <% if (prev) { %><a href="/novel/<%= novel.slug %>/c/<%= u.formatNumber(prev.number) %>" aria-label="Previous chapter"><b>‹</b><small>Prev</small></a><% } else { %><span class="off"><b>‹</b><small>Prev</small></span><% } %>
-    <button type="button" data-open="toc"><b>☰</b><small>Contents</small></button>
-    <button type="button" data-open="settings"><b>Aa</b><small>Display</small></button>
-    <a href="#comments" data-dock-comments><b>💬</b><small>Comments</small></a>
-    <% if (next) { %><a href="/novel/<%= novel.slug %>/c/<%= u.formatNumber(next.number) %>" aria-label="Next chapter" class="dock-next"><b>›</b><small>Next</small></a><% } else { %><span class="off"><b>›</b><small>Next</small></span><% } %>
-  </div>
-</nav>
 <div class="tap-hint" id="tap-hint" hidden>Double-tap anywhere to show the menu</div>
 
 <main class="reader">
   <nav class="crumbs"><a href="/">Home</a> › <a href="/novel/<%= novel.slug %>"><%= novel.title %></a> › <span>Chapter <%= u.formatNumber(chapter.number) %></span></nav>
   <%- include('partials/chapter-nav', { where: 'top' }) %>
   <article class="chapter" id="chapter" data-slug="<%= novel.slug %>" data-num="<%= u.formatNumber(chapter.number) %>" data-novel-title="<%= novel.title %>" data-chapter-title="<%= chapter.title %>">
-    <h1 class="chapter-title"><%= u.chapterLabel(chapter) %></h1>
+    <div class="chapter-eyebrow">Chapter <%= position %> of <%= novel.chapter_count %></div>
+    <h1 class="chapter-title"><span class="ct-full"><%= u.chapterLabel(chapter) %></span><span class="ct-dash"><%= dashLabel %></span></h1>
     <div class="chapter-meta muted small"><%= u.formatDate(chapter.released_at) %> · 👁 <%= chapter.views.toLocaleString("en-US") %> views · <%= chapter.word_count.toLocaleString('en-US') %> words · ~<%= Math.max(1, Math.round(chapter.word_count / 230)) %> min read · chapter <%= position %> of <%= novel.chapter_count %></div>
     <div class="chapter-text" id="chapter-text"><%- chapter.content %></div>
   </article>

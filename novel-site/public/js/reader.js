@@ -11,7 +11,9 @@
   function json(key, fallback) { try { return JSON.parse(ls(key)) || fallback; } catch (e) { return fallback; } }
 
   // ---------- Preferences ----------
-  var DEFAULTS = { rtheme: '', font: 'serif', size: 19, line: 1.8, width: 800, align: 'left' };
+  // Phones get slightly bigger text and more line spacing by default (like reading apps).
+  var phone = root.classList.contains('immersive');
+  var DEFAULTS = { rtheme: '', font: 'serif', size: phone ? 20 : 19, line: phone ? 1.9 : 1.8, width: 800, align: 'left' };
   var prefs = Object.assign({}, DEFAULTS, json('reader-prefs', {}));
 
   // Logged-in readers: settings are also saved on the account, so they follow them to every device.
@@ -266,7 +268,7 @@
 (function () {
   var root = document.documentElement;
   if (!root.classList.contains('immersive')) return;
-  var INTERACTIVE = 'a, button, input, textarea, select, label, summary, details, form, .panel, .reader-dock, .reader-bar, .react, video, iframe';
+  var INTERACTIVE = 'a, button, input, textarea, select, label, summary, details, form, .panel, .reader-bar, .react, video, iframe';
   var lastTap = 0;
   var lastX = 0;
   var lastY = 0;
@@ -319,23 +321,19 @@
     progress();
   }, { passive: true });
 
-  // Chapter progress in the dock.
-  var pct = document.getElementById('dock-pct');
-  var fill = document.getElementById('dock-fill');
+  // Reading progress: the thin line under the top bar. At the very top of a chapter the bar stays visible.
+  var fill = document.getElementById('rb-fill');
   function progress() {
+    root.classList.toggle('at-top', window.scrollY < 40);
     var max = document.documentElement.scrollHeight - window.innerHeight;
     var art = document.getElementById('chapter');
     // Measure through the end of the chapter text, not the comments below it.
     var end = art ? art.offsetTop + art.offsetHeight - window.innerHeight : max;
     var p = Math.max(0, Math.min(100, Math.round((window.scrollY / Math.max(1, Math.min(end, max))) * 100)));
-    if (pct) pct.textContent = p + '%';
     if (fill) fill.style.width = p + '%';
   }
   progress();
 
-  // "Comments" in the dock: jump there and get out of the way.
-  var toComments = document.querySelector('[data-dock-comments]');
-  if (toComments) toComments.addEventListener('click', function () { setTimeout(function () { setUI(false); }, 50); });
 
   // Phone status bar matches the page colour.
   function themeColor() {

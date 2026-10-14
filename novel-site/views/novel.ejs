@@ -25,6 +25,7 @@
       <table class="info-table">
         <% if (novel.author) { %><tr><th>Author</th><td><a href="/novels?q=<%= encodeURIComponent(novel.author) %>"><%= novel.author %></a></td></tr><% } %>
         <% if (novel.translator) { %><tr><th>Translator</th><td><a href="/user/<%= encodeURIComponent(novel.translator) %>"><%= novel.translator %></a></td></tr><% } %>
+        <% if (novel.is_original) { %><tr><th>Type</th><td><span class="badge badge-original">Original work</span></td></tr><% } %>
         <tr><th>Status</th><td><span class="badge badge-<%= novel.status %>"><%= u.STATUS_LABELS[novel.status] %></span></td></tr>
         <% if (novel.original_language) { %><tr><th>Language</th><td><%= novel.original_language %></td></tr><% } %>
         <% if (novel.year) { %><tr><th>Year</th><td><%= novel.year %></td></tr><% } %>
@@ -63,7 +64,7 @@
           <% if (user) { %>
             <form method="post" action="/novel/<%= novel.slug %>/request-update" class="inline" data-request-update>
               <input type="hidden" name="_csrf" value="<%= csrf %>">
-              <button type="submit" class="btn btn-lg <%= updateStatus.mine ? 'btn-on' : '' %>" <%= updateStatus.mine ? 'disabled' : '' %> title="Ask the translator for new chapters">📣 <span data-label><%= updateStatus.mine ? 'Update requested' : 'Request update' %></span><% if (updateStatus.waiting) { %> <small data-count><%= updateStatus.waiting %></small><% } else { %> <small data-count hidden></small><% } %></button>
+              <button type="submit" class="btn btn-lg <%= updateStatus.mine ? 'btn-on' : '' %>" <%= updateStatus.mine ? 'disabled' : '' %> title="<%= novel.is_original ? 'Ask the author for new chapters' : 'Ask the translator for new chapters' %>">📣 <span data-label><%= updateStatus.mine ? 'Update requested' : 'Request update' %></span><% if (updateStatus.waiting) { %> <small data-count><%= updateStatus.waiting %></small><% } else { %> <small data-count hidden></small><% } %></button>
             </form>
           <% } else { %>
             <a class="btn btn-lg" href="/login?next=/novel/<%= novel.slug %>" title="Log in to ask for new chapters">📣 Request update<% if (updateStatus.waiting) { %> <small><%= updateStatus.waiting %></small><% } %></a>

@@ -14,7 +14,7 @@ const COMMON_COLUMNS = `
   (SELECT ROUND(AVG(score), 1) FROM ratings r WHERE r.novel_id = n.id) AS rating,
   (SELECT COUNT(*) FROM ratings r WHERE r.novel_id = n.id) AS rating_count,
   (SELECT group_concat(g.name, ', ') FROM novel_genres ng JOIN genres g ON g.id = ng.genre_id WHERE ng.novel_id = n.id) AS genre_names,
-  (SELECT u.username FROM users u WHERE u.id = n.owner_id) AS translator,
+  CASE WHEN n.is_original THEN NULL ELSE (SELECT u.username FROM users u WHERE u.id = n.owner_id) END AS translator,
   (SELECT COALESCE(SUM(d.views), 0) FROM novel_views_daily d WHERE d.novel_id = n.id AND d.day >= date('now', '-6 days')) AS views_week,
   (SELECT COALESCE(SUM(d.views), 0) FROM novel_views_daily d WHERE d.novel_id = n.id AND d.day >= date('now', '-29 days')) AS views_month
 `;

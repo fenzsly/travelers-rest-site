@@ -315,6 +315,9 @@ CREATE TABLE IF NOT EXISTS traffic_daily (
 );
 `);
 
+// Original works (written for the site, not translated): shown without a translator.
+if (!hasColumn('novels', 'is_original')) db.exec('ALTER TABLE novels ADD COLUMN is_original INTEGER NOT NULL DEFAULT 0');
+
 const DEFAULT_GENRES = [
   'Action', 'Adventure', 'Comedy', 'Drama', 'Fantasy', 'Harem', 'Historical', 'Horror',
   'Isekai', 'Martial Arts', 'Mecha', 'Mystery', 'Psychological', 'Reincarnation', 'Romance',

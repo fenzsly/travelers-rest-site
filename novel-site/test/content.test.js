@@ -65,3 +65,22 @@ test('the novels shipped in content/novels are valid', () => {
     for (const c of d.chapters) assert.ok(Number.isFinite(c.number) && (c.text || c.html), `${name}: chapter ${c.number}`);
   }
 });
+
+test('"original": true marks an original work once; the admin can change it afterwards', () => {
+  const dir = path.join(process.env.CONTENT_DIR, 'orig');
+  fs.mkdirSync(dir, { recursive: true });
+  const pkg = { title: 'My Own Story', chapters: [{ number: 1, title: 'Start', text: 'Hello.' }] };
+  fs.writeFileSync(path.join(dir, 'novel.json'), JSON.stringify(pkg));
+  importBundledNovels({ log: () => {} });
+  const id = db.prepare("SELECT id FROM novels WHERE title = 'My Own Story'").get().id;
+  assert.strictEqual(db.prepare('SELECT is_original FROM novels WHERE id = ?').get(id).is_original, 0);
+  // A later version says it's an original work: applied to the existing novel.
+  fs.writeFileSync(path.join(dir, 'novel.json'), JSON.stringify({ ...pkg, original: true }));
+  assert.deepStrictEqual(importBundledNovels({ log: () => {} }), ['“My Own Story” is now marked as an original work']);
+  const { q } = require('../src/queries');
+  assert.strictEqual(q.novelBySlug.get('my-own-story').translator, null);
+  // Unticked on the site: stays unticked.
+  db.prepare('UPDATE novels SET is_original = 0 WHERE id = ?').run(id);
+  assert.deepStrictEqual(importBundledNovels({ log: () => {} }), []);
+  assert.strictEqual(db.prepare('SELECT is_original FROM novels WHERE id = ?').get(id).is_original, 0);
+});

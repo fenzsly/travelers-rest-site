@@ -23,6 +23,9 @@ CREATE TABLE IF NOT EXISTS content_imports (
   updated_at  INTEGER NOT NULL DEFAULT (unixepoch())
 );
 `);
+if (!db.prepare('PRAGMA table_info(content_imports)').all().some((c) => c.name === 'original_applied')) {
+  db.exec('ALTER TABLE content_imports ADD COLUMN original_applied INTEGER NOT NULL DEFAULT 0');
+}
 
 function readPackages() {
   if (!fs.existsSync(CONTENT_DIR)) return [];
@@ -98,6 +101,12 @@ function importBundledNovels({ log = console.log } = {}) {
             changes.push(`New cover for “${d.title}”`);
           }
         }
+        // "original": true marks an original work (no translator shown). Applied once, so it can still be changed on the site.
+        if (d.original && !(record && record.original_applied)) {
+          db.prepare('UPDATE novels SET is_original = 1 WHERE id = ?').run(novelId);
+          db.prepare('UPDATE content_imports SET original_applied = 1 WHERE package = ?').run(pkg.name);
+          if (record) changes.push(`“${d.title}” is now marked as an original work`);
+        }
         // Fill in search title/description if the package has them and they're still empty on the site.
         if (record && (d.seo_title || d.seo_description)) {
           db.prepare(`UPDATE novels SET seo_title = CASE WHEN seo_title = '' THEN ? ELSE seo_title END,
@@ -114,6 +123,7 @@ function importBundledNovels({ log = console.log } = {}) {
         if (added) db.prepare('UPDATE novels SET updated_at = unixepoch() WHERE id = ?').run(novelId);
         db.prepare(`INSERT INTO content_imports (package, novel_id, title, chapters) VALUES (?, ?, ?, ?)
           ON CONFLICT(package) DO UPDATE SET chapters = chapters + excluded.chapters, updated_at = unixepoch()`).run(pkg.name, novelId, d.title, added);
+        if (d.original) db.prepare('UPDATE content_imports SET original_applied = 1 WHERE package = ?').run(pkg.name);
         if (!record) changes.push(`Added “${d.title}” (${added} chapters)`);
         else if (added) changes.push(`Added ${added} new chapter${added === 1 ? '' : 's'} to “${d.title}”`);
       });

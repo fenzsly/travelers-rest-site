@@ -16,6 +16,7 @@
       <label class="field">Original language<input name="original_language" value="<%= novel.original_language || '' %>" list="langs" placeholder="Chinese"></label>
       <label class="field">Year<input name="year" type="number" min="1900" max="2100" value="<%= novel.year || '' %>"></label>
     </div>
+    <label class="switch"><input type="checkbox" name="is_original" value="1" <%= novel.is_original ? 'checked' : '' %>><span></span> Original work (written for this site, not a translation): no translator is shown</label>
     <datalist id="langs"><option>Chinese</option><option>Korean</option><option>Japanese</option><option>Vietnamese</option><option>Indonesian</option><option>Thai</option><option>Spanish</option></datalist>
     <label class="field">Status
       <div class="radio-row">

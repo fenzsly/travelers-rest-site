@@ -569,8 +569,8 @@ router.get('/user/:name', (req, res, next) => {
   res.render('user', {
     profile, translated, lists, reading, reviews, comments, counts,
     seo: {
-      title: `${profile.username}${translated.length ? ' — Translator' : ''} | ${getSettings().site_name}`,
-      description: translated.length ? `Novels translated by ${profile.username}: ${translated.map((n) => n.title).slice(0, 5).join(', ')}.` : undefined,
+      title: `${profile.username}${translated.length ? (translated.every((n) => n.is_original) ? ' — Author' : ' — Translator') : ''} | ${getSettings().site_name}`,
+      description: translated.length ? `Novels ${translated.every((n) => n.is_original) ? 'written' : 'translated'} by ${profile.username}: ${translated.map((n) => n.title).slice(0, 5).join(', ')}.` : undefined,
       canonical: `${res.locals.baseUrl}/user/${encodeURIComponent(profile.username)}`,
       noindex: !translated.length, // only translator profiles are useful in search results
     },

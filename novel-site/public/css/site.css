@@ -563,3 +563,5 @@ body { overflow-x: hidden; }
   .filters select { flex: 1 1 45%; }
   .pager a, .pager span { min-width: 38px; min-height: 38px; }
 }
+
+.badge-original { background: #fbefd7; color: #9a6a12; }

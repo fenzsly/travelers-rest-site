@@ -172,7 +172,7 @@
 <div class="panel" id="panel-report" hidden>
   <div class="panel-inner">
     <div class="panel-head"><strong>Report a problem</strong><button class="icon-btn" data-close>✕</button></div>
-    <p class="muted small">Spotted a typo, a wrong name or missing text? Tell the translator. Tip: select the text in the chapter first and it's quoted here automatically.</p>
+    <p class="muted small">Spotted a typo, a wrong name or missing text? Tell the <%= novel.is_original ? 'author' : 'translator' %>. Tip: select the text in the chapter first and it's quoted here automatically.</p>
     <form method="post" action="/novel/<%= novel.slug %>/c/<%= u.formatNumber(chapter.number) %>/report" class="report-form" id="report-form" data-report>
       <input type="hidden" name="_csrf" value="<%= csrf %>">
       <label>What's wrong?
@@ -181,7 +181,7 @@
       <label>Text in question <textarea name="quote" rows="3" maxlength="1000" id="report-quote" placeholder="(optional) the sentence with the problem"></textarea></label>
       <label>Details <textarea name="message" rows="3" maxlength="2000" placeholder="e.g. “Lin Feng” is called “Lin Fang” here"></textarea></label>
       <button class="btn btn-accent btn-block" type="submit">Send report</button>
-      <p class="report-done" hidden>✓ Thanks! The translator has been notified.</p>
+      <p class="report-done" hidden>✓ Thanks! The <%= novel.is_original ? 'author' : 'translator' %> has been notified.</p>
     </form>
   </div>
 </div>

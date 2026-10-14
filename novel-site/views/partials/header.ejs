@@ -24,14 +24,22 @@
     <div class="userbox">
       <button type="button" class="icon-btn" id="theme-toggle" title="Toggle night mode" aria-label="Toggle night mode">🌙</button>
       <% if (user) { %>
+        <% const bellNotes = locals.notes || []; const bellCount = updates.length + bellNotes.length; %>
         <details class="bell">
-          <summary class="icon-btn" title="New chapters in your library" aria-label="New chapters in your library">🔔<% if (updates.length) { %><span class="bell-count"><%= updates.length %></span><% } %></summary>
+          <summary class="icon-btn" title="Notifications" aria-label="Notifications">🔔<% if (bellCount) { %><span class="bell-count"><%= bellCount %></span><% } %></summary>
           <div class="bell-pop">
+            <% if (bellNotes.length) { %>
+              <div class="bell-head">Replies <form method="post" action="/notifications/read" class="inline bell-clear"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="next" value="<%= path %>"><button class="linklike small" type="submit">Mark all read</button></form></div>
+              <% bellNotes.forEach((n) => { %>
+                <a href="/notifications/<%= n.id %>" class="bell-note"><strong>💬 <%= n.actor || 'Someone' %></strong><span><%= n.text.replace(/^\S+ /, '') %></span><span class="muted"><%= u.timeAgo(n.created_at) %></span></a>
+              <% }) %>
+            <% } %>
             <div class="bell-head">New chapters in your library</div>
             <% if (!updates.length) { %><div class="bell-empty">You're all caught up. Novels you're reading show up here when new chapters arrive.</div><% } %>
             <% updates.forEach((n) => { %>
               <a href="/novel/<%= n.slug %>/c/<%= u.formatNumber(n.next_number) %>"><strong><%= n.title %></strong><span><%= n.unread %> new · continue from ch. <%= u.formatNumber(n.next_number) %></span></a>
             <% }) %>
+            <a class="bell-all" href="/notifications">All notifications →</a>
             <a class="bell-all" href="/library">Open my library →</a>
           </div>
         </details>
@@ -40,6 +48,7 @@
           <summary><%= user.username %></summary>
           <div class="usermenu-pop">
             <a href="/user/<%= encodeURIComponent(user.username) %>">My profile</a>
+            <a href="/notifications">Notifications</a>
             <a href="/account">Account &amp; email</a>
             <a href="/library">My library</a>
             <a href="/history">Reading history</a>

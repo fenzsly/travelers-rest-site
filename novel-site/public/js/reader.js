@@ -202,6 +202,42 @@
     });
   });
 
+  // ---------- Replies: open the reply box under the thread ----------
+  document.querySelectorAll('[data-reply]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var thread = document.getElementById('thread-' + btn.dataset.root);
+      var form = thread.querySelector('.reply-form');
+      thread.hidden = false;
+      thread.classList.remove('collapsed');
+      form.hidden = false;
+      var box = form.querySelector('textarea');
+      // Replying inside a chain: mention who you're answering.
+      if (btn.dataset.reply !== btn.dataset.root || !box.value) {
+        var mention = '@' + btn.dataset.name + ' ';
+        if (box.value.indexOf(mention) !== 0) box.value = mention + box.value.replace(/^@\S+\s/, '');
+      }
+      form.querySelector('[name=parent_id]').value = btn.dataset.reply;
+      box.focus();
+      box.setSelectionRange(box.value.length, box.value.length);
+    });
+  });
+  document.querySelectorAll('[data-cancel-reply]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var form = btn.closest('.reply-form');
+      var thread = form.closest('.comment-thread');
+      form.hidden = true;
+      form.querySelector('textarea').value = '';
+      if (!thread.querySelector('.reply-list .comment')) thread.hidden = true;
+    });
+  });
+  document.querySelectorAll('[data-thread]').forEach(function (btn) {
+    var n = btn.textContent.match(/\d+/)[0];
+    btn.addEventListener('click', function () {
+      var collapsed = btn.closest('.comment-thread').classList.toggle('collapsed');
+      btn.textContent = collapsed ? '▸ Show ' + n + ' replies' : '▾ Hide ' + n + ' replies';
+    });
+  });
+
   // ---------- Remember progress (works without an account) ----------
   var progress = json('progress', {});
   progress[slug] = { num: num, title: article.dataset.novelTitle, chapterTitle: article.dataset.chapterTitle || '', at: Date.now() };

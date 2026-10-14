@@ -98,7 +98,7 @@
   </section>
   <% if (settings.comments_enabled === '1') { %>
   <section class="comments" id="comments">
-    <h2>Comments <span class="muted small"><%= comments.length %></span></h2>
+    <h2>Comments <span class="muted small"><%= comments.reduce((n, c) => n + 1 + c.replies.length, 0) %></span></h2>
     <% if (user) { %>
       <form method="post" action="/novel/<%= novel.slug %>/c/<%= u.formatNumber(chapter.number) %>/comment" class="comment-form">
         <input type="hidden" name="_csrf" value="<%= csrf %>">
@@ -108,16 +108,37 @@
     <% } else { %>
       <p class="muted"><a href="/login?next=<%= encodeURIComponent(`/novel/${novel.slug}/c/${u.formatNumber(chapter.number)}#comments`) %>">Log in</a> to comment.</p>
     <% } %>
-    <ul class="comment-list">
-      <% comments.forEach((c) => { %>
-        <li class="comment">
-          <div class="comment-head"><a href="/user/<%= encodeURIComponent(c.username) %>"><strong><%= c.username %></strong></a><% if (c.role !== 'reader') { %> <span class="badge badge-role"><%= c.role %></span><% } %> <span class="muted small"><%= u.timeAgo(c.created_at) %></span>
+    <% const commentHtml = (c, root) => { %>
+        <li class="comment" id="c<%= c.id %>">
+          <div class="comment-head"><a href="/user/<%= encodeURIComponent(c.username) %>"><strong><%= c.username %></strong></a><% if (c.role !== 'reader') { %> <span class="badge badge-role"><%= c.role %></span><% } %> <span class="muted small"><%= u.timeAgo(c.created_at) %></span></div>
+          <div class="comment-body"><%= c.body %></div>
+          <div class="comment-actions">
+            <% if (user) { %><button type="button" class="linklike small" data-reply="<%= c.id %>" data-root="<%= root.id %>" data-name="<%= c.username %>">↩ Reply</button>
+            <% } else { %><a class="small" href="/login?next=<%= encodeURIComponent(`/novel/${novel.slug}/c/${u.formatNumber(chapter.number)}#c${c.id}`) %>">↩ Reply</a><% } %>
             <% if (user && (user.id === c.user_id || user.role === 'admin' || novel.owner_id === user.id)) { %>
-              <form method="post" action="/comment/<%= c.id %>/delete" class="inline" onsubmit="return confirm('Delete this comment?')"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="linklike small" type="submit">delete</button></form>
+              <form method="post" action="/comment/<%= c.id %>/delete" class="inline" onsubmit="return confirm('<%= c.parent_id ? 'Delete this reply?' : 'Delete this comment and its replies?' %>')"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="linklike small muted" type="submit">delete</button></form>
             <% } %>
           </div>
-          <div class="comment-body"><%= c.body %></div>
         </li>
+    <% } %>
+    <ul class="comment-list">
+      <% comments.forEach((c) => { %>
+        <% commentHtml(c, c) %>
+        <% if (c.replies.length || user) { %>
+          <li class="comment-thread" id="thread-<%= c.id %>"<%= c.replies.length ? '' : ' hidden' %>>
+            <% if (c.replies.length > 3) { %><button type="button" class="linklike small thread-toggle" data-thread="<%= c.id %>">▾ Hide <%= c.replies.length %> replies</button><% } %>
+            <ul class="reply-list">
+              <% c.replies.forEach((r) => { commentHtml(r, c); }) %>
+            </ul>
+            <% if (user) { %>
+              <form method="post" action="/novel/<%= novel.slug %>/c/<%= u.formatNumber(chapter.number) %>/comment" class="comment-form reply-form" hidden>
+                <input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="parent_id" value="<%= c.id %>">
+                <textarea name="body" rows="2" maxlength="4000" required placeholder="Write a reply…"></textarea>
+                <div class="reply-form-actions"><button type="button" class="btn btn-sm" data-cancel-reply>Cancel</button><button class="btn btn-sm btn-accent" type="submit">Reply</button></div>
+              </form>
+            <% } %>
+          </li>
+        <% } %>
       <% }) %>
     </ul>
   </section>

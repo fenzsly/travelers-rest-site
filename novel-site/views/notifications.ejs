@@ -1,0 +1,16 @@
+<%- include('partials/head') %>
+<%- include('partials/header') %>
+<main class="wrap narrow">
+  <section class="block">
+    <h1 class="block-title page-h1">Notifications
+      <% if (items.some((n) => !n.read_at)) { %><form method="post" action="/notifications/read" class="inline block-more"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="linklike small" type="submit">Mark all read</button></form><% } %>
+    </h1>
+    <% if (!items.length) { %><div class="empty">No notifications yet. When someone replies to your comments, you’ll see it here and under the 🔔 bell.</div><% } %>
+    <ul class="note-list">
+      <% items.forEach((n) => { %>
+        <li class="<%= n.read_at ? '' : 'unread' %>"><a href="/notifications/<%= n.id %>"><span class="note-text"><%= n.text %></span><span class="muted small"><%= u.timeAgo(n.created_at) %></span></a></li>
+      <% }) %>
+    </ul>
+  </section>
+</main>
+<%- include('partials/footer') %>

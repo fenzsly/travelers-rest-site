@@ -6,6 +6,7 @@ const { savePrefs } = require('../prefs');
 const requests = require('../requests');
 const updateRequests = require('../update-requests');
 const guard = require('../guard');
+const notifications = require('../notifications');
 const { hashPassword, verifyPassword } = require('../auth');
 const { verifyCsrf, requireLogin } = require('../auth');
 const { getSettings } = require('../settings');
@@ -42,6 +43,7 @@ router.use((req, res, next) => {
   res.locals.seo = { noindex: true };
   res.locals.navGenres = q.allGenres.all();
   res.locals.updates = req.user ? libraryUpdates(req.user.id) : [];
+  res.locals.notes = req.user ? notifications.unread(req.user.id) : [];
   next();
 });
 
@@ -352,10 +354,13 @@ router.get('/novel/:slug/c/:num', loadNovel, async (req, res, next) => {
   const bookmarked = req.user
     ? !!db.prepare('SELECT 1 FROM bookmarks WHERE user_id = ? AND novel_id = ?').get(req.user.id, novel.id)
     : false;
-  const comments = getSettings().comments_enabled === '1'
+  const allComments = getSettings().comments_enabled === '1'
     ? db.prepare(`SELECT cm.*, u.username, u.role FROM comments cm JOIN users u ON u.id = cm.user_id
-        WHERE cm.chapter_id = ? ORDER BY cm.created_at ASC`).all(chapter.id)
+        WHERE cm.chapter_id = ? ORDER BY cm.created_at ASC, cm.id ASC`).all(chapter.id)
     : [];
+  // Top-level comments, each with its replies (oldest first, so a chain reads top to bottom).
+  const comments = allComments.filter((c) => !c.parent_id);
+  for (const c of comments) c.replies = allComments.filter((r) => r.parent_id === c.id);
   const reactionCounts = Object.fromEntries(db.prepare('SELECT emoji, COUNT(*) AS n FROM reactions WHERE chapter_id = ? GROUP BY emoji').all(chapter.id).map((r) => [r.emoji, r.n]));
   const myReaction = req.user ? db.prepare('SELECT emoji FROM reactions WHERE chapter_id = ? AND user_id = ?').get(chapter.id, req.user.id)?.emoji || null : null;
   const base = `${res.locals.baseUrl}/novel/${novel.slug}/c/`;
@@ -380,8 +385,29 @@ router.post('/novel/:slug/c/:num/comment', requireLogin, loadNovel, (req, res, n
   const chapter = q.visibleChapterByNumber.get(req.novel.id, Number(req.params.num));
   if (!chapter) return next(notFound('Chapter not found.'));
   const body = String(req.body.body || '').trim().slice(0, 4000);
-  if (body) db.prepare('INSERT INTO comments (chapter_id, user_id, body) VALUES (?, ?, ?)').run(chapter.id, req.user.id, body);
-  res.redirect(`/novel/${req.novel.slug}/c/${req.params.num}#comments`);
+  const here = `/novel/${req.novel.slug}/c/${formatNumber(chapter.number)}`;
+  if (!body) return res.redirect(`${here}#comments`);
+  // A reply: attach it to the top comment of the thread, so chains stay together.
+  let parent = null;
+  if (req.body.parent_id) {
+    parent = db.prepare('SELECT id, parent_id, user_id FROM comments WHERE id = ? AND chapter_id = ?').get(Number(req.body.parent_id), chapter.id);
+    if (!parent) {
+      req.flash('error', 'That comment was deleted, so your reply couldn’t be posted.');
+      return res.redirect(`${here}#comments`);
+    }
+  }
+  const rootId = parent ? parent.parent_id || parent.id : null;
+  const id = Number(db.prepare('INSERT INTO comments (chapter_id, user_id, body, parent_id) VALUES (?, ?, ?, ?)')
+    .run(chapter.id, req.user.id, body, rootId).lastInsertRowid);
+  if (parent) {
+    // Tell the person being replied to, and the thread starter if that's someone else.
+    const root = parent.parent_id ? db.prepare('SELECT user_id FROM comments WHERE id = ?').get(rootId) : parent;
+    const where = `${req.novel.title} ${chapterLabel(chapter)}: “${body.slice(0, 120)}”`;
+    const send = (uid, text) => notifications.notify(uid, { actorId: req.user.id, kind: 'reply', commentId: id, link: `${here}#c${id}`, text });
+    send(parent.user_id, `${req.user.username} replied to your comment on ${where}`);
+    if (root && root.user_id !== parent.user_id) send(root.user_id, `${req.user.username} replied in your comment’s thread on ${where}`);
+  }
+  res.redirect(`${here}#c${id}`);
 });
 
 // React to a chapter (click the same emoji again to take it back). Answers JSON for the reader page.
@@ -437,6 +463,19 @@ router.post('/comment/:id/delete', requireLogin, (req, res, next) => {
   if (!allowed) return next(Object.assign(new Error('Not allowed.'), { status: 403 }));
   db.prepare('DELETE FROM comments WHERE id = ?').run(c.id);
   res.redirect(`/novel/${c.slug}/c/${formatNumber(c.number)}#comments`);
+});
+
+// ---------- Notifications (the bell) ----------
+router.get('/notifications', requireLogin, (req, res) => {
+  res.render('notifications', { items: notifications.recent(req.user.id), seo: { title: `Notifications | ${getSettings().site_name}`, noindex: true } });
+});
+router.get('/notifications/:id', requireLogin, (req, res) => {
+  const link = notifications.open(req.user.id, req.params.id);
+  res.redirect(link && link.startsWith('/') && !link.startsWith('//') ? link : '/notifications');
+});
+router.post('/notifications/read', requireLogin, (req, res) => {
+  notifications.markAllRead(req.user.id);
+  res.redirect(safeNext(req.body.next) === '/' ? '/notifications' : safeNext(req.body.next));
 });
 
 // ---------- Library & history ----------

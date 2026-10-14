@@ -244,6 +244,25 @@ CREATE TABLE IF NOT EXISTS update_request_state (
 );
 `);
 
+// Replies: a reply points at the top comment of its thread (one level deep, like YouTube).
+if (!hasColumn('comments', 'parent_id')) db.exec('ALTER TABLE comments ADD COLUMN parent_id INTEGER REFERENCES comments(id) ON DELETE CASCADE');
+db.exec(`
+CREATE INDEX IF NOT EXISTS comments_parent ON comments (parent_id);
+-- On-site notifications (the bell), e.g. "dimpu replied to your comment".
+CREATE TABLE IF NOT EXISTS notifications (
+  id         INTEGER PRIMARY KEY,
+  user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  actor_id   INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  kind       TEXT NOT NULL,
+  comment_id INTEGER REFERENCES comments(id) ON DELETE CASCADE,
+  link       TEXT NOT NULL,
+  text       TEXT NOT NULL,
+  read_at    INTEGER,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
+CREATE INDEX IF NOT EXISTS notifications_user ON notifications (user_id, read_at, created_at);
+`);
+
 const DEFAULT_GENRES = [
   'Action', 'Adventure', 'Comedy', 'Drama', 'Fantasy', 'Harem', 'Historical', 'Horror',
   'Isekai', 'Martial Arts', 'Mecha', 'Mystery', 'Psychological', 'Reincarnation', 'Romance',

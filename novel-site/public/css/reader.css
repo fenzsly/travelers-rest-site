@@ -205,3 +205,5 @@ body.reader-page { background: var(--r-page); }
 :root[data-font="serif"] .chapter-text { font-family: "Source Serif 4", Georgia, "Iowan Old Style", "Palatino Linotype", "Noto Serif", serif; }
 /* Phones in dark mode: deep navy page with soft blue-grey text, like a reading app */
 .immersive[data-theme="dark"][data-rtheme=""] { --r-bg: #12151c; --r-page: #12151c; --r-text: #d2d7e1; --border: #232833; --muted: #8b93a4; --block: #12151c; --block-alt: #1b1f29; }
+.chapter-text .ad-slot { font-size: 14px; line-height: 1.4; margin: 1.6em 0; }
+.immersive .ad-chapter_end { margin-left: 12px; margin-right: 12px; }

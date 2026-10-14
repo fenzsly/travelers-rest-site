@@ -1013,6 +1013,11 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
     const adsMatch = adsRaw.match(/(?:ca-)?pub-(\d{10,20})/);
     if (adsRaw && !adsMatch) throw fail(400, 'AdSense publisher IDs look like ca-pub-1234567890123456. You can also paste the whole AdSense code.');
     const adsense = adsMatch ? `ca-pub-${adsMatch[1]}` : '';
+    // Ad unit: the slot number on its own, or the whole ad unit code (data-ad-slot="…").
+    const slotRaw = String(req.body.adsense_slot || '').trim();
+    const slotMatch = slotRaw.match(/data-ad-slot\s*=\s*["']?(\d{6,20})/) || slotRaw.match(/^(\d{6,20})$/);
+    if (slotRaw && !slotMatch) throw fail(400, 'That ad unit doesn’t look right. Paste the whole ad unit code from AdSense, or just its data-ad-slot number.');
+    const places = ['chapter_end', 'chapter_mid', 'novel', 'home'].filter((p) => req.body[`ad_${p}`]);
     saveSettings({
       site_description: String(req.body.site_description || '').replace(/\s+/g, ' ').trim().slice(0, 300),
       search_indexing: req.body.search_indexing ? '1' : '0',
@@ -1020,6 +1025,8 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
       bing_verification: bing,
       ga_id: ga,
       adsense_client: adsense,
+      adsense_slot: slotMatch ? slotMatch[1] : '',
+      ad_places: places.join(','),
       site_alternate_names: String(req.body.site_alternate_names || '').split(',').map((s) => s.trim()).filter(Boolean).slice(0, 10).join(', ').slice(0, 300),
       social_links: String(req.body.social_links || '').split(/\s+/).filter((u) => /^https?:\/\/\S+$/.test(u)).slice(0, 10).join('\n'),
     });

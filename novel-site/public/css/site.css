@@ -565,3 +565,8 @@ body { overflow-x: hidden; }
 }
 
 .badge-original { background: #fbefd7; color: #9a6a12; }
+
+/* Ad units */
+.ad-slot { margin: 18px auto; text-align: center; min-height: 100px; overflow: hidden; }
+.ad-label { font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+.ad-slot ins:not([data-ad-status]) { min-height: 90px; }

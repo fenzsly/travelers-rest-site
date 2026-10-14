@@ -1,0 +1,8 @@
+<%# One AdSense ad unit, if ads are set up and this place is switched on (Admin → SEO). Usage: include('partials/ad', { place: 'chapter_end' }) %>
+<% if (/^ca-pub-\d{10,20}$/.test(settings.adsense_client || '') && /^\d{6,20}$/.test(settings.adsense_slot || '') && (settings.ad_places || '').split(',').includes(place)) { %>
+<div class="ad-slot ad-<%= place %>">
+  <div class="ad-label">Advertisement</div>
+  <ins class="adsbygoogle" style="display:block" data-ad-client="<%= settings.adsense_client %>" data-ad-slot="<%= settings.adsense_slot %>" data-ad-format="auto" data-full-width-responsive="true"></ins>
+  <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+</div>
+<% } %>

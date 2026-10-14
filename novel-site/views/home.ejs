@@ -54,6 +54,7 @@
           <% }) %>
         </div>
       </section>
+      <%- include('partials/ad', { place: 'home' }) %>
       <section class="block site-intro">
         <h2 class="block-title">Welcome to <%= settings.site_name %></h2>
         <p><strong><%= settings.site_name %></strong><%= altName ? ` (also written ${altName})` : '' %> is a free place to read English translations of web novels: <%= settings.site_description.replace(/^Read free /i, '') %></p>

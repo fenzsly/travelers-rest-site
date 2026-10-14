@@ -92,6 +92,7 @@
         <button class="linklike" type="button" data-expand="desc" hidden>Show more ▾</button>
         <% if (novel.tags) { %><div class="chips tags"><% novel.tags.split(',').forEach((t) => { %><a class="chip chip-tag" href="/novels?tag=<%= encodeURIComponent(t.trim()) %>">#<%= t.trim() %></a><% }) %></div><% } %>
       </section>
+      <%- include('partials/ad', { place: 'novel' }) %>
 
       <section class="block tabbed" id="tabs">
         <nav class="tabs-bar">

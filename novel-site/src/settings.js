@@ -23,6 +23,13 @@ const DEFAULTS = {
   site_alternate_names: 'Traveller MTL, TravellerMTL Novels, travellermtl.com',
   // Links to the site's profiles elsewhere (Discord, X, Reddit…), one per line. Helps Google recognise the brand.
   social_links: '',
+  // --- Email ---
+  require_email: '0', // '1' = an email address is required to sign up
+  smtp_host: '',
+  smtp_port: '587',
+  smtp_user: '',
+  smtp_pass: '',
+  smtp_from: '', // e.g. TravellerMTL <no-reply@travellermtl.com>
   // --- Ads ---
   adsense_client: 'ca-pub-2543393434361716', // Google AdSense publisher ID (empty = no ads)
 };

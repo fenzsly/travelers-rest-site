@@ -94,9 +94,22 @@ function login(username, password) {
 }
 
 /** Creates an account. The very first account becomes the admin. */
-function register(username, password) {
+/** Validate an email for an account; throws a user-facing error. Empty is fine unless `required`. */
+function checkEmail(email, exceptUserId, required) {
+  if (!email) {
+    if (required) throw Object.assign(new Error('Please enter your email address.'), { status: 400 });
+    return;
+  }
+  if (!require('./mail').isValidEmail(email)) throw Object.assign(new Error('That email address doesn’t look right.'), { status: 400 });
+  if (db.prepare('SELECT 1 FROM users WHERE email = ? COLLATE NOCASE AND id != ?').get(email, exceptUserId || 0)) {
+    throw Object.assign(new Error('That email address is already used by another account.'), { status: 400 });
+  }
+}
+
+function register(username, password, email) {
   username = String(username || '').trim();
   password = String(password || '');
+  email = String(email || '').trim().toLowerCase();
   const first = q.userCount.get().n === 0;
   if (!first && getSettings().allow_registration !== '1') {
     throw Object.assign(new Error('Registration is currently closed.'), { status: 400 });
@@ -106,10 +119,12 @@ function register(username, password) {
   }
   if (password.length < 8) throw Object.assign(new Error('Password must be at least 8 characters.'), { status: 400 });
   if (q.userByName.get(username)) throw Object.assign(new Error('That username is taken.'), { status: 400 });
+  checkEmail(email, null, !first && getSettings().require_email === '1');
   const role = first ? 'admin' : (getSettings().default_role === 'translator' ? 'translator' : 'reader');
   const id = Number(q.insertUser.run(username, hashPassword(password), role).lastInsertRowid);
   if (first) db.prepare('UPDATE users SET is_owner = 1 WHERE id = ?').run(id);
+  if (email) db.prepare('UPDATE users SET email = ? WHERE id = ?').run(email, id);
   return id;
 }
 
-module.exports = { NOVEL_COLUMNS, ADMIN_NOVEL_COLUMNS, VISIBLE, RELEASED, q, setNovelGenres, cleanGenreName, createGenre, recordView, login, register };
+module.exports = { checkEmail, NOVEL_COLUMNS, ADMIN_NOVEL_COLUMNS, VISIBLE, RELEASED, q, setNovelGenres, cleanGenreName, createGenre, recordView, login, register };

@@ -1,0 +1,45 @@
+<%- include('partials/top', { title: 'Email & sign-ups' }) %>
+<div class="grid-2">
+  <form method="post" action="<%= A('/email') %>" class="card">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <h2>👤 Sign-ups</h2>
+    <label class="switch"><input type="checkbox" name="allow_registration" value="1" <%= settings.allow_registration === '1' ? 'checked' : '' %>><span></span> Anyone can create an account (Sign up button)</label>
+    <label class="switch"><input type="checkbox" name="require_email" value="1" <%= settings.require_email === '1' ? 'checked' : '' %>><span></span> Require an email address to sign up</label>
+    <p class="hint">Readers can always add an email later under “Account &amp; email”. <%= counts.with_email %> of <%= counts.total %> accounts have an email (<%= counts.verified || 0 %> confirmed).</p>
+
+    <h2 style="margin-top:22px">✉ Sending email (SMTP)</h2>
+    <p class="hint">Needed for confirmation emails and “Forgot password?”. Use a free email-sending service such as <strong>Brevo</strong> (300 emails/day free), <strong>Resend</strong> or <strong>Mailgun</strong>; they give you the values below. Use port <strong>587</strong>: Hetzner servers block ports 25 and 465.</p>
+    <label class="field">SMTP server <input name="smtp_host" value="<%= settings.smtp_host %>" placeholder="smtp-relay.brevo.com"></label>
+    <div class="row-3">
+      <label class="field">Port <input name="smtp_port" value="<%= settings.smtp_port %>" inputmode="numeric"></label>
+      <label class="field">Username / login <input name="smtp_user" value="<%= settings.smtp_user %>" autocomplete="off"></label>
+      <label class="field">Password / API key <input name="smtp_pass" type="password" autocomplete="new-password" placeholder="<%= settings.smtp_pass ? '•••••••• (saved, leave empty to keep)' : '' %>"></label>
+    </div>
+    <label class="field">From address
+      <span class="hint">Must be an address your email service lets you send from (usually on your own domain, which you verify with the service).</span>
+      <input name="smtp_from" value="<%= settings.smtp_from %>" placeholder="TravellerMTL &lt;no-reply@travellermtl.com&gt;"></label>
+    <div class="form-actions"><button class="btn btn-primary" type="submit">💾 Save</button></div>
+  </form>
+
+  <div class="stack-plain">
+    <section class="card">
+      <h2>🧪 Send a test email</h2>
+      <% if (!configured) { %><p class="muted">Fill in and save the SMTP settings first.</p><% } else { %>
+      <form method="post" action="<%= A('/email/test') %>" class="inline-form">
+        <input type="hidden" name="_csrf" value="<%= csrf %>">
+        <input name="to" type="email" required placeholder="your@email.com">
+        <button class="btn" type="submit">Send test</button>
+      </form>
+      <% } %>
+    </section>
+    <section class="card">
+      <h2>📬 What emails are sent</h2>
+      <ul class="check-list">
+        <li>A confirmation link when someone signs up or changes their email</li>
+        <li>A password reset link from “Forgot password?” on the login page (valid 1 hour)</li>
+      </ul>
+      <p class="hint">Nothing else: no newsletters or marketing. Email addresses are never shown publicly.</p>
+    </section>
+  </div>
+</div>
+<%- include('partials/bottom') %>

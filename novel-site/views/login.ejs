@@ -1,4 +1,4 @@
-<%- include('partials/head', { title: mode === 'login' ? 'Log in' : 'Sign up' }) %>
+<%- include('partials/head') %>
 <%- include('partials/header') %>
 <main class="wrap narrow">
   <section class="block auth">
@@ -8,11 +8,15 @@
       <input type="hidden" name="_csrf" value="<%= csrf %>">
       <input type="hidden" name="next" value="<%= next %>">
       <label>Username <input name="username" value="<%= username %>" required autocomplete="username" autofocus></label>
+      <% if (mode === 'register') { %>
+        <label>Email <% if (settings.require_email !== '1') { %><span class="muted small">(optional, lets you reset your password)</span><% } %>
+          <input name="email" type="email" value="<%= typeof email !== 'undefined' ? email : '' %>" autocomplete="email" maxlength="200" <%= settings.require_email === '1' ? 'required' : '' %>></label>
+      <% } %>
       <label>Password <input name="password" type="password" required minlength="<%= mode === 'register' ? 8 : 1 %>" autocomplete="<%= mode === 'login' ? 'current-password' : 'new-password' %>"></label>
       <button class="btn btn-accent btn-block" type="submit"><%= mode === 'login' ? 'Log in' : 'Sign up' %></button>
     </form>
     <p class="muted small center">
-      <% if (mode === 'login') { %>No account? <a href="/register?next=<%= encodeURIComponent(next) %>">Sign up</a><% } else { %>Already registered? <a href="/login?next=<%= encodeURIComponent(next) %>">Log in</a><% } %>
+      <% if (mode === 'login') { %><a href="/forgot-password">Forgot password?</a><% if (settings.allow_registration === '1') { %> · No account? <a href="/register?next=<%= encodeURIComponent(next) %>">Sign up</a><% } %><% } else { %>Already registered? <a href="/login?next=<%= encodeURIComponent(next) %>">Log in</a><% } %>
     </p>
   </section>
 </main>

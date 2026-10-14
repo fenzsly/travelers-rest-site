@@ -124,6 +124,20 @@ if (!db.prepare('SELECT 1 FROM users WHERE is_owner = 1').get()) {
 if (!hasColumn('novels', 'seo_title')) db.exec("ALTER TABLE novels ADD COLUMN seo_title TEXT NOT NULL DEFAULT ''");
 if (!hasColumn('novels', 'seo_description')) db.exec("ALTER TABLE novels ADD COLUMN seo_description TEXT NOT NULL DEFAULT ''");
 
+// Email on accounts (optional), verification and password-reset tokens.
+if (!hasColumn('users', 'email')) db.exec('ALTER TABLE users ADD COLUMN email TEXT');
+if (!hasColumn('users', 'email_verified')) db.exec('ALTER TABLE users ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 0');
+db.exec(`
+CREATE UNIQUE INDEX IF NOT EXISTS users_email ON users (email COLLATE NOCASE) WHERE email IS NOT NULL;
+CREATE TABLE IF NOT EXISTS email_tokens (
+  token_hash TEXT PRIMARY KEY,
+  user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  kind       TEXT NOT NULL CHECK (kind IN ('verify', 'reset')),
+  email      TEXT,
+  expires_at INTEGER NOT NULL
+);
+`);
+
 // Library lists (ranobes-style reading statuses).
 if (!hasColumn('bookmarks', 'status')) {
   db.exec("ALTER TABLE bookmarks ADD COLUMN status TEXT NOT NULL DEFAULT 'reading'");

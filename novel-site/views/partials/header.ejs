@@ -39,6 +39,7 @@
           <summary><%= user.username %></summary>
           <div class="usermenu-pop">
             <a href="/user/<%= encodeURIComponent(user.username) %>">My profile</a>
+            <a href="/account">Account &amp; email</a>
             <a href="/library">My library</a>
             <a href="/history">Reading history</a>
             <form method="post" action="/logout"><input type="hidden" name="_csrf" value="<%= csrf %>"><button type="submit">Log out</button></form>

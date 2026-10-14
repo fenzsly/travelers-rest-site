@@ -1,0 +1,20 @@
+<%- include('partials/head') %>
+<%- include('partials/header') %>
+<main class="wrap narrow">
+  <section class="block auth">
+    <h1 class="block-title page-h1">Choose a new password</h1>
+    <% if (!valid) { %>
+      <p>This link is invalid or has expired (links work for 1 hour).</p>
+      <p class="center"><a class="btn btn-accent" href="/forgot-password">Send a new link</a></p>
+    <% } else { %>
+      <% if (error) { %><div class="flash flash-error"><%= error %></div><% } %>
+      <form method="post" action="/reset-password">
+        <input type="hidden" name="_csrf" value="<%= csrf %>">
+        <input type="hidden" name="token" value="<%= token %>">
+        <label>New password <input name="password" type="password" minlength="8" required autofocus autocomplete="new-password"></label>
+        <button class="btn btn-accent btn-block" type="submit">Save new password</button>
+      </form>
+    <% } %>
+  </section>
+</main>
+<%- include('partials/footer') %>

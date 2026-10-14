@@ -676,6 +676,44 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
     res.redirect(A('/comments'));
   });
 
+  // ---------- Email (admin) ----------
+  app.get('/email', adminOnly, (req, res) => {
+    const counts = db.prepare('SELECT COUNT(email) AS with_email, SUM(email_verified) AS verified, COUNT(*) AS total FROM users').get();
+    res.render('admin/email', { counts, configured: require('./mail').isConfigured() });
+  });
+
+  app.post('/email', adminOnly, (req, res) => {
+    const s = getSettings();
+    const port = Number(req.body.smtp_port) || 587;
+    const from = String(req.body.smtp_from || '').trim().slice(0, 200);
+    if (from && !/@/.test(from)) throw fail(400, 'The “From” address must contain an email address, e.g. TravellerMTL <no-reply@travellermtl.com>.');
+    saveSettings({
+      require_email: req.body.require_email ? '1' : '0',
+      allow_registration: req.body.allow_registration ? '1' : '0',
+      smtp_host: String(req.body.smtp_host || '').trim().slice(0, 200),
+      smtp_port: String(port),
+      smtp_user: String(req.body.smtp_user || '').trim().slice(0, 200),
+      // Leave the stored password alone if the box was left empty.
+      smtp_pass: req.body.smtp_pass ? String(req.body.smtp_pass) : s.smtp_pass,
+      smtp_from: from,
+    });
+    req.flash('ok', 'Email settings saved. Send yourself a test email to check they work.');
+    res.redirect(A('/email'));
+  });
+
+  app.post('/email/test', adminOnly, async (req, res) => {
+    const to = String(req.body.to || '').trim();
+    const mail = require('./mail');
+    if (!mail.isValidEmail(to)) throw fail(400, 'Enter the email address to send the test to.');
+    try {
+      await mail.send({ to, subject: `Test email from ${getSettings().site_name}`, text: 'It works! Your site can send emails (account confirmations and password resets).' });
+      req.flash('ok', `Test email sent to ${to}. Check the inbox (and spam folder).`);
+    } catch (err) {
+      req.flash('error', `Sending failed: ${err.message}`);
+    }
+    res.redirect(A('/email'));
+  });
+
   // ---------- SEO (admin) ----------
   app.get('/seo', adminOnly, (req, res) => {
     const seo = require('./seo');

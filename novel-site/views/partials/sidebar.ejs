@@ -1,4 +1,22 @@
 <aside class="sidebar">
+  <% if (typeof latestComments !== 'undefined' && latestComments.length) { %>
+  <section class="block">
+    <h2 class="block-title">Latest comments</h2>
+    <ul class="latest-comments">
+      <% latestComments.forEach((c) => { const link = c.kind === 'review' ? `/novel/${c.slug}?tab=reviews#tabs` : `/novel/${c.slug}/c/${u.formatNumber(c.number)}#comments`; %>
+        <li>
+          <div class="lc-head">
+            <a class="avatar avatar-sm" href="/user/<%= encodeURIComponent(c.username) %>" style="--h: <%= [...c.username].reduce((a, ch) => a + ch.charCodeAt(0), 0) % 360 %>"><%= c.username[0].toUpperCase() %></a>
+            <a href="/user/<%= encodeURIComponent(c.username) %>"><strong><%= c.username %></strong></a>
+            <span class="muted small"><%= u.timeAgo(c.created_at) %></span>
+          </div>
+          <a class="lc-body" href="<%= link %>"><%= c.body.length > 140 ? c.body.slice(0, 140).trim() + '…' : c.body %></a>
+          <a class="lc-where small" href="<%= link %>"><%= c.kind === 'review' ? '✍ Review of ' : '💬 ' %><%= c.novel_title %><%= c.kind === 'comment' ? ` · Ch. ${u.formatNumber(c.number)}` : '' %></a>
+        </li>
+      <% }) %>
+    </ul>
+  </section>
+  <% } %>
   <% if (typeof trending !== 'undefined' && trending.length) { %>
   <section class="block">
     <h2 class="block-title">Trending this week <a class="block-more" href="/novels?sort=trending">All →</a></h2>

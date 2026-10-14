@@ -1,6 +1,8 @@
 const express = require('express');
 const { db } = require('../db');
-const { q, NOVEL_COLUMNS, VISIBLE, RELEASED, recordView, login, register } = require('../queries');
+const { q, NOVEL_COLUMNS, VISIBLE, RELEASED, recordView, login, register, checkEmail } = require('../queries');
+const mail = require('../mail');
+const { hashPassword, verifyPassword } = require('../auth');
 const { verifyCsrf, requireLogin } = require('../auth');
 const { getSettings } = require('../settings');
 const seo = require('../seo');
@@ -63,12 +65,22 @@ router.get('/', (req, res) => {
   const topRated = db.prepare(`SELECT ${NOVEL_COLUMNS} FROM novels n WHERE rating_count > 0 ORDER BY rating DESC, rating_count DESC LIMIT 6`).all();
   const trending = db.prepare(`SELECT ${NOVEL_COLUMNS} FROM novels n WHERE views_week > 0 ORDER BY views_week DESC LIMIT 8`).all();
   const completed = db.prepare(`SELECT ${NOVEL_COLUMNS} FROM novels n WHERE n.status = 'completed' AND ${HAS_CHAPTERS} ORDER BY n.views DESC LIMIT 6`).all();
+  // Newest chapter comments and novel reviews from anywhere on the site (never on unreleased chapters).
+  const latestComments = getSettings().comments_enabled === '1' ? db.prepare(`
+    SELECT * FROM (
+      SELECT 'comment' AS kind, cm.id, cm.body, cm.created_at, u.username, u.role, n.slug, n.title AS novel_title, c.number, c.volume, c.title AS chapter_title
+      FROM comments cm JOIN users u ON u.id = cm.user_id JOIN chapters c ON c.id = cm.chapter_id JOIN novels n ON n.id = c.novel_id
+      WHERE ${VISIBLE}
+      UNION ALL
+      SELECT 'review', rv.id, rv.body, rv.updated_at, u.username, u.role, n.slug, n.title, NULL, NULL, NULL
+      FROM reviews rv JOIN users u ON u.id = rv.user_id JOIN novels n ON n.id = rv.novel_id
+    ) ORDER BY created_at DESC LIMIT 8`).all() : [];
   const totals = db.prepare(`SELECT (SELECT COUNT(*) FROM novels) AS novels,
     (SELECT COUNT(*) FROM chapters c WHERE ${VISIBLE}) AS chapters,
     (SELECT COALESCE(SUM(views), 0) FROM novels) AS views`).get();
   const s = getSettings();
   res.render('home', {
-    popular, updated, fresh, topRated, trending, completed, totals, genres: q.allGenres.all(),
+    popular, updated, fresh, topRated, trending, completed, totals, latestComments, genres: q.allGenres.all(),
     seo: {
       // Include the spaced spelling too ("Traveller MTL"): search engines treat "TravellerMTL" as one word.
       title: (() => {
@@ -551,7 +563,7 @@ router.get('/manifest.webmanifest', (req, res) => {
 
 // ---------- Accounts ----------
 router.get('/login', (req, res) => res.render('login', { mode: 'login', error: null, next: safeNext(req.query.next), username: '', seo: { title: `Log in | ${getSettings().site_name}`, noindex: true } }));
-router.get('/register', (req, res) => res.render('login', { mode: 'register', error: null, next: safeNext(req.query.next), username: '', seo: { title: `Sign up | ${getSettings().site_name}`, noindex: true } }));
+router.get('/register', (req, res) => res.render('login', { mode: 'register', error: null, next: safeNext(req.query.next), username: '', email: '', seo: { title: `Sign up | ${getSettings().site_name}`, noindex: true } }));
 
 router.post('/login', (req, res) => {
   try {
@@ -562,13 +574,127 @@ router.post('/login', (req, res) => {
   }
 });
 
-router.post('/register', (req, res) => {
+router.post('/register', async (req, res) => {
+  let uid;
   try {
-    req.session.uid = register(req.body.username, req.body.password);
-    res.redirect(safeNext(req.body.next));
+    uid = register(req.body.username, req.body.password, req.body.email);
   } catch (err) {
-    res.status(err.status || 400).render('login', { mode: 'register', error: err.message, next: safeNext(req.body.next), username: req.body.username || '' });
+    return res.status(err.status || 400).render('login', {
+      mode: 'register', error: err.message, next: safeNext(req.body.next), username: req.body.username || '', email: req.body.email || '',
+      seo: { title: `Sign up | ${getSettings().site_name}`, noindex: true },
+    });
   }
+  req.session.uid = uid;
+  const user = db.prepare('SELECT id, username, email FROM users WHERE id = ?').get(uid);
+  if (user.email && mail.isConfigured()) {
+    try {
+      await mail.sendVerification(user, user.email, res.locals.baseUrl);
+      req.flash('ok', `Welcome, ${user.username}! We sent a confirmation link to ${user.email}.`);
+    } catch (err) {
+      console.error('Verification email failed:', err.message);
+      req.flash('ok', `Welcome, ${user.username}! (We couldn’t send the confirmation email right now. You can resend it from your account page.)`);
+    }
+  } else {
+    req.flash('ok', `Welcome, ${user.username}! Your account is ready.`);
+  }
+  res.redirect(safeNext(req.body.next));
+});
+
+// ---------- Email: verification, password reset, account page ----------
+router.get('/verify-email', (req, res) => {
+  const t = mail.findToken(String(req.query.token || ''), 'verify');
+  if (!t) {
+    req.flash('error', 'That confirmation link is invalid or has expired. You can send a new one from your account page.');
+    return res.redirect(req.user ? '/account' : '/login');
+  }
+  mail.useToken(String(req.query.token));
+  try {
+    checkEmail(t.email, t.user_id, false);
+    db.prepare('UPDATE users SET email = ?, email_verified = 1 WHERE id = ?').run(t.email, t.user_id);
+    req.flash('ok', `Thanks! ${t.email} is confirmed.`);
+  } catch (err) {
+    req.flash('error', err.message);
+  }
+  res.redirect(req.user ? '/account' : '/login');
+});
+
+const authSeo = (title) => ({ title: `${title} | ${getSettings().site_name}`, noindex: true });
+
+router.get('/forgot-password', (req, res) => res.render('forgot', { sent: false, emailReady: mail.isConfigured(), seo: authSeo('Forgot password') }));
+
+router.post('/forgot-password', async (req, res) => {
+  const who = String(req.body.who || '').trim();
+  const user = who && db.prepare('SELECT id, username, email FROM users WHERE (username = ? COLLATE NOCASE OR email = ? COLLATE NOCASE) AND email IS NOT NULL').get(who, who);
+  // Rate-limit per browser session to avoid spamming someone's inbox.
+  const recent = (req.session.resets || []).filter((t) => Date.now() - t < 3600_000);
+  if (user && mail.isConfigured() && recent.length < 3) {
+    req.session.resets = [...recent, Date.now()];
+    try {
+      await mail.sendPasswordReset(user, res.locals.baseUrl);
+    } catch (err) {
+      console.error('Password reset email failed:', err.message);
+    }
+  }
+  // Always the same answer, so nobody can find out which emails have accounts.
+  res.render('forgot', { sent: true, emailReady: mail.isConfigured(), seo: authSeo('Forgot password') });
+});
+
+router.get('/reset-password', (req, res) => {
+  const token = String(req.query.token || '');
+  res.render('reset', { token, valid: Boolean(mail.findToken(token, 'reset')), error: null, seo: authSeo('Choose a new password') });
+});
+
+router.post('/reset-password', (req, res) => {
+  const token = String(req.body.token || '');
+  const t = mail.findToken(token, 'reset');
+  if (!t) return res.status(400).render('reset', { token, valid: false, error: null, seo: authSeo('Choose a new password') });
+  const password = String(req.body.password || '');
+  if (password.length < 8) return res.status(400).render('reset', { token, valid: true, error: 'Password must be at least 8 characters.', seo: authSeo('Choose a new password') });
+  mail.useToken(token);
+  db.prepare('UPDATE users SET password_hash = ?, email_verified = 1 WHERE id = ?').run(hashPassword(password), t.user_id);
+  req.session.uid = t.user_id;
+  req.flash('ok', 'Your password has been changed and you’re logged in.');
+  res.redirect('/');
+});
+
+function accountPage(req, res, extra = {}) {
+  const me = db.prepare('SELECT username, email, email_verified FROM users WHERE id = ?').get(req.user.id);
+  res.status(extra.error ? 400 : 200).render('account', { me, emailReady: mail.isConfigured(), error: null, ...extra, seo: authSeo('My account') });
+}
+
+router.get('/account', requireLogin, (req, res) => accountPage(req, res));
+
+router.post('/account/email', requireLogin, async (req, res) => {
+  const email = String(req.body.email || '').trim().toLowerCase();
+  try {
+    if (!email && getSettings().require_email === '1') throw Object.assign(new Error('An email address is required on this site.'), { status: 400 });
+    checkEmail(email, req.user.id, false);
+  } catch (err) {
+    return accountPage(req, res, { error: err.message });
+  }
+  const current = db.prepare('SELECT email FROM users WHERE id = ?').get(req.user.id).email;
+  if (email !== (current || '')) db.prepare('UPDATE users SET email = ?, email_verified = 0 WHERE id = ?').run(email || null, req.user.id);
+  if (email && mail.isConfigured()) {
+    try {
+      await mail.sendVerification(req.user, email, res.locals.baseUrl);
+      req.flash('ok', `Saved. We sent a confirmation link to ${email}.`);
+    } catch (err) {
+      console.error('Verification email failed:', err.message);
+      req.flash('error', 'Saved, but the confirmation email couldn’t be sent right now. Try “Resend” later.');
+    }
+  } else {
+    req.flash('ok', email ? 'Email saved.' : 'Email removed.');
+  }
+  res.redirect('/account');
+});
+
+router.post('/account/password', requireLogin, (req, res) => {
+  const row = db.prepare('SELECT password_hash FROM users WHERE id = ?').get(req.user.id);
+  if (!verifyPassword(String(req.body.current || ''), row.password_hash)) return accountPage(req, res, { error: 'Your current password is wrong.' });
+  if (String(req.body.password || '').length < 8) return accountPage(req, res, { error: 'New password must be at least 8 characters.' });
+  db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hashPassword(req.body.password), req.user.id);
+  req.flash('ok', 'Password changed.');
+  res.redirect('/account');
 });
 
 router.post('/logout', (req, res) => {

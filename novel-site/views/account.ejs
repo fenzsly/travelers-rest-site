@@ -1,0 +1,26 @@
+<%- include('partials/head') %>
+<%- include('partials/header') %>
+<main class="wrap narrow">
+  <section class="block auth">
+    <h1 class="block-title page-h1">My account</h1>
+    <p class="muted">Signed in as <strong><%= me.username %></strong> · <a href="/user/<%= encodeURIComponent(me.username) %>">public profile</a> · <a href="/library">library</a></p>
+    <% if (error) { %><div class="flash flash-error"><%= error %></div><% } %>
+    <h2 class="sub-h">Email</h2>
+    <form method="post" action="/account/email">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <label>Email address
+        <input name="email" type="email" value="<%= me.email || '' %>" maxlength="200" autocomplete="email" placeholder="you@example.com"></label>
+      <% if (me.email) { %><p class="small"><%= me.email_verified ? '✅ Confirmed' : (emailReady ? '⏳ Not confirmed yet. Check your inbox, or click Save to resend the link.' : 'Saved.') %></p><% } %>
+      <p class="muted small">Used only to reset your password<% if (emailReady) { %> and confirm it’s you<% } %>. Never shown publicly.</p>
+      <button class="btn btn-accent" type="submit">Save email</button>
+    </form>
+    <h2 class="sub-h">Password</h2>
+    <form method="post" action="/account/password">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <label>Current password <input name="current" type="password" required autocomplete="current-password"></label>
+      <label>New password <input name="password" type="password" minlength="8" required autocomplete="new-password"></label>
+      <button class="btn" type="submit">Change password</button>
+    </form>
+  </section>
+</main>
+<%- include('partials/footer') %>

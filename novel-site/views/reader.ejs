@@ -64,10 +64,9 @@
     <div class="chapter-eyebrow">Chapter <%= u.formatNumber(chapter.number) %> of <%= u.formatNumber(novel.latest_number ?? chapter.number) %></div>
     <h1 class="chapter-title"><span class="ct-full"><%= u.chapterLabel(chapter) %></span><span class="ct-dash"><%= dashLabel %></span></h1>
     <div class="chapter-meta muted small"><%= u.formatDate(chapter.released_at) %> · 👁 <%= chapter.views.toLocaleString("en-US") %> views · <%= chapter.word_count.toLocaleString('en-US') %> words · ~<%= Math.max(1, Math.round(chapter.word_count / 230)) %> min read · chapter <%= position %> of <%= novel.chapter_count %></div>
-    <% const paras = chapter.content.split('</p>'); const mid = paras.length >= 25 ? Math.floor(paras.length / 2) : 0; %>
+    <% const paras = chapter.content.split('</p>'); const mid = paras.length >= 30 ? Math.floor(paras.length * 0.6) : 0; %>
     <div class="chapter-text" id="chapter-text"><% if (mid) { %><%- paras.slice(0, mid).join('</p>') + '</p>' %><%- include('partials/ad', { place: 'chapter_mid' }) %><%- paras.slice(mid).join('</p>') %><% } else { %><%- chapter.content %><% } %></div>
   </article>
-  <%- include('partials/ad', { place: 'chapter_end' }) %>
   <section class="reactions" id="reactions" data-url="/novel/<%= novel.slug %>/c/<%= u.formatNumber(chapter.number) %>/react">
     <span class="muted small">How was this chapter?</span>
     <% Object.entries(u.REACTIONS).forEach(([k, e]) => { %>
@@ -83,6 +82,7 @@
     <% if (user) { %><button type="button" class="report-btn" data-open="report" title="Report a typo or problem in this chapter">⚑ Report an error</button><% } else { %><a class="report-btn" href="/login?next=<%= encodeURIComponent(`/novel/${novel.slug}/c/${u.formatNumber(chapter.number)}#report-error`) %>" title="Log in to report an error">⚑ Report an error</a><% } %>
   </section>
   <%- include('partials/chapter-nav', { where: 'bottom' }) %>
+  <%- include('partials/ad', { place: 'chapter_end' }) %>
   <% if (!next) { %>
     <div class="end-note">
       <% if (upcoming) { %>⏰ Chapter <%= u.formatNumber(upcoming.number) %> will be released <strong data-ts="<%= upcoming.publish_at %>"><%= u.formatDate(upcoming.publish_at) %></strong>.

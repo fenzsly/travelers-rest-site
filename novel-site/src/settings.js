@@ -36,7 +36,8 @@ const DEFAULTS = {
   require_2fa: '0', // '1' = every staff account must use two-factor login for the admin panel
   // --- Ads ---
   adsense_client: 'ca-pub-2543393434361716', // Google AdSense publisher ID (empty = no ads)
-  adsense_slot: '3417963183', // ad unit ("data-ad-slot") placed in the spots below; empty = Auto ads only
+  adsense_slot: '3417963183', // display ad unit ("data-ad-slot") placed in the spots below; empty = Auto ads only
+  adsense_slot_article: '2651676421', // in-article ad unit used inside chapter text (falls back to the display unit)
   // Where the ad unit appears (comma separated): chapter_end, chapter_mid, novel, home
   ad_places: 'chapter_end,chapter_mid,novel,home',
 };

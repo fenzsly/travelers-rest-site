@@ -31,10 +31,13 @@
     <label class="field">Ad unit
       <span class="hint">Paste the whole ad unit code from AdSense (<em>Ads → By ad unit</em>), or just its <code>data-ad-slot</code> number. It’s placed in the spots ticked below. Leave empty to use Auto ads only.</span>
       <textarea name="adsense_slot" rows="2" placeholder='<ins class="adsbygoogle" … data-ad-slot="1234567890" …>'><%= settings.adsense_slot %></textarea></label>
+    <label class="field">In-article ad unit <span class="hint">(optional)</span>
+      <span class="hint">An AdSense <em>In-article</em> unit blends in with the text. It’s used for the one ad inside long chapters; without it, the ad unit above is used there.</span>
+      <textarea name="adsense_slot_article" rows="2" placeholder='<ins class="adsbygoogle" data-ad-layout="in-article" … data-ad-slot="1234567890">'><%= settings.adsense_slot_article %></textarea></label>
     <% const places = (settings.ad_places || '').split(','); %>
     <div class="field">Show the ad unit
-      <label class="switch"><input type="checkbox" name="ad_chapter_end" value="1" <%= places.includes('chapter_end') ? 'checked' : '' %>><span></span> Below each chapter (before reactions and comments)</label>
-      <label class="switch"><input type="checkbox" name="ad_chapter_mid" value="1" <%= places.includes('chapter_mid') ? 'checked' : '' %>><span></span> In the middle of long chapters</label>
+      <label class="switch"><input type="checkbox" name="ad_chapter_end" value="1" <%= places.includes('chapter_end') ? 'checked' : '' %>><span></span> Below each chapter (after the Next chapter button)</label>
+      <label class="switch"><input type="checkbox" name="ad_chapter_mid" value="1" <%= places.includes('chapter_mid') ? 'checked' : '' %>><span></span> Once inside long chapters (past the middle, never near the start)</label>
       <label class="switch"><input type="checkbox" name="ad_novel" value="1" <%= places.includes('novel') ? 'checked' : '' %>><span></span> On novel pages (below the description)</label>
       <label class="switch"><input type="checkbox" name="ad_home" value="1" <%= places.includes('home') ? 'checked' : '' %>><span></span> On the home page</label>
     </div>

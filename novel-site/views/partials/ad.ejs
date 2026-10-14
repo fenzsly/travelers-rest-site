@@ -1,8 +1,15 @@
-<%# One AdSense ad unit, if ads are set up and this place is switched on (Admin → SEO). Usage: include('partials/ad', { place: 'chapter_end' }) %>
-<% if (/^ca-pub-\d{10,20}$/.test(settings.adsense_client || '') && /^\d{6,20}$/.test(settings.adsense_slot || '') && (settings.ad_places || '').split(',').includes(place)) { %>
-<div class="ad-slot ad-<%= place %>">
+<%# One AdSense ad unit, if ads are set up and this place is switched on (Admin → SEO). Usage: include('partials/ad', { place: 'chapter_end' })
+    Inside chapters the In-article unit is used (it blends in with the text). Space is reserved so the text doesn't jump when it loads. %>
+<% const adClient = settings.adsense_client || ''; const inArticle = place === 'chapter_mid' && /^\d{6,20}$/.test(settings.adsense_slot_article || '');
+   const adSlot = inArticle ? settings.adsense_slot_article : settings.adsense_slot || ''; %>
+<% if (/^ca-pub-\d{10,20}$/.test(adClient) && /^\d{6,20}$/.test(adSlot) && (settings.ad_places || '').split(',').includes(place)) { %>
+<div class="ad-slot ad-<%= place %>" aria-label="Advertisement">
   <div class="ad-label">Advertisement</div>
-  <ins class="adsbygoogle" style="display:block" data-ad-client="<%= settings.adsense_client %>" data-ad-slot="<%= settings.adsense_slot %>" data-ad-format="auto" data-full-width-responsive="true"></ins>
+  <% if (inArticle) { %>
+  <ins class="adsbygoogle" style="display:block; text-align:center;" data-ad-layout="in-article" data-ad-format="fluid" data-ad-client="<%= adClient %>" data-ad-slot="<%= adSlot %>"></ins>
+  <% } else { %>
+  <ins class="adsbygoogle" style="display:block" data-ad-client="<%= adClient %>" data-ad-slot="<%= adSlot %>" data-ad-format="auto" data-full-width-responsive="true"></ins>
+  <% } %>
   <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
 </div>
 <% } %>

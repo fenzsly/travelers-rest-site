@@ -567,6 +567,9 @@ body { overflow-x: hidden; }
 .badge-original { background: #fbefd7; color: #9a6a12; }
 
 /* Ad units */
-.ad-slot { margin: 18px auto; text-align: center; min-height: 100px; overflow: hidden; }
-.ad-label { font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
-.ad-slot ins:not([data-ad-status]) { min-height: 90px; }
+.ad-slot { margin: 18px auto; text-align: center; overflow: hidden; }
+.ad-label { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); opacity: .7; margin-bottom: 4px; }
+/* Reserve room so the page doesn't jump when an ad loads; collapse if no ad was filled. */
+.ad-slot ins { min-height: 100px; }
+.ad-chapter_mid ins { min-height: 250px; }
+.ad-slot:has(ins[data-ad-status="unfilled"]) { display: none; }

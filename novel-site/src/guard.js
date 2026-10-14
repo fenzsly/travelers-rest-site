@@ -93,7 +93,18 @@ function isKnownCrawler(ip) {
   return !!(hit && hit.ok && hit.until > Date.now());
 }
 
+/** Addresses that downloaded the most chapters as guests in the last 24 hours (for the admin scraper check). */
+function busiest(limit = 10) {
+  const now = Date.now();
+  const max = Math.max(guestLimit() * 3, 60);
+  return [...ipReads.entries()]
+    .filter(([, e]) => e.start > now - DAY)
+    .map(([ip, e]) => ({ ip, chapters: e.ids.size, blocked: guestLimit() > 0 && e.ids.size >= max }))
+    .sort((a, b) => b.chapters - a.chapters)
+    .slice(0, limit);
+}
+
 /** For tests. */
 function reset() { crawlerCache.clear(); ipReads.clear(); ipRate.clear(); }
 
-module.exports = { checkChapter, isVerifiedCrawler, isKnownCrawler, guestLimit, reset, PER_MINUTE };
+module.exports = { busiest, checkChapter, isVerifiedCrawler, isKnownCrawler, guestLimit, reset, PER_MINUTE };

@@ -1,6 +1,6 @@
 const express = require('express');
 const { db } = require('../db');
-const { q, NOVEL_COLUMNS, VISIBLE, RELEASED, recordView, login, register, checkEmail } = require('../queries');
+const { q, NOVEL_COLUMNS, VISIBLE, RELEASED, login, register, checkEmail } = require('../queries');
 const mail = require('../mail');
 const { savePrefs } = require('../prefs');
 const requests = require('../requests');
@@ -46,8 +46,7 @@ router.use((req, res, next) => {
   res.locals.navGenres = q.allGenres.all();
   res.locals.updates = req.user ? libraryUpdates(req.user.id) : [];
   res.locals.notes = req.user ? notifications.unread(req.user.id) : [];
-  // Daily unique visitors (pages only: not feeds, sitemaps or background requests).
-  if (req.method === 'GET' && !/^\/(api|notifications\/\d)|\.(xml|txt|json|webmanifest)$/.test(req.path)) visitors.recordVisit(req);
+  // (Unique visitors are counted by POST /beacon, which only real browsers send: see visitors.js.)
   next();
 });
 
@@ -328,9 +327,13 @@ router.get('/novel/:slug/c/:num', loadNovel, async (req, res, next) => {
   const chapter = Number.isFinite(num) ? q.visibleChapterByNumber.get(novel.id, num) : null;
   if (!chapter) return next(notFound('Chapter not found (it may not be released yet).'));
 
+  // Scraper check: count every chapter download (self-declared bots separately).
+  visitors.bump(visitors.isBot(req) ? 'bot_loads' : 'chapter_loads');
+
   // Guests past the free-chapter limit (and anything reading too fast) see a sign-up page instead.
   const blocked = await guard.checkChapter(req, chapter.id);
   if (blocked) {
+    visitors.bump('gate_hits');
     const title = `${novel.title} ${u.chapterLabel(chapter)}`;
     return res.status(blocked.gate === 'slow' ? 429 : 200).render('gate', {
       novel, chapter, gate: blocked.gate, limit: blocked.limit,
@@ -344,14 +347,10 @@ router.get('/novel/:slug/c/:num', loadNovel, async (req, res, next) => {
   const upcoming = next_ ? null : db.prepare(`SELECT c.number, c.publish_at FROM chapters c WHERE c.novel_id = ? AND c.number > ? AND NOT ${VISIBLE} ORDER BY c.number ASC LIMIT 1`).get(novel.id, chapter.number);
   const position = db.prepare(`SELECT COUNT(*) AS c FROM chapters c WHERE c.novel_id = ? AND c.number <= ? AND ${VISIBLE}`).get(novel.id, chapter.number).c;
 
-  visitors.recordReader(req, novel.id);
-  // Count a view once per session per chapter (keeps the last few ids in the cookie).
+  // Remember which chapters this browser opened (for the guest free-chapter count).
+  // Views, readers and visitors are counted by the page's beacon instead, so scrapers don't inflate them.
   const seen = Array.isArray(req.session.seen) ? req.session.seen : [];
-  if (!seen.includes(chapter.id)) {
-    recordView(novel.id, chapter.id, req.get('user-agent'));
-    chapter.views += 1;
-    req.session.seen = [...seen, chapter.id].slice(-40);
-  }
+  if (!seen.includes(chapter.id)) req.session.seen = [...seen, chapter.id].slice(-40);
   if (req.user) {
     db.prepare('UPDATE bookmarks SET last_chapter_id = ?, updated_at = unixepoch() WHERE user_id = ? AND novel_id = ?')
       .run(chapter.id, req.user.id, novel.id);

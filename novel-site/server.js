@@ -26,6 +26,8 @@ if (!ADMIN_PORT) {
   // Default: the admin panel lives at /admin on the same server.
   app.use('/admin', createAdminApp({ base: '/admin', mounted: true }));
 }
+// Real-browser check-in that counts visitors, readers and views (no CSRF token: it only counts).
+app.post('/beacon', require('./src/visitors').beacon);
 app.use(publicRouter);
 errorHandlers(app, 'error');
 

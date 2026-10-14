@@ -75,4 +75,54 @@ function readersByDay(days, novelIds) {
     WHERE day >= date('now', ?) AND novel_id IN (${novelIds.map(() => '?').join(',')}) GROUP BY day`).all(`-${days - 1} days`, ...novelIds));
 }
 
-module.exports = { recordVisit, recordReader, siteVisitorsByDay, readersByDay, visitorId };
+// ---------- Scraper check: downloads vs. real browser reads ----------
+const TRAFFIC_FIELDS = ['chapter_loads', 'chapter_reads', 'bot_loads', 'gate_hits', 'rate_limited'];
+const bumpStmts = Object.fromEntries(TRAFFIC_FIELDS.map((f) => [f, db.prepare(`INSERT INTO traffic_daily (day, ${f}) VALUES (?, 1)
+  ON CONFLICT(day) DO UPDATE SET ${f} = ${f} + 1`)]));
+function bump(field) {
+  try { bumpStmts[field].run(today()); } catch { /* never break a page over stats */ }
+}
+
+/** Last N days of traffic counters, newest first. */
+function trafficByDay(days = 7) {
+  const rows = Object.fromEntries(db.prepare("SELECT * FROM traffic_daily WHERE day >= date('now', ?)").all(`-${days - 1} days`).map((r) => [r.day, r]));
+  const out = [];
+  for (let i = 0; i < days; i++) {
+    const day = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
+    const r = rows[day] || { day, chapter_loads: 0, chapter_reads: 0, bot_loads: 0, gate_hits: 0, rate_limited: 0 };
+    r.unconfirmed = Math.max(0, r.chapter_loads - r.chapter_reads);
+    r.pct = r.chapter_loads ? Math.round((r.unconfirmed / r.chapter_loads) * 100) : 0;
+    out.push(r);
+  }
+  return out;
+}
+
+const { VISIBLE } = require('./queries');
+const chapterForBeacon = db.prepare(`SELECT c.id, c.novel_id FROM chapters c WHERE c.id = ? AND ${VISIBLE}`);
+
+/**
+ * POST /beacon: sent by the page's script a moment after it opens in a real browser.
+ * Visitors, readers and chapter views are counted here, so scrapers that only download pages
+ * (and never run the page) don't inflate the stats.
+ */
+function beacon(req, res) {
+  try {
+    if (isBot(req)) return;
+    recordVisit(req);
+    const chapterId = Number(req.body?.c);
+    const chapter = chapterId ? chapterForBeacon.get(chapterId) : null;
+    if (!chapter) return;
+    bump('chapter_reads');
+    recordReader(req, chapter.novel_id);
+    // A view counts once per browser session per chapter.
+    const viewed = Array.isArray(req.session.viewed) ? req.session.viewed : [];
+    if (!viewed.includes(chapter.id)) {
+      require('./queries').recordView(chapter.novel_id, chapter.id, req.get('user-agent'));
+      req.session.viewed = [...viewed, chapter.id].slice(-60);
+    }
+  } finally {
+    res.status(204).end(); // after the session change, so the cookie is saved
+  }
+}
+
+module.exports = { recordVisit, recordReader, siteVisitorsByDay, readersByDay, visitorId, isBot, bump, trafficByDay, beacon };

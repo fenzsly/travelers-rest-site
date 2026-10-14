@@ -264,8 +264,9 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
       readersToday: readerChart.at(-1).views,
       readersYesterday: readerChart.at(-2).views,
     };
+    const trafficToday = req.user.role === 'admin' ? require('./visitors').trafficByDay(1)[0] : null;
     const wantUpdates = require('./update-requests').leaderboard({ ownerId: req.user.role === 'admin' ? null : req.user.id, limit: 5 }).filter((n) => n.waiting);
-    res.render('admin/dashboard', { stats, novels: novels.slice(0, 8), recent, scheduled, chart, top, wantUpdates, people, visitorChart, readerChart, update: system.status() });
+    res.render('admin/dashboard', { stats, novels: novels.slice(0, 8), recent, scheduled, chart, top, wantUpdates, people, visitorChart, readerChart, trafficToday, update: system.status() });
   });
 
   // ---------- Novels ----------
@@ -836,6 +837,8 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
       res.status(extra.error ? 400 : 200).render('admin/security', {
         me, backupLeft: JSON.parse(me.totp_backup || '[]').length, qr, secret: secret && secret.replace(/(.{4})/g, '$1 ').trim(),
         events, staff, labels: security.EVENT_LABELS, error: null, codes: null, flood: require('./ratelimit').status(),
+        traffic: isAdmin ? require('./visitors').trafficByDay(7) : null, busiest: isAdmin ? require('./guard').busiest(10) : [],
+        banned: isAdmin ? require('./ratelimit').bannedList() : [],
         behindCloudflare: Boolean(req.get('cf-connecting-ip') || req.get('cf-ray')), ...extra,
       });
     };

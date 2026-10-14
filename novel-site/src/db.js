@@ -303,6 +303,18 @@ CREATE TABLE IF NOT EXISTS novel_readers_daily (
 CREATE INDEX IF NOT EXISTS novel_readers_daily_day ON novel_readers_daily (day);
 `);
 
+db.exec(`
+-- Scraper check: chapter pages downloaded vs. actually opened in a real browser, per day.
+CREATE TABLE IF NOT EXISTS traffic_daily (
+  day           TEXT PRIMARY KEY,
+  chapter_loads INTEGER NOT NULL DEFAULT 0, -- chapter pages sent to browser-looking visitors
+  chapter_reads INTEGER NOT NULL DEFAULT 0, -- of those, confirmed by the page's script running in a browser
+  bot_loads     INTEGER NOT NULL DEFAULT 0, -- chapter pages fetched by self-declared bots/tools (search engines, curl…)
+  gate_hits     INTEGER NOT NULL DEFAULT 0, -- times the sign-up wall / speed limit was shown instead of a chapter
+  rate_limited  INTEGER NOT NULL DEFAULT 0  -- requests refused for going too fast
+);
+`);
+
 const DEFAULT_GENRES = [
   'Action', 'Adventure', 'Comedy', 'Drama', 'Fantasy', 'Harem', 'Historical', 'Horror',
   'Isekai', 'Martial Arts', 'Mecha', 'Mystery', 'Psychological', 'Reincarnation', 'Romance',

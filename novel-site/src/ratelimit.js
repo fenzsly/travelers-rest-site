@@ -80,6 +80,7 @@ function middleware(req, res, next) {
         try { fs.appendFileSync(blockLogPath(), `${new Date().toISOString()} BLOCK ${ip}\n`); } catch { /* read-only disk etc. */ }
       }
     }
+    require('./visitors').bump('rate_limited');
     return tooMany(res, Math.ceil((c.start + MINUTE - now) / 1000), 'You’re going a bit fast. Please wait a moment and try again.');
   }
 
@@ -99,6 +100,11 @@ setInterval(() => {
   for (const [ip, c] of counters) if (now - c.start > 10 * MINUTE && c.bannedUntil < now) counters.delete(ip);
 }, 5 * MINUTE).unref();
 
+function bannedList() {
+  const now = Date.now();
+  return [...counters.entries()].filter(([, c]) => c.bannedUntil > now).map(([ip, c]) => ({ ip, minutesLeft: Math.ceil((c.bannedUntil - now) / 60000) }));
+}
+
 function status() {
   const now = Date.now();
   return { tracked: counters.size, banned: [...counters.values()].filter((c) => c.bannedUntil > now).length, overloaded };
@@ -106,4 +112,4 @@ function status() {
 
 function reset() { counters.clear(); }
 
-module.exports = { middleware, status, reset, LIMITS, STRIKES_TO_BAN };
+module.exports = { bannedList, middleware, status, reset, LIMITS, STRIKES_TO_BAN };

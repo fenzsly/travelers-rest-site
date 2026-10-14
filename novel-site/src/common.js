@@ -60,7 +60,7 @@ const session = cookieSession({
  * Creates an Express app with sessions, body parsing, user loading and shared view locals.
  * Pass { mounted: true } for a sub-app mounted inside another baseApp (the parent already did the work).
  */
-function baseApp(viewsDir, { mounted = false } = {}) {
+function baseApp(viewsDir, { mounted = false, adminOnly = false } = {}) {
   const app = express();
   app.set('view engine', 'ejs');
   app.set('views', viewsDir);
@@ -68,10 +68,16 @@ function baseApp(viewsDir, { mounted = false } = {}) {
   app.set('trust proxy', process.env.TRUST_PROXY === '1' ? 1 : false);
   app.disable('x-powered-by');
   if (mounted) return app;
+  app.use(require('./ratelimit').middleware); // first, so floods cost as little as possible
   app.use(securityHeaders);
   app.use(session);
-  app.use(express.urlencoded({ extended: false, limit: '5mb' }));
-  app.use(express.json({ limit: '60mb' }));
+  // Only the admin panel needs big request bodies (chapter uploads); public pages accept small ones,
+  // so nobody can tie up the server by sending huge junk requests.
+  const big = [express.urlencoded({ extended: false, limit: '5mb' }), express.json({ limit: '60mb' })];
+  const small = [express.urlencoded({ extended: false, limit: '200kb' }), express.json({ limit: '100kb' })];
+  const isAdmin = (req) => adminOnly || /^\/admin(\/|$)/.test(req.path);
+  app.use((req, res, next) => (isAdmin(req) ? big : small)[0](req, res, next));
+  app.use((req, res, next) => (isAdmin(req) ? big : small)[1](req, res, next));
   app.use(loadUser);
   app.use((req, res, next) => {
     res.locals.settings = getSettings();

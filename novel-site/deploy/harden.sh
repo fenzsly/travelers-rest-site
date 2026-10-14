@@ -10,6 +10,8 @@
 #    set up an SSH key (so you can't lock yourself out).
 #  - The site's service runs in a sandbox, and its data files are readable only by the site.
 #  - Login cookies are HTTPS-only.
+#  - Flood (DDoS) protection: kernel SYN-flood defences, Caddy timeouts against slow connections,
+#    and addresses the site bans for flooding are also blocked in the firewall for an hour.
 set -euo pipefail
 [[ $EUID -eq 0 ]] || { echo "Please run as root (or with sudo)."; exit 1; }
 DATA_DIR=/var/lib/novel-site
@@ -40,6 +42,58 @@ bantime  = 1h
 JAIL
 systemctl enable --now fail2ban >/dev/null 2>&1
 systemctl restart fail2ban
+
+echo "==> Firewall bans for addresses the site catches flooding"
+touch "$DATA_DIR/blocked.log" 2>/dev/null && chown novels:novels "$DATA_DIR/blocked.log" 2>/dev/null || true
+cat > /etc/fail2ban/filter.d/novel-site-flood.conf <<'FILTER'
+[Definition]
+failregex = BLOCK <HOST>\s*$
+datepattern = {^LN-BEG}%%Y-%%m-%%dT%%H:%%M:%%S
+FILTER
+if [[ -f $DATA_DIR/blocked.log ]]; then
+  cat >> /etc/fail2ban/jail.d/novel-site.conf <<JAIL
+
+[novel-site-flood]
+enabled  = true
+filter   = novel-site-flood
+logpath  = $DATA_DIR/blocked.log
+port     = http,https
+maxretry = 1
+findtime = 1h
+bantime  = 1h
+JAIL
+fi
+cat > /etc/logrotate.d/novel-site <<ROTATE
+$DATA_DIR/blocked.log {
+	weekly
+	rotate 4
+	compress
+	missingok
+	notifempty
+	copytruncate
+}
+ROTATE
+systemctl restart fail2ban
+
+echo "==> Kernel protection against connection floods"
+cat > /etc/sysctl.d/90-novel-site.conf <<'SYSCTL'
+net.ipv4.tcp_syncookies = 1
+net.ipv4.tcp_max_syn_backlog = 4096
+net.ipv4.tcp_synack_retries = 2
+net.core.somaxconn = 4096
+net.ipv4.conf.all.rp_filter = 1
+net.ipv4.conf.default.rp_filter = 1
+net.ipv4.icmp_echo_ignore_broadcasts = 1
+net.ipv4.conf.all.accept_redirects = 0
+net.ipv6.conf.all.accept_redirects = 0
+net.ipv4.conf.all.send_redirects = 0
+SYSCTL
+sysctl --system >/dev/null
+
+if [[ -f /etc/caddy/Caddyfile ]] && command -v caddy >/dev/null; then
+  echo "==> Caddy: timeouts against slow-connection attacks, real visitor IPs"
+  bash "$(dirname "$0")/caddy-protect.sh" || true
+fi
 
 echo "==> Automatic security updates"
 cat > /etc/apt/apt.conf.d/20auto-upgrades <<'APT'

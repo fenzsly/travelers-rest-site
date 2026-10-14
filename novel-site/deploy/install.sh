@@ -111,6 +111,7 @@ else
 CADDY
 fi
 systemctl reload caddy || systemctl restart caddy
+bash "$APP_DIR/repo/novel-site/deploy/caddy-protect.sh" || true
 
 echo "==> Firewall"
 ufw allow OpenSSH >/dev/null

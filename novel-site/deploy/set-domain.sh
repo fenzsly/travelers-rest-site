@@ -34,6 +34,8 @@ CADDY
 
 caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null
 systemctl reload caddy || systemctl restart caddy
+# Flood protection (timeouts, real visitor IPs; Cloudflare-aware).
+bash "$(dirname "$0")/caddy-protect.sh" || true
 
 # Make links in feeds/sitemaps use the main domain even when reached another way.
 UNIT=/etc/systemd/system/novel-site.service

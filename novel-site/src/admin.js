@@ -17,7 +17,7 @@ const { slugify, paginate, STATUS_LABELS } = require('./util');
 const parse = require('./parse');
 
 function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {}) {
-  const app = baseApp(path.join(__dirname, '..', 'views'), { mounted });
+  const app = baseApp(path.join(__dirname, '..', 'views'), { mounted, adminOnly: !mounted });
   const A = (p = '') => `${base}${p}`; // admin URL builder
 
   // The admin panel is never cached, framed, or allowed to load scripts from other sites.
@@ -821,7 +821,8 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
       }
       res.status(extra.error ? 400 : 200).render('admin/security', {
         me, backupLeft: JSON.parse(me.totp_backup || '[]').length, qr, secret: secret && secret.replace(/(.{4})/g, '$1 ').trim(),
-        events, staff, labels: security.EVENT_LABELS, error: null, codes: null, ...extra,
+        events, staff, labels: security.EVENT_LABELS, error: null, codes: null, flood: require('./ratelimit').status(),
+        behindCloudflare: Boolean(req.get('cf-connecting-ip') || req.get('cf-ray')), ...extra,
       });
     };
     return render();

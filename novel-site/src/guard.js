@@ -87,7 +87,13 @@ setInterval(() => {
   for (const [ip, c] of crawlerCache) if (c.until < now) crawlerCache.delete(ip);
 }, 10 * 60000).unref();
 
+/** Synchronous check: was this IP already verified as a search-engine crawler? (No DNS lookup.) */
+function isKnownCrawler(ip) {
+  const hit = crawlerCache.get(ip);
+  return !!(hit && hit.ok && hit.until > Date.now());
+}
+
 /** For tests. */
 function reset() { crawlerCache.clear(); ipReads.clear(); ipRate.clear(); }
 
-module.exports = { checkChapter, isVerifiedCrawler, guestLimit, reset, PER_MINUTE };
+module.exports = { checkChapter, isVerifiedCrawler, isKnownCrawler, guestLimit, reset, PER_MINUTE };

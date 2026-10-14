@@ -65,6 +65,13 @@
   </section>
 </div>
 
+<section class="card">
+  <h2>🌊 Flood (DDoS) protection</h2>
+  <p>Always on: every internet address gets a request budget per minute; addresses that keep flooding are banned for 15 minutes (and blocked in the server firewall once <code>harden.sh</code> has been run); when the server is overloaded, new cookieless visitors get a light “busy” page so readers already on the site keep reading.</p>
+  <p>Right now: <strong><%= flood.tracked %></strong> addresses active in the last minutes · <strong><%= flood.banned %></strong> banned · server <%= flood.overloaded ? '⚠️ overloaded' : '✅ running normally' %>.</p>
+  <p>Cloudflare shield: <%- behindCloudflare ? '<strong>✅ on</strong>: big floods are absorbed before they reach the server.' : '<strong>⚠️ not set up.</strong> For protection against <em>large</em> attacks, put the site behind Cloudflare’s free plan (ask Claude for the steps).' %></p>
+</section>
+
 <% if (staff.length) { %>
 <section class="card">
   <h2>👥 Staff accounts</h2>

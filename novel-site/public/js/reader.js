@@ -41,9 +41,9 @@
     root.style.setProperty('--r-size', prefs.size + 'px');
     root.style.setProperty('--r-line', prefs.line);
     root.style.setProperty('--r-width', prefs.width + 'px');
-    document.querySelectorAll('[data-rtheme]').forEach(function (b) { b.classList.toggle('on', b.dataset.rtheme === prefs.rtheme); });
-    document.querySelectorAll('[data-font]').forEach(function (b) { b.classList.toggle('on', b.dataset.font === prefs.font); });
-    document.querySelectorAll('[data-align]').forEach(function (b) { b.classList.toggle('on', b.dataset.align === prefs.align); });
+    document.querySelectorAll('button[data-rtheme]').forEach(function (b) { b.classList.toggle('on', b.dataset.rtheme === prefs.rtheme); });
+    document.querySelectorAll('button[data-font]').forEach(function (b) { b.classList.toggle('on', b.dataset.font === prefs.font); });
+    document.querySelectorAll('button[data-align]').forEach(function (b) { b.classList.toggle('on', b.dataset.align === prefs.align); });
     [['size', 'px'], ['line', ''], ['width', 'px']].forEach(function (p) {
       var input = document.getElementById('s-' + p[0]);
       input.value = prefs[p[0]];
@@ -52,7 +52,7 @@
   }
   function save() { ls('reader-prefs', JSON.stringify(prefs)); apply(); syncToAccount(); }
 
-  document.querySelectorAll('[data-rtheme]').forEach(function (b) { b.addEventListener('click', function () { prefs.rtheme = b.dataset.rtheme; save(); }); });
+  document.querySelectorAll('button[data-rtheme]').forEach(function (b) { b.addEventListener('click', function () { prefs.rtheme = b.dataset.rtheme; save(); }); });
   document.querySelectorAll('button[data-font]').forEach(function (b) { b.addEventListener('click', function () { prefs.font = b.dataset.font; save(); }); });
   document.querySelectorAll('button[data-align]').forEach(function (b) { b.addEventListener('click', function () { prefs.align = b.dataset.align; save(); }); });
   ['size', 'line', 'width'].forEach(function (k) {
@@ -260,4 +260,102 @@
       toggle.textContent = collapsed ? '▸ Show ' + n + ' replies' : '▾ Hide ' + n + ' replies';
     }
   });
+})();
+
+// ---------- Immersive reading on phones: double-tap shows/hides the controls ----------
+(function () {
+  var root = document.documentElement;
+  if (!root.classList.contains('immersive')) return;
+  var INTERACTIVE = 'a, button, input, textarea, select, label, summary, details, form, .panel, .reader-dock, .reader-bar, .react, video, iframe';
+  var lastTap = 0;
+  var lastX = 0;
+  var lastY = 0;
+  var hideTimer = null;
+  var shownAtY = 0;
+  var lastTouchToggle = 0;
+
+  function setUI(on) {
+    root.classList.toggle('ui-on', on);
+    shownAtY = window.scrollY;
+    if (on) hint(false);
+  }
+  function toggleUI() { setUI(!root.classList.contains('ui-on')); }
+
+  document.addEventListener('touchend', function (e) {
+    if (e.changedTouches.length !== 1 || e.target.closest(INTERACTIVE)) return;
+    var sel = window.getSelection && String(window.getSelection());
+    if (sel) return; // selecting text, not tapping
+    var t = e.changedTouches[0];
+    var now = Date.now();
+    var isDouble = now - lastTap < 320 && Math.abs(t.clientX - lastX) < 40 && Math.abs(t.clientY - lastY) < 40;
+    if (isDouble) {
+      clearTimeout(hideTimer);
+      lastTap = 0;
+      lastTouchToggle = now;
+      e.preventDefault(); // no zoom
+      toggleUI();
+      return;
+    }
+    lastTap = now;
+    lastX = t.clientX;
+    lastY = t.clientY;
+    // A single tap while the controls are showing puts them away (unless it turns out to be a double-tap).
+    if (root.classList.contains('ui-on')) {
+      clearTimeout(hideTimer);
+      hideTimer = setTimeout(function () { setUI(false); }, 330);
+    }
+  }, { passive: false });
+
+  // Mouse / stylus double-click (e.g. a narrow desktop window or a tablet with a keyboard).
+  document.addEventListener('dblclick', function (e) {
+    if (Date.now() - lastTouchToggle < 600 || e.target.closest(INTERACTIVE)) return;
+    if (window.getSelection) window.getSelection().removeAllRanges();
+    toggleUI();
+  });
+
+  // Scrolling on to read puts the controls away.
+  window.addEventListener('scroll', function () {
+    if (root.classList.contains('ui-on') && Math.abs(window.scrollY - shownAtY) > 60 && !document.querySelector('.panel:not([hidden])')) setUI(false);
+    progress();
+  }, { passive: true });
+
+  // Chapter progress in the dock.
+  var pct = document.getElementById('dock-pct');
+  var fill = document.getElementById('dock-fill');
+  function progress() {
+    var max = document.documentElement.scrollHeight - window.innerHeight;
+    var art = document.getElementById('chapter');
+    // Measure through the end of the chapter text, not the comments below it.
+    var end = art ? art.offsetTop + art.offsetHeight - window.innerHeight : max;
+    var p = Math.max(0, Math.min(100, Math.round((window.scrollY / Math.max(1, Math.min(end, max))) * 100)));
+    if (pct) pct.textContent = p + '%';
+    if (fill) fill.style.width = p + '%';
+  }
+  progress();
+
+  // "Comments" in the dock: jump there and get out of the way.
+  var toComments = document.querySelector('[data-dock-comments]');
+  if (toComments) toComments.addEventListener('click', function () { setTimeout(function () { setUI(false); }, 50); });
+
+  // Phone status bar matches the page colour.
+  function themeColor() {
+    var meta = document.querySelector('meta[name=theme-color]');
+    if (!meta) { meta = document.createElement('meta'); meta.name = 'theme-color'; document.head.appendChild(meta); }
+    meta.content = getComputedStyle(document.body).backgroundColor;
+  }
+  themeColor();
+  new MutationObserver(themeColor).observe(root, { attributes: true, attributeFilter: ['data-rtheme', 'data-theme'] });
+
+  // Teach the gesture on the first few chapters.
+  var tip = document.getElementById('tap-hint');
+  function hint(show) {
+    if (!tip) return;
+    if (!show) { tip.classList.add('fade'); setTimeout(function () { tip.hidden = true; }, 400); return; }
+    tip.hidden = false;
+    setTimeout(function () { hint(false); }, 3500);
+  }
+  try {
+    var seen = Number(localStorage.getItem('tap-hint-seen') || 0);
+    if (seen < 3) { localStorage.setItem('tap-hint-seen', String(seen + 1)); setTimeout(function () { hint(true); }, 600); }
+  } catch (e) {}
 })();

@@ -2,13 +2,17 @@
 <html lang="en" data-theme="<%= (user && user.prefs.theme) || (settings.default_theme === 'light' ? 'light' : 'dark') %>">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <%- include('partials/seo-meta', { seo }) %>
 <link rel="stylesheet" href="<%= asset('/static/css/site.css') %>">
 <link rel="stylesheet" href="<%= asset('/static/css/reader.css') %>">
 <% if (user) { %><meta name="csrf" content="<%= csrf %>"><% } %>
 <script>
   window.ACCOUNT = <%- user ? u.jsonScript({ prefs: user.prefs }) : 'null' %>;
+  // Phones and tablets: immersive reading (controls appear on double-tap). Decided before first paint.
+  try {
+    if (window.matchMedia('(hover: none) and (pointer: coarse)').matches || window.innerWidth <= 720) document.documentElement.classList.add('immersive');
+  } catch (e) {}
   // Apply saved reader preferences before first paint (no flash of the wrong theme).
   // Settings saved on the account win, so they follow the reader to every device.
   try {
@@ -34,6 +38,7 @@
 <div class="progress"><div class="progress-bar" id="progress"></div></div>
 <header class="reader-bar" id="reader-bar">
   <div class="reader-bar-inner">
+    <a class="rb-back" href="/novel/<%= novel.slug %>" aria-label="Back to the novel">‹</a>
     <a class="rb-home" href="/" title="Home">📖</a>
     <a class="rb-novel" href="/novel/<%= novel.slug %>"><%= novel.title %></a>
     <span class="rb-chapter muted"><%= u.chapterLabel(chapter) %></span>
@@ -43,6 +48,20 @@
     </div>
   </div>
 </header>
+
+<%# Bottom controls for immersive (phone) reading: hidden until you double-tap. %>
+<nav class="reader-dock" id="reader-dock" aria-label="Chapter controls">
+  <div class="dock-info"><span class="dock-chapter"><%= u.chapterLabel(chapter) %></span><span id="dock-pct">0%</span></div>
+  <div class="dock-track"><span id="dock-fill"></span></div>
+  <div class="dock-buttons">
+    <% if (prev) { %><a href="/novel/<%= novel.slug %>/c/<%= u.formatNumber(prev.number) %>" aria-label="Previous chapter"><b>‹</b><small>Prev</small></a><% } else { %><span class="off"><b>‹</b><small>Prev</small></span><% } %>
+    <button type="button" data-open="toc"><b>☰</b><small>Contents</small></button>
+    <button type="button" data-open="settings"><b>Aa</b><small>Display</small></button>
+    <a href="#comments" data-dock-comments><b>💬</b><small>Comments</small></a>
+    <% if (next) { %><a href="/novel/<%= novel.slug %>/c/<%= u.formatNumber(next.number) %>" aria-label="Next chapter" class="dock-next"><b>›</b><small>Next</small></a><% } else { %><span class="off"><b>›</b><small>Next</small></span><% } %>
+  </div>
+</nav>
+<div class="tap-hint" id="tap-hint" hidden>Double-tap anywhere to show the menu</div>
 
 <main class="reader">
   <nav class="crumbs"><a href="/">Home</a> › <a href="/novel/<%= novel.slug %>"><%= novel.title %></a> › <span>Chapter <%= u.formatNumber(chapter.number) %></span></nav>
@@ -74,7 +93,7 @@
       <% if (!bookmarked) { %><br><span class="muted small">Add it to your library to see when new chapters arrive.</span><% } %>
     </div>
   <% } %>
-  <p class="muted small center">Tip: use ← → arrow keys to switch chapters.</p>
+  <p class="muted small center keys-tip">Tip: use ← → arrow keys to switch chapters.</p>
 
 
   <section class="report-error" id="report-error">
@@ -195,7 +214,7 @@
     </div>
     <div class="setting"><label for="s-size">Text size <output id="o-size"></output></label><input type="range" id="s-size" min="13" max="32" step="1"></div>
     <div class="setting"><label for="s-line">Line spacing <output id="o-line"></output></label><input type="range" id="s-line" min="1.2" max="2.6" step="0.1"></div>
-    <div class="setting"><label for="s-width">Page width <output id="o-width"></output></label><input type="range" id="s-width" min="500" max="1400" step="20"></div>
+    <div class="setting setting-width"><label for="s-width">Page width <output id="o-width"></output></label><input type="range" id="s-width" min="500" max="1400" step="20"></div>
     <div class="setting">
       <label>Alignment</label>
       <div class="seg"><button data-align="left">Left</button><button data-align="justify">Justify</button></div>

@@ -249,3 +249,43 @@
       .catch(function (err) { btn.disabled = false; alert(err.message === 'Failed' ? 'Could not send the request. Please try again.' : err.message); });
   });
 })();
+
+// ---------- Phones: search button and the bottom tab bar ----------
+(function () {
+  var topbar = document.querySelector('.topbar');
+  var input = document.getElementById('search-input');
+  function openSearch() {
+    if (!topbar || !input) return;
+    var open = !topbar.classList.contains('searching');
+    topbar.classList.toggle('searching', open);
+    if (open) { window.scrollTo({ top: 0 }); input.focus(); }
+  }
+  document.querySelectorAll('#search-open, [data-search-open]').forEach(function (b) {
+    b.addEventListener('click', function (e) { e.preventDefault(); openSearch(); });
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && topbar) topbar.classList.remove('searching');
+  });
+  document.addEventListener('click', function (e) {
+    if (topbar && topbar.classList.contains('searching') && !topbar.contains(e.target) && !e.target.closest('[data-search-open]')) topbar.classList.remove('searching');
+  });
+
+  // Tuck the tab bar away while scrolling down to read; bring it back when scrolling up.
+  var bar = document.getElementById('tabbar');
+  if (!bar) return;
+  var lastY = window.scrollY;
+  var ticking = false;
+  window.addEventListener('scroll', function () {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(function () {
+      var y = window.scrollY;
+      var nearBottom = window.innerHeight + y >= document.documentElement.scrollHeight - 40;
+      if (Math.abs(y - lastY) > 6) {
+        bar.classList.toggle('hide', y > lastY && y > 80 && !nearBottom);
+        lastY = y;
+      }
+      ticking = false;
+    });
+  }, { passive: true });
+})();

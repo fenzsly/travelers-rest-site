@@ -469,3 +469,97 @@ ins.adsbygoogle { max-width: 100%; }
 .note-list li.unread .note-text { font-weight: 700; }
 .note-list li.unread a::before { content: "●"; color: var(--accent); font-size: 10px; }
 .bell-pop a span.muted { color: var(--muted); }
+
+/* ======================================================================
+   Phones: app-style layout (slim top bar, bottom tab bar, nothing wider than the screen)
+   ====================================================================== */
+.show-mobile { display: none !important; }
+.tabbar { display: none; }
+.layout > *, .update-body, .novel-info { min-width: 0; }
+.layout { grid-template-columns: minmax(0, 1fr) 300px; }
+.update-row { grid-template-columns: 64px minmax(0, 1fr); }
+.update-chapters li > span { white-space: nowrap; flex: none; }
+.update-title { overflow-wrap: anywhere; }
+.usermenu summary { display: flex; align-items: center; gap: 8px; }
+.usermenu-name { padding: 8px 14px 10px; border-bottom: 1px solid var(--border); margin-bottom: 4px; font-size: 13.5px; color: var(--muted); }
+html { -webkit-text-size-adjust: 100%; }
+body { overflow-x: hidden; }
+
+@media (max-width: 900px) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 720px) {
+  .show-mobile { display: revert !important; }
+  .hide-mobile { display: none !important; }
+  body { padding-bottom: calc(62px + env(safe-area-inset-bottom)); -webkit-tap-highlight-color: transparent; }
+  .wrap { padding-left: 12px; padding-right: 12px; }
+  main.wrap { padding-top: 12px; }
+
+  /* Top bar: ☰ logo …… 🔍 ☀ 🔔 avatar */
+  .topbar { padding-top: env(safe-area-inset-top); }
+  .topbar-inner { gap: 2px; height: 52px; }
+  .logo { flex: 1; min-width: 0; font-size: 17px; margin-left: 2px; }
+  .logo-mark { display: none; }
+  .userbox { gap: 0; flex: none; }
+  .userbox .icon-btn, .userbox .bell summary { width: 40px; height: 40px; padding: 0; display: grid; place-items: center; font-size: 18px; }
+  .usermenu summary { padding: 4px; }
+  .usermenu summary::after, .usermenu .uname { display: none; }
+  .usermenu .avatar-sm { width: 30px; height: 30px; font-size: 14px; }
+  .usermenu-pop { position: fixed; left: 8px; right: 8px; top: calc(56px + env(safe-area-inset-top)); min-width: 0; }
+  .usermenu-pop a, .usermenu-pop button { padding: 12px 16px; font-size: 15px; }
+  .menu-toggle { width: 40px; height: 40px; padding: 0; }
+
+  /* Search: hidden until the 🔍 button opens it as a full-width row */
+  .topbar .search { display: none; }
+  .topbar.searching .search { display: block; position: absolute; left: 0; right: 0; top: 100%; max-width: none; margin: 0; padding: 8px 12px 10px; background: var(--top); box-shadow: 0 8px 16px rgba(0,0,0,.3); }
+  .topbar.searching .search input { font-size: 16px; padding: 11px 14px; } /* 16px stops iOS zooming in */
+  .suggest { left: 12px !important; right: 12px !important; }
+
+  /* Bottom tab bar */
+  .tabbar { display: grid; grid-template-columns: repeat(5, 1fr); position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+    background: var(--top); border-top: 1px solid rgba(255,255,255,.08); padding-bottom: env(safe-area-inset-bottom);
+    transition: transform .25s ease; box-shadow: 0 -4px 14px rgba(0,0,0,.18); }
+  .tabbar.hide { transform: translateY(100%); }
+  .tabbar a, .tabbar button { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 7px 0 6px; color: var(--top-text); opacity: .7; font: inherit; font-size: 10.5px; font-weight: 600; background: none; border: 0; position: relative; }
+  .tabbar span { font-size: 20px; line-height: 1.1; filter: grayscale(.4); }
+  .tabbar .on { opacity: 1; color: #fff; }
+  .tabbar .on span { filter: none; }
+  .tabbar a:hover { text-decoration: none; }
+  .tab-dot { position: absolute; top: 6px; left: calc(50% + 8px); width: 8px; height: 8px; border-radius: 50%; background: #e5484d; }
+  .back-top, .to-top, #to-top { bottom: calc(76px + env(safe-area-inset-bottom)) !important; }
+
+  /* Blocks breathe less, text stays readable */
+  .block { padding: 14px 14px; margin-bottom: 12px; border-radius: 10px; }
+  .block-title { margin: -14px -14px 12px; padding: 11px 14px; font-size: 13.5px; }
+  .crumbs { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  input, select, textarea { font-size: 16px; } /* no iOS zoom on focus */
+
+  /* Home "latest updates": compact rows */
+  .update-row { grid-template-columns: 52px minmax(0, 1fr); gap: 10px; }
+  .update-head .muted { display: none; }
+  .update-chapters li { font-size: 13.5px; }
+
+  /* Novel page: small cover beside the title (like reading apps), details full width below */
+  .novel-head { grid-template-columns: 112px minmax(0, 1fr) !important; grid-template-rows: auto auto 1fr; column-gap: 14px; row-gap: 10px; align-items: start; }
+  .novel-info { display: contents; }
+  .novel-cover { max-width: 112px; grid-row: 1 / span 3; }
+  .novel-title, .novel-alt, .rating-wrap { grid-column: 2; }
+  .novel-info > :not(.novel-title):not(.novel-alt):not(.rating-wrap) { grid-column: 1 / -1; }
+  .novel-title { font-size: 20px !important; line-height: 1.25; text-align: left !important; margin: 0 !important; }
+  .rating-dist { display: none; }
+  .novel-actions { display: grid !important; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .novel-actions .btn, .novel-actions form, .novel-actions details, .novel-actions summary { width: 100%; }
+  .novel-actions .btn-lg { padding: 11px 10px; font-size: 14px; }
+
+  /* Lists and grids */
+  .library-grid { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)) !important; gap: 12px; }
+  .shelf { grid-auto-columns: 112px; gap: 10px; }
+  .req { gap: 10px; }
+  .req-vote, .vote-btn, .req-rank { min-width: 48px; width: 48px; }
+  .tabs-bar { overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; }
+  .tabs-bar a { white-space: nowrap; padding: 12px 12px 10px; font-size: 12.5px; }
+  .filters { gap: 6px; }
+  .filters select { flex: 1 1 45%; }
+  .pager a, .pager span { min-width: 38px; min-height: 38px; }
+}

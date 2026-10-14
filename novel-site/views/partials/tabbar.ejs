@@ -1,0 +1,12 @@
+<%# App-style tab bar at the bottom of the screen on phones (hidden on bigger screens). %>
+<nav class="tabbar" id="tabbar" aria-label="Main">
+  <a href="/" class="<%= path === '/' ? 'on' : '' %>"><span>🏠</span>Home</a>
+  <a href="/novels" class="<%= path === '/novels' || path.startsWith('/novel/') ? 'on' : '' %>"><span>📚</span>Novels</a>
+  <button type="button" data-search-open><span>🔍</span>Search</button>
+  <a href="/requests" class="<%= path === '/requests' ? 'on' : '' %>"><span>🙋</span>Requests</a>
+  <% if (user) { %>
+    <a href="/library" class="<%= path === '/library' ? 'on' : '' %>"><span>📖</span>Library<% if (updates.length) { %><i class="tab-dot"></i><% } %></a>
+  <% } else { %>
+    <a href="/history" class="<%= path === '/history' ? 'on' : '' %>"><span>🕘</span>History</a>
+  <% } %>
+</nav>

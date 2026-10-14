@@ -301,3 +301,30 @@ button.quick-card { font: inherit; text-align: left; cursor: pointer; }
 .qr svg { width: 200px; height: 200px; }
 .secret { font-size: 14px; letter-spacing: 1px; word-break: break-all; }
 .log-bad td { background: rgba(220, 53, 69, .06); }
+
+/* ---------- Phones ---------- */
+@media (max-width: 760px) {
+  input:not([type=checkbox]):not([type=radio]):not([type=file]), select, textarea { font-size: 16px; } /* no iOS zoom on focus */
+  .card { padding: 14px; border-radius: 12px; }
+  .card.flush { padding: 0; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .table th, .table td { padding: 9px 8px; }
+  /* Chapter list: checkbox, number, title, edit — the rest is on the chapter's own page */
+  .chapter-table th:nth-child(3), .chapter-table td:nth-child(3),
+  .chapter-table th:nth-child(5), .chapter-table td:nth-child(5),
+  .chapter-table th:nth-child(6), .chapter-table td:nth-child(6),
+  .chapter-table th:nth-child(7), .chapter-table td:nth-child(7),
+  .chapter-table th:nth-child(8), .chapter-table td:nth-child(8) { display: none; }
+  .chapter-table { table-layout: fixed; width: 100%; }
+  .chapter-table .w-check { width: 34px; }
+  .chapter-table .w-num { width: 58px; }
+  .chapter-table th:last-child { width: 96px; }
+  .chapter-table .inline-edit { width: 100%; min-width: 0; }
+  .chapter-table td:nth-child(4) { overflow: hidden; }
+  .tabs { display: flex; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .tabs a { white-space: nowrap; }
+  .novel-bar { gap: 10px; }
+  .topline .btn { padding: 8px 12px; font-size: 14px; }
+  .quick { grid-template-columns: 1fr 1fr; }
+  .stats { grid-template-columns: repeat(2, 1fr); }
+  .login-card { margin: 24px 12px; }
+}

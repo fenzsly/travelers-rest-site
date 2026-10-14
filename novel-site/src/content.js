@@ -47,6 +47,20 @@ function chapterHtml(c) {
   return parse.sanitize(c.html ? c.html : parse.textToHtml(c.text || ''));
 }
 
+/** Cover file name for a package: changes whenever the image does (so browsers fetch the new one). */
+function coverName(pkg) {
+  const hash = require('node:crypto').createHash('sha1').update(fs.readFileSync(pkg.cover)).digest('hex').slice(0, 8);
+  return `bundled-${pkg.name}-${hash}${path.extname(pkg.cover).toLowerCase()}`;
+}
+
+function copyCover(pkg) {
+  if (!pkg.cover) return null;
+  const name = coverName(pkg);
+  fs.mkdirSync(path.join(UPLOAD_DIR, 'covers'), { recursive: true });
+  fs.copyFileSync(pkg.cover, path.join(UPLOAD_DIR, 'covers', name));
+  return name;
+}
+
 /** Import new bundled novels / new chapters. Returns a list of human-readable changes. */
 function importBundledNovels({ log = console.log } = {}) {
   const changes = [];
@@ -63,12 +77,7 @@ function importBundledNovels({ log = console.log } = {}) {
       tx(() => {
         let novelId = record?.novel_id;
         if (!novelId) {
-          let cover = null;
-          if (pkg.cover) {
-            cover = `bundled-${pkg.name}${path.extname(pkg.cover).toLowerCase()}`;
-            fs.mkdirSync(path.join(UPLOAD_DIR, 'covers'), { recursive: true });
-            fs.copyFileSync(pkg.cover, path.join(UPLOAD_DIR, 'covers', cover));
-          }
+          const cover = copyCover(pkg);
           const r = db.prepare(`INSERT INTO novels (slug, title, alt_titles, author, original_language, year, status, description, tags, cover, owner_id)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
             uniqueSlug(slugify(d.slug || d.title)), d.title, d.alt_titles || '', d.author || '', d.original_language || '',
@@ -77,6 +86,17 @@ function importBundledNovels({ log = console.log } = {}) {
           db.prepare('UPDATE novels SET seo_title = ?, seo_description = ? WHERE id = ?').run(d.seo_title || '', d.seo_description || '', novelId);
           const genreIds = (d.genres || []).map((g) => db.prepare('SELECT id FROM genres WHERE name = ? COLLATE NOCASE').get(g)?.id).filter(Boolean);
           setNovelGenres(novelId, genreIds);
+        }
+        // A new cover in the package replaces the old bundled one (never a cover uploaded on the site).
+        if (record && pkg.cover) {
+          const current = db.prepare('SELECT cover FROM novels WHERE id = ?').get(novelId)?.cover || '';
+          const currentFile = current && path.join(UPLOAD_DIR, 'covers', current);
+          const same = currentFile && fs.existsSync(currentFile) && fs.readFileSync(currentFile).equals(fs.readFileSync(pkg.cover));
+          if ((!current || current.startsWith(`bundled-${pkg.name}`)) && current !== coverName(pkg) && !same) {
+            db.prepare('UPDATE novels SET cover = ? WHERE id = ?').run(copyCover(pkg), novelId);
+            if (current) fs.rmSync(path.join(UPLOAD_DIR, 'covers', current), { force: true });
+            changes.push(`New cover for “${d.title}”`);
+          }
         }
         // Fill in search title/description if the package has them and they're still empty on the site.
         if (record && (d.seo_title || d.seo_description)) {

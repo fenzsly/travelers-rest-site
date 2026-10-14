@@ -36,6 +36,19 @@ test('imports a bundled novel once, then only new chapters, and respects deletio
   const titles = db.prepare('SELECT title FROM chapters WHERE novel_id = ? ORDER BY number').all(novel.id).map((r) => r.title);
   assert.deepStrictEqual(titles, ['Edited', 'Two', 'Three']);
 
+  // A new cover in the package replaces the bundled one…
+  fs.writeFileSync(path.join(pkgDir, 'cover.png'), Buffer.from([0x89, 0x50, 0x4e, 0x47, 1, 2, 3]));
+  assert.deepStrictEqual(importBundledNovels({ log: () => {} }), ['New cover for “Sample Tale”']);
+  const newCover = db.prepare('SELECT cover FROM novels WHERE id = ?').get(novel.id).cover;
+  assert.notStrictEqual(newCover, novel.cover);
+  assert.ok(!fs.existsSync(path.join(process.env.UPLOAD_DIR, 'covers', novel.cover)));
+  assert.deepStrictEqual(importBundledNovels({ log: () => {} }), []);
+  // …but never a cover uploaded on the site.
+  db.prepare("UPDATE novels SET cover = 'my-upload.png' WHERE id = ?").run(novel.id);
+  fs.writeFileSync(path.join(pkgDir, 'cover.png'), Buffer.from([0x89, 0x50, 0x4e, 0x47, 9]));
+  assert.deepStrictEqual(importBundledNovels({ log: () => {} }), []);
+  assert.strictEqual(db.prepare('SELECT cover FROM novels WHERE id = ?').get(novel.id).cover, 'my-upload.png');
+
   // Deleted by an admin: stays deleted.
   db.prepare('DELETE FROM novels WHERE id = ?').run(novel.id);
   assert.deepStrictEqual(importBundledNovels({ log: () => {} }), []);

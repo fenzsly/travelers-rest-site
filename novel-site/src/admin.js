@@ -76,6 +76,7 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
   app.use((req, res, next) => {
     res.locals.openReports = openReports(req.user);
     res.locals.openRequests = db.prepare("SELECT COUNT(*) AS n FROM novel_requests WHERE status = 'open'").get().n;
+    res.locals.waitingUpdates = require('./update-requests').waitingNovels(req.user.role === 'admin' ? null : req.user.id);
     next();
   });
 
@@ -156,7 +157,8 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
     stats.today = chart.at(-1)?.views || 0;
     stats.week = chart.slice(-7).reduce((a, d) => a + d.views, 0);
     const top = [...novels].sort((a, b) => b.views_week - a.views_week).slice(0, 5);
-    res.render('admin/dashboard', { stats, novels: novels.slice(0, 8), recent, scheduled, chart, top, update: system.status() });
+    const wantUpdates = require('./update-requests').leaderboard({ ownerId: req.user.role === 'admin' ? null : req.user.id, limit: 5 }).filter((n) => n.waiting);
+    res.render('admin/dashboard', { stats, novels: novels.slice(0, 8), recent, scheduled, chart, top, wantUpdates, update: system.status() });
   });
 
   // ---------- Novels ----------
@@ -595,6 +597,21 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
     res.redirect(req.get('referer')?.includes('/reports') ? req.get('referer') : A('/reports'));
   });
 
+  // ---------- Update requests ("more chapters please") ----------
+  app.get('/update-requests', (req, res) => {
+    const rows = require('./update-requests').leaderboard({ ownerId: req.user.role === 'admin' ? null : req.user.id });
+    res.render('admin/update-requests', { rows });
+  });
+
+  app.post('/update-requests/:nid/clear', (req, res) => {
+    const novel = db.prepare('SELECT id, title, owner_id FROM novels WHERE id = ?').get(Number(req.params.nid));
+    if (!novel) throw fail(404, 'Novel not found.');
+    if (!canManageNovel(req.user, novel)) throw fail(403, 'You can only manage your own novels.');
+    require('./update-requests').clear(novel.id);
+    req.flash('ok', `Marked as seen: “${novel.title}”. New requests will show up again. Releasing a chapter also clears the list automatically.`);
+    res.redirect(A('/update-requests'));
+  });
+
   // ---------- Novel requests from readers ----------
   app.get('/requests', (req, res) => {
     const { REQUEST_STATUS, listRequests } = require('./requests');
@@ -725,6 +742,7 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
     saveSettings({
       require_email: req.body.require_email ? '1' : '0',
       allow_registration: req.body.allow_registration ? '1' : '0',
+      guest_chapter_limit: String(Math.min(1000, Math.max(0, Math.floor(Number(req.body.guest_chapter_limit) || 0)))),
       smtp_host: String(req.body.smtp_host || '').trim().slice(0, 200),
       smtp_port: String(port),
       smtp_user: String(req.body.smtp_user || '').trim().slice(0, 200),

@@ -24,13 +24,19 @@ test('requests: create, merge duplicates, vote, rank by this week', () => {
   assert.deepStrictEqual([dup.duplicate, dup.request.id, dup.request.votes], [true, r1.request.id, 2]);
 
   const r2 = requests.createRequest(c, { title: 'Another Novel' });
-  // Old votes don't count for "this week".
-  db.prepare('UPDATE request_votes SET created_at = unixepoch() - 10 * 86400 WHERE request_id = ?').run(r1.request.id);
+  // Votes from earlier weeks don't count for "this week", but do for all time.
+  const lastWeek = requests.weekOf(Date.now() - 7 * 86400000).key;
+  db.prepare('UPDATE request_votes SET week = ? WHERE request_id = ?').run(lastWeek, r1.request.id);
   requests.toggleVote(r2.request.id, a);
   const week = requests.listRequests({ sort: 'week' });
   assert.deepStrictEqual(week.map((r) => [r.title, r.week_votes, r.votes]), [['Another Novel', 2, 2], ['The Lord’s Path!', 0, 2]]);
   assert.strictEqual(requests.listRequests({ sort: 'all' })[0].votes, 2);
   assert.deepStrictEqual(requests.topThisWeek().map((r) => r.title), ['Another Novel']);
+
+  assert.deepStrictEqual(requests.pastWeeks().map((w) => [w.week, w.top.map((t) => [t.title, t.votes])]), [[lastWeek, [['The Lord’s Path!', 2]]]]);
+  // A new week: the same readers can vote again.
+  requests.toggleVote(r1.request.id, a);
+  assert.deepStrictEqual([requests.getRequest(r1.request.id).week_votes, requests.getRequest(r1.request.id).votes], [1, 3]);
 
   // Toggling removes the vote.
   assert.strictEqual(requests.toggleVote(r2.request.id, a).voted, false);
@@ -38,6 +44,13 @@ test('requests: create, merge duplicates, vote, rank by this week', () => {
 
   assert.throws(() => requests.createRequest(a, { title: 'x' }), /title/);
   assert.throws(() => requests.createRequest(a, { title: 'Good title', link: 'javascript:alert(1)' }), /link/);
+});
+
+test('weeks start on Monday 00:00 UTC', () => {
+  assert.strictEqual(requests.weekOf(Date.parse('2026-10-14T12:00:00Z')).key, '2026-10-12'); // Wednesday
+  assert.strictEqual(requests.weekOf(Date.parse('2026-10-18T23:59:59Z')).key, '2026-10-12'); // Sunday
+  assert.strictEqual(requests.weekOf(Date.parse('2026-10-19T00:00:00Z')).key, '2026-10-19'); // Monday
+  assert.strictEqual(requests.weekOf(Date.parse('2026-10-14T12:00:00Z')).end, Date.parse('2026-10-19T00:00:00Z'));
 });
 
 test('requests: a novel already on the site is pointed to instead', () => {

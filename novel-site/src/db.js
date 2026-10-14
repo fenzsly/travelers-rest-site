@@ -199,13 +199,49 @@ CREATE TABLE IF NOT EXISTS novel_requests (
   updated_at INTEGER NOT NULL DEFAULT (unixepoch())
 );
 CREATE INDEX IF NOT EXISTS novel_requests_key ON novel_requests (title_key);
+-- One vote per reader per request per week (week = the Monday it starts, UTC). The leaderboard resets every Monday.
 CREATE TABLE IF NOT EXISTS request_votes (
   request_id INTEGER NOT NULL REFERENCES novel_requests(id) ON DELETE CASCADE,
   user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  week       TEXT NOT NULL,
   created_at INTEGER NOT NULL DEFAULT (unixepoch()),
-  PRIMARY KEY (request_id, user_id)
+  PRIMARY KEY (request_id, user_id, week)
 );
-CREATE INDEX IF NOT EXISTS request_votes_recent ON request_votes (created_at);
+`);
+if (!hasColumn('request_votes', 'week')) {
+  // Votes used to be one per reader forever; move them into the week they were cast.
+  db.exec(`
+    DROP INDEX IF EXISTS request_votes_recent;
+    ALTER TABLE request_votes RENAME TO request_votes_old;
+    CREATE TABLE request_votes (
+      request_id INTEGER NOT NULL REFERENCES novel_requests(id) ON DELETE CASCADE,
+      user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      week       TEXT NOT NULL,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      PRIMARY KEY (request_id, user_id, week)
+    );
+    INSERT INTO request_votes (request_id, user_id, week, created_at)
+      SELECT request_id, user_id, date(created_at, 'unixepoch', 'weekday 0', '-6 days'), created_at FROM request_votes_old;
+    DROP TABLE request_votes_old;
+  `);
+}
+db.exec('CREATE INDEX IF NOT EXISTS request_votes_week ON request_votes (week, request_id)');
+
+db.exec(`
+-- "Request update": a logged-in reader asks for new chapters of a novel. One per reader until the next chapter comes out.
+CREATE TABLE IF NOT EXISTS update_requests (
+  id         INTEGER PRIMARY KEY,
+  novel_id   INTEGER NOT NULL REFERENCES novels(id) ON DELETE CASCADE,
+  user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
+CREATE INDEX IF NOT EXISTS update_requests_novel ON update_requests (novel_id, created_at);
+-- When staff were last emailed about a novel's update requests, and when they cleared the list in the panel.
+CREATE TABLE IF NOT EXISTS update_request_state (
+  novel_id    INTEGER PRIMARY KEY REFERENCES novels(id) ON DELETE CASCADE,
+  notified_at INTEGER,
+  cleared_at  INTEGER
+);
 `);
 
 const DEFAULT_GENRES = [

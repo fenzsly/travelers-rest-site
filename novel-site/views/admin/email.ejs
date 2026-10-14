@@ -5,6 +5,9 @@
     <h2>👤 Sign-ups</h2>
     <label class="switch"><input type="checkbox" name="allow_registration" value="1" <%= settings.allow_registration === '1' ? 'checked' : '' %>><span></span> Anyone can create an account (Sign up button)</label>
     <label class="switch"><input type="checkbox" name="require_email" value="1" <%= settings.require_email === '1' ? 'checked' : '' %>><span></span> Require an email address to sign up</label>
+    <label class="field" style="margin-top: 12px">Free chapters before guests must sign up
+      <input name="guest_chapter_limit" type="number" min="0" max="1000" value="<%= settings.guest_chapter_limit %>" style="max-width: 120px"></label>
+    <p class="hint" style="margin-top: -8px">Stops scrapers copying whole novels. After this many chapters, guests are asked to create a free account. Google and Bing are never blocked, so SEO is unaffected. <strong>0</strong> = no limit. Anyone (even logged in) opening more than 40 chapters a minute is asked to slow down.</p>
     <p class="hint">Readers can always add an email later under “Account &amp; email”. <%= counts.with_email %> of <%= counts.total %> accounts have an email (<%= counts.verified || 0 %> confirmed).</p>
 
     <h2 style="margin-top:22px">✉ Sending email (SMTP)</h2>

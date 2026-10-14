@@ -59,6 +59,16 @@
         <% } else { %>
           <a class="btn btn-lg" href="/login?next=/novel/<%= novel.slug %>">+ Add to library</a>
         <% } %>
+        <% if (novel.status !== 'completed') { %>
+          <% if (user) { %>
+            <form method="post" action="/novel/<%= novel.slug %>/request-update" class="inline" data-request-update>
+              <input type="hidden" name="_csrf" value="<%= csrf %>">
+              <button type="submit" class="btn btn-lg <%= updateStatus.mine ? 'btn-on' : '' %>" <%= updateStatus.mine ? 'disabled' : '' %> title="Ask the translator for new chapters">📣 <span data-label><%= updateStatus.mine ? 'Update requested' : 'Request update' %></span><% if (updateStatus.waiting) { %> <small data-count><%= updateStatus.waiting %></small><% } else { %> <small data-count hidden></small><% } %></button>
+            </form>
+          <% } else { %>
+            <a class="btn btn-lg" href="/login?next=/novel/<%= novel.slug %>" title="Log in to ask for new chapters">📣 Request update<% if (updateStatus.waiting) { %> <small><%= updateStatus.waiting %></small><% } %></a>
+          <% } %>
+        <% } %>
         <% if (user && (user.role === 'admin' || novel.owner_id === user.id) && adminUrl) { %>
           <a class="btn btn-lg" href="<%= adminUrl %>/novels/<%= novel.id %>/upload">⬆ Upload chapters</a>
         <% } %>

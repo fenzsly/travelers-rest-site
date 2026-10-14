@@ -212,3 +212,40 @@
     });
   });
 })();
+
+// ---------- Live countdown to the weekly leaderboard reset ----------
+(function () {
+  var el = document.querySelector('[data-countdown]');
+  if (!el) return;
+  var end = Number(el.dataset.countdown);
+  function tick() {
+    var s = Math.max(0, Math.floor((end - Date.now()) / 1000));
+    if (!s) { el.textContent = 'now — refresh for the new week'; return; }
+    var d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60);
+    el.textContent = (d ? d + 'd ' : '') + h + 'h ' + m + 'm';
+    setTimeout(tick, 30000);
+  }
+  tick();
+})();
+
+// ---------- "Request update" on the novel page without reloading ----------
+(function () {
+  var form = document.querySelector('form[data-request-update]');
+  if (!form) return;
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var btn = form.querySelector('button');
+    btn.disabled = true;
+    fetch(form.action, { method: 'POST', body: new URLSearchParams(new FormData(form)), headers: { Accept: 'application/json' }, credentials: 'same-origin' })
+      .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.error || 'Failed'); return d; }); })
+      .then(function (d) {
+        btn.classList.add('btn-on');
+        btn.querySelector('[data-label]').textContent = 'Update requested';
+        var count = btn.querySelector('[data-count]');
+        count.textContent = d.waiting;
+        count.hidden = false;
+        btn.title = d.waiting + ' reader' + (d.waiting === 1 ? '' : 's') + ' waiting for new chapters';
+      })
+      .catch(function (err) { btn.disabled = false; alert(err.message === 'Failed' ? 'Could not send the request. Please try again.' : err.message); });
+  });
+})();

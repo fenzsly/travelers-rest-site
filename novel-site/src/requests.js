@@ -1,16 +1,30 @@
-// Novel requests: readers suggest novels to translate and vote; ranked by votes this week.
+// Novel requests: readers suggest novels to translate and vote. The leaderboard resets every week
+// (Monday 00:00 UTC): each reader gets one vote per request per week.
 const { db, tx } = require('./db');
 
 const REQUEST_STATUS = { open: 'Requested', planned: 'Planned', added: 'Added', declined: 'Declined' };
 const LANGUAGES = ['Chinese', 'Korean', 'Japanese', 'Other'];
 const DAILY_LIMIT = 5; // new requests per reader per 24 hours
+const DAY = 86400000;
 
-const COLUMNS = `r.*,
-  (SELECT COUNT(*) FROM request_votes v WHERE v.request_id = r.id) AS votes,
-  (SELECT COUNT(*) FROM request_votes v WHERE v.request_id = r.id AND v.created_at >= unixepoch() - 7 * 86400) AS week_votes,
-  (SELECT u.username FROM users u WHERE u.id = r.user_id) AS username,
-  (SELECT n.slug FROM novels n WHERE n.id = r.novel_id) AS novel_slug,
-  (SELECT n.title FROM novels n WHERE n.id = r.novel_id) AS novel_title`;
+/** The week a moment belongs to: { key: 'YYYY-MM-DD' of its Monday (UTC), start, end (ms) }. */
+function weekOf(ms = Date.now()) {
+  const d = new Date(ms);
+  const start = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) - ((d.getUTCDay() + 6) % 7) * DAY;
+  return { key: new Date(start).toISOString().slice(0, 10), start, end: start + 7 * DAY };
+}
+
+function columns(week) {
+  return {
+    sql: `r.*,
+      (SELECT COUNT(*) FROM request_votes v WHERE v.request_id = r.id) AS votes,
+      (SELECT COUNT(*) FROM request_votes v WHERE v.request_id = r.id AND v.week = ?) AS week_votes,
+      (SELECT u.username FROM users u WHERE u.id = r.user_id) AS username,
+      (SELECT n.slug FROM novels n WHERE n.id = r.novel_id) AS novel_slug,
+      (SELECT n.title FROM novels n WHERE n.id = r.novel_id) AS novel_title`,
+    params: [week],
+  };
+}
 
 const SORTS = {
   week: 'week_votes DESC, votes DESC, r.created_at DESC',
@@ -20,33 +34,54 @@ const SORTS = {
 
 /** Normalised title used to spot duplicates ("The Lord's Path!" = "the lords path"). */
 function titleKey(title) {
-  return String(title || '').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').normalize('NFC').replace(/['\u2018\u2019`]/g, '').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+  return String(title || '').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').normalize('NFC').replace(/['‘’`]/g, '').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 }
 
 function fail(message) {
   return Object.assign(new Error(message), { status: 400 });
 }
 
-/** Requests for a list. `statuses` is an array; `userId` adds a `voted` flag. */
+/** Requests for a list. `statuses` is an array; `userId` adds a `voted` flag (voted this week). */
 function listRequests({ statuses = ['open', 'planned'], sort = 'week', userId = 0, limit = 50, offset = 0 } = {}) {
+  const week = weekOf().key;
+  const c = columns(week);
   const marks = statuses.map(() => '?').join(', ');
-  return db.prepare(`SELECT ${COLUMNS}, EXISTS (SELECT 1 FROM request_votes v WHERE v.request_id = r.id AND v.user_id = ?) AS voted
+  return db.prepare(`SELECT ${c.sql}, EXISTS (SELECT 1 FROM request_votes v WHERE v.request_id = r.id AND v.user_id = ? AND v.week = ?) AS voted
     FROM novel_requests r WHERE r.status IN (${marks}) ORDER BY ${SORTS[sort] || SORTS.week} LIMIT ? OFFSET ?`)
-    .all(userId, ...statuses, limit, offset);
+    .all(...c.params, userId, week, ...statuses, limit, offset);
 }
 
 function countRequests(statuses) {
   return db.prepare(`SELECT COUNT(*) AS n FROM novel_requests WHERE status IN (${statuses.map(() => '?').join(', ')})`).get(...statuses).n;
 }
 
-/** Top requests by votes in the last 7 days (for the home page). */
+/** This week's leaderboard: requests with at least one vote this week, most votes first. */
 function topThisWeek(limit = 5) {
-  return db.prepare(`SELECT * FROM (SELECT ${COLUMNS} FROM novel_requests r WHERE r.status IN ('open', 'planned'))
-    WHERE week_votes > 0 ORDER BY week_votes DESC, votes DESC LIMIT ?`).all(limit);
+  const c = columns(weekOf().key);
+  return db.prepare(`SELECT * FROM (SELECT ${c.sql} FROM novel_requests r WHERE r.status IN ('open', 'planned'))
+    WHERE week_votes > 0 ORDER BY week_votes DESC, votes DESC LIMIT ?`).all(...c.params, limit);
+}
+
+/** Winners of past weeks: [{ week, start, top: [{ id, title, votes, status, novel_slug }] }], newest first. */
+function pastWeeks(weeks = 4, perWeek = 3) {
+  const current = weekOf().key;
+  const rows = db.prepare(`SELECT v.week, r.id, r.title, r.status, COUNT(*) AS votes,
+      (SELECT n.slug FROM novels n WHERE n.id = r.novel_id) AS novel_slug
+    FROM request_votes v JOIN novel_requests r ON r.id = v.request_id
+    WHERE v.week < ? AND v.week IN (SELECT DISTINCT week FROM request_votes WHERE week < ? ORDER BY week DESC LIMIT ?)
+    GROUP BY v.week, r.id ORDER BY v.week DESC, votes DESC, r.created_at ASC`).all(current, current, weeks);
+  const out = [];
+  for (const row of rows) {
+    let w = out.find((x) => x.week === row.week);
+    if (!w) out.push(w = { week: row.week, start: Date.parse(`${row.week}T00:00:00Z`), top: [] });
+    if (w.top.length < perWeek) w.top.push(row);
+  }
+  return out;
 }
 
 function getRequest(id) {
-  return db.prepare(`SELECT ${COLUMNS} FROM novel_requests r WHERE r.id = ?`).get(Number(id)) || null;
+  const c = columns(weekOf().key);
+  return db.prepare(`SELECT ${c.sql} FROM novel_requests r WHERE r.id = ?`).get(...c.params, Number(id)) || null;
 }
 
 function cleanLink(link) {
@@ -60,6 +95,10 @@ function cleanLink(link) {
   } catch {
     throw fail('That link doesn’t look right. Paste the full address, e.g. https://…');
   }
+}
+
+function vote(requestId, userId) {
+  db.prepare('INSERT OR IGNORE INTO request_votes (request_id, user_id, week) VALUES (?, ?, ?)').run(requestId, userId, weekOf().key);
 }
 
 /**
@@ -77,9 +116,9 @@ function createRequest(userId, input) {
     .find((n) => titleKey(n.title) === key || String(n.alt_titles || '').split(/[,;\n]/).some((t) => titleKey(t) === key));
   if (novel) return { request: null, duplicate: false, novel };
 
-  const existing = db.prepare("SELECT id FROM novel_requests WHERE title_key = ? ORDER BY status = 'declined', id LIMIT 1").get(key);
+  const existing = db.prepare("SELECT id, status FROM novel_requests WHERE title_key = ? ORDER BY status = 'declined', id LIMIT 1").get(key);
   if (existing) {
-    db.prepare('INSERT OR IGNORE INTO request_votes (request_id, user_id) VALUES (?, ?)').run(existing.id, userId);
+    if (['open', 'planned'].includes(existing.status)) vote(existing.id, userId);
     return { request: getRequest(existing.id), duplicate: true, novel: null };
   }
 
@@ -95,24 +134,25 @@ function createRequest(userId, input) {
   const id = tx(() => {
     const rid = Number(db.prepare('INSERT INTO novel_requests (user_id, title, title_key, author, language, link, note) VALUES (?, ?, ?, ?, ?, ?, ?)')
       .run(userId, title, key, fields.author, language, fields.link, fields.note).lastInsertRowid);
-    db.prepare('INSERT INTO request_votes (request_id, user_id) VALUES (?, ?)').run(rid, userId);
+    vote(rid, userId);
     return rid;
   });
   return { request: getRequest(id), duplicate: false, novel: null };
 }
 
-/** Add or remove the reader's vote. Returns { voted, votes, week_votes }. */
+/** Add or remove the reader's vote for this week. Returns { voted, votes, week_votes }. */
 function toggleVote(requestId, userId) {
   const r = db.prepare('SELECT id, status FROM novel_requests WHERE id = ?').get(Number(requestId));
   if (!r) throw Object.assign(new Error('Request not found.'), { status: 404 });
-  const had = db.prepare('SELECT 1 FROM request_votes WHERE request_id = ? AND user_id = ?').get(r.id, userId);
-  if (had) db.prepare('DELETE FROM request_votes WHERE request_id = ? AND user_id = ?').run(r.id, userId);
+  const week = weekOf().key;
+  const had = db.prepare('SELECT 1 FROM request_votes WHERE request_id = ? AND user_id = ? AND week = ?').get(r.id, userId, week);
+  if (had) db.prepare('DELETE FROM request_votes WHERE request_id = ? AND user_id = ? AND week = ?').run(r.id, userId, week);
   else {
     if (!['open', 'planned'].includes(r.status)) throw fail('Voting is closed for this request.');
-    db.prepare('INSERT INTO request_votes (request_id, user_id) VALUES (?, ?)').run(r.id, userId);
+    vote(r.id, userId);
   }
   const fresh = getRequest(r.id);
   return { voted: !had, votes: fresh.votes, week_votes: fresh.week_votes };
 }
 
-module.exports = { REQUEST_STATUS, LANGUAGES, DAILY_LIMIT, titleKey, listRequests, countRequests, topThisWeek, getRequest, createRequest, toggleVote };
+module.exports = { REQUEST_STATUS, LANGUAGES, DAILY_LIMIT, weekOf, titleKey, listRequests, countRequests, topThisWeek, pastWeeks, getRequest, createRequest, toggleVote };

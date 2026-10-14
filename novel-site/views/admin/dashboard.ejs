@@ -1,5 +1,10 @@
 <%- include('partials/top', { title: 'Dashboard', actions: `<a class="btn btn-primary" href="${A('/upload')}">⬆ Upload chapters</a>` }) %>
 <% if (update.running) { %><div class="alert alert-ok">⏳ A site update is in progress… <a href="<%= A('/system') %>">see progress</a></div><% } %>
+<% if (wantUpdates.length) { %>
+<div class="alert alert-ok" style="display: block">📣 <strong>Readers want new chapters:</strong>
+  <% wantUpdates.forEach((n, i) => { %><%= i ? ', ' : '' %><a href="<%= A(`/novels/${n.id}/upload`) %>"><%= n.title %></a> (<%= n.waiting %> waiting)<% }) %>
+  · <a href="<%= A('/update-requests') %>">see leaderboard →</a></div>
+<% } %>
 <div class="stats">
   <div class="stat stat-accent"><span><%= stats.today.toLocaleString('en-US') %></span>Views today</div>
   <div class="stat"><span><%= u.compactNumber(stats.week) %></span>Views this week</div>

@@ -1,0 +1,34 @@
+<%- include('partials/head') %>
+<%- include('partials/header') %>
+<% const here = `/novel/${novel.slug}/c/${u.formatNumber(chapter.number)}`; %>
+<main class="wrap narrow">
+  <nav class="crumbs"><a href="/">Home</a> › <a href="/novel/<%= novel.slug %>"><%= novel.title %></a> › <span>Chapter <%= u.formatNumber(chapter.number) %></span></nav>
+  <section class="block gate">
+    <h1 class="gate-title"><%= novel.title %> <span class="muted"><%= u.chapterLabel(chapter) %></span></h1>
+    <% if (gate === 'slow') { %>
+      <div class="gate-box">
+        <div class="gate-icon">⏳</div>
+        <h2>Slow down a little</h2>
+        <p>You’ve opened a lot of chapters in the last minute. Wait a minute, then reload this page.</p>
+        <a class="btn btn-accent btn-lg" href="<%= here %>">Try again</a>
+      </div>
+    <% } else { %>
+      <p class="gate-teaser"><%= teaser %></p>
+      <div class="gate-box">
+        <div class="gate-icon">📖</div>
+        <h2>You’ve read your <%= limit %> free chapters!</h2>
+        <p>Create a <strong>free account</strong> to keep reading. It takes 10 seconds, and you get:</p>
+        <ul class="gate-perks">
+          <li>✓ Unlimited chapters</li>
+          <li>✓ Your reading settings and progress on every device</li>
+          <li>✓ Library, new-chapter alerts, comments and novel requests</li>
+        </ul>
+        <div class="gate-actions">
+          <% if (settings.allow_registration === '1') { %><a class="btn btn-accent btn-lg" href="/register?next=<%= encodeURIComponent(here) %>">Create free account</a><% } %>
+          <a class="btn btn-lg" href="/login?next=<%= encodeURIComponent(here) %>">Log in</a>
+        </div>
+      </div>
+    <% } %>
+  </section>
+</main>
+<%- include('partials/footer') %>

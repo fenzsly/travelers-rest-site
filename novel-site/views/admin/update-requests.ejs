@@ -1,0 +1,29 @@
+<%- include('partials/top', { title: 'Update requests' }) %>
+<p class="hint" style="margin-top: 0">Logged-in readers press <strong>📣 Request update</strong> on a novel’s page to ask for new chapters. Each reader counts once until the next chapter comes out. <strong>Waiting</strong> resets when you release a chapter (or press “Mark as seen”). Admins with an email address on their account get an email, at most once a day per novel.</p>
+<% if (!rows.length) { %>
+  <div class="card empty-state"><p>No update requests yet. When readers ask for more chapters, the novels show up here, most-wanted first.</p></div>
+<% } else { %>
+<div class="card flush">
+  <table class="table table-lg">
+    <thead><tr><th>#</th><th>Novel</th><th class="right" title="Readers asking since the last chapter">Waiting</th><th class="right">This week</th><th class="right">All time</th><th>Last chapter</th><th></th></tr></thead>
+    <tbody>
+    <% rows.forEach((n, i) => { %>
+      <tr>
+        <td class="rank-cell"><%= i + 1 %></td>
+        <td><a href="<%= A(`/novels/${n.id}/chapters`) %>"><strong><%= n.title %></strong></a>
+          <div class="muted small"><%= [n.translator && `by ${n.translator}`, n.status !== 'ongoing' && n.status, n.last_request && `last asked ${u.timeAgo(n.last_request)}`].filter(Boolean).join(' · ') %></div></td>
+        <td class="right"><% if (n.waiting) { %><span class="pill" style="font-size: 13px">📣 <%= n.waiting %></span><% } else { %><span class="muted">0</span><% } %></td>
+        <td class="right"><%= n.week %></td>
+        <td class="right"><%= n.total %></td>
+        <td class="nowrap"><%= n.latest_number != null ? `Ch. ${u.formatNumber(n.latest_number)}` : '—' %><div class="muted small"><%= n.last_release ? u.timeAgo(n.last_release) : 'none yet' %><%= n.scheduled ? ` · ${n.scheduled} scheduled` : '' %></div></td>
+        <td class="right nowrap">
+          <a class="btn btn-sm btn-primary" href="<%= A(`/novels/${n.id}/upload`) %>">⬆ Upload</a>
+          <% if (n.waiting) { %><form method="post" action="<%= A(`/update-requests/${n.id}/clear`) %>" class="inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn btn-sm btn-ghost" title="Hide these requests until new ones come in">✓ Mark as seen</button></form><% } %>
+        </td>
+      </tr>
+    <% }) %>
+    </tbody>
+  </table>
+</div>
+<% } %>
+<%- include('partials/bottom') %>

@@ -440,3 +440,20 @@ ins.adsbygoogle { max-width: 100%; }
 .badge.req-declined { background: #fde7e7; color: #b13232; }
 .req-mine { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; font-size: 14px; }
 .toplist .req-votes { white-space: nowrap; }
+.week-banner { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 14px; margin-bottom: 4px; border: 1px solid var(--border); border-radius: 6px; background: var(--block-alt); }
+.week-reset { font-size: 13px; color: var(--muted); white-space: nowrap; }
+.week-reset strong { color: var(--text); font-variant-numeric: tabular-nums; }
+.past-weeks { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+.past-week ol { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 4px; font-size: 14px; }
+.btn:disabled { cursor: default; }
+.btn small { font-weight: 700; opacity: .8; }
+
+/* ---------- Sign-up gate on chapters ---------- */
+.gate-title { font-size: 22px; margin: 0 0 14px; }
+.gate-title .muted { font-size: 16px; font-weight: 500; }
+.gate-teaser { font-family: Georgia, serif; font-size: 18px; line-height: 1.8; margin: 0; max-height: 9em; overflow: hidden; -webkit-mask-image: linear-gradient(#000 30%, transparent); mask-image: linear-gradient(#000 30%, transparent); }
+.gate-box { text-align: center; padding: 22px 12px 8px; }
+.gate-box h2 { margin: 6px 0 8px; font-size: 21px; }
+.gate-icon { font-size: 40px; }
+.gate-perks { list-style: none; padding: 0; margin: 12px auto 18px; display: inline-grid; gap: 6px; text-align: left; }
+.gate-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }

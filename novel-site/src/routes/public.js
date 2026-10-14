@@ -4,6 +4,8 @@ const { q, NOVEL_COLUMNS, VISIBLE, RELEASED, recordView, login, register, checkE
 const mail = require('../mail');
 const { savePrefs } = require('../prefs');
 const requests = require('../requests');
+const updateRequests = require('../update-requests');
+const guard = require('../guard');
 const { hashPassword, verifyPassword } = require('../auth');
 const { verifyCsrf, requireLogin } = require('../auth');
 const { getSettings } = require('../settings');
@@ -224,8 +226,9 @@ router.get('/novel/:slug', loadNovel, (req, res) => {
     WHERE n.id != ? AND ${HAS_CHAPTERS} AND EXISTS (SELECT 1 FROM novel_genres ng WHERE ng.novel_id = n.id AND ng.genre_id IN (SELECT genre_id FROM novel_genres WHERE novel_id = ?))
     ORDER BY (SELECT COUNT(*) FROM novel_genres ng WHERE ng.novel_id = n.id AND ng.genre_id IN (SELECT genre_id FROM novel_genres WHERE novel_id = ?)) DESC, n.views DESC
     LIMIT 6`).all(novel.id, novel.id, novel.id);
+  const updateStatus = updateRequests.status(novel.id, req.user?.id);
   res.render('novel', {
-    novel, chapters, pager, order, first, latest, upcoming, upcomingCount, bookmark, myRating, words, readers, rank, genres, similar,
+    novel, chapters, pager, order, first, latest, upcoming, upcomingCount, bookmark, myRating, words, readers, rank, genres, similar, updateStatus,
     dist, reviews, myReview, listCounts, tab: req.query.tab === 'reviews' ? 'reviews' : 'chapters',
     seo: {
       title: novel.seo_title || `${novel.title} Novel — Read Online${novel.chapter_count ? ` (${novel.chapter_count} Chapters)` : ''} | ${getSettings().site_name}`,
@@ -240,6 +243,28 @@ router.get('/novel/:slug', loadNovel, (req, res) => {
       feed: { title: `${novel.title} — new chapters`, href: `/novel/${novel.slug}/rss.xml` },
     },
   });
+});
+
+// "Request update": logged-in readers ask for new chapters; staff are told by email and in the admin panel.
+router.post('/novel/:slug/request-update', requireLogin, loadNovel, (req, res) => {
+  const json = req.accepts(['html', 'json']) === 'json';
+  let result;
+  try {
+    result = updateRequests.requestUpdate(req.novel, req.user.id);
+  } catch (err) {
+    if (err.status !== 400) throw err;
+    if (json) return res.status(400).json({ error: err.message });
+    req.flash('error', err.message);
+    return res.redirect(`/novel/${req.novel.slug}`);
+  }
+  if (result.added) {
+    const admin = res.locals.adminUrl || '/admin';
+    const link = `${/^https?:/.test(admin) ? admin : res.locals.baseUrl + admin}/update-requests`;
+    updateRequests.notifyStaff(req.novel, result.waiting, link).catch((err) => console.error(err));
+  }
+  if (json) return res.json(result);
+  req.flash('ok', result.added ? 'Thanks! The team has been told you want more chapters.' : 'You’ve already asked. We’ll let the team know again after the next chapter.');
+  res.redirect(`/novel/${req.novel.slug}`);
 });
 
 router.get('/novel/:slug/chapters.json', loadNovel, (req, res) => {
@@ -291,11 +316,22 @@ router.post('/review/:id/delete', requireLogin, (req, res, next) => {
 });
 
 // ---------- Reader ----------
-router.get('/novel/:slug/c/:num', loadNovel, (req, res, next) => {
+router.get('/novel/:slug/c/:num', loadNovel, async (req, res, next) => {
   const novel = req.novel;
   const num = Number(req.params.num);
   const chapter = Number.isFinite(num) ? q.visibleChapterByNumber.get(novel.id, num) : null;
   if (!chapter) return next(notFound('Chapter not found (it may not be released yet).'));
+
+  // Guests past the free-chapter limit (and anything reading too fast) see a sign-up page instead.
+  const blocked = await guard.checkChapter(req, chapter.id);
+  if (blocked) {
+    const title = `${novel.title} ${u.chapterLabel(chapter)}`;
+    return res.status(blocked.gate === 'slow' ? 429 : 200).render('gate', {
+      novel, chapter, gate: blocked.gate, limit: blocked.limit,
+      teaser: seo.excerpt(seo.plainText(chapter.content), 400),
+      seo: { title: `${title} | ${getSettings().site_name}`, noindex: true },
+    });
+  }
 
   const prev = db.prepare(`SELECT c.number, c.title FROM chapters c WHERE c.novel_id = ? AND c.number < ? AND ${VISIBLE} ORDER BY c.number DESC LIMIT 1`).get(novel.id, chapter.number);
   const next_ = db.prepare(`SELECT c.number, c.title FROM chapters c WHERE c.novel_id = ? AND c.number > ? AND ${VISIBLE} ORDER BY c.number ASC LIMIT 1`).get(novel.id, chapter.number);
@@ -408,7 +444,7 @@ router.get('/library', requireLogin, (req, res) => {
 });
 
 // ---------- Novel requests ----------
-const REQUEST_TABS = { week: 'This week', all: 'All time', new: 'Newest', added: 'Added' };
+const REQUEST_TABS = { week: 'Weekly leaderboard', all: 'All time', new: 'Newest', added: 'Added' };
 const REQUESTS_PER_PAGE = 30;
 
 router.get('/requests', (req, res) => {
@@ -425,6 +461,7 @@ router.get('/requests', (req, res) => {
   req.session.requestError = null;
   res.render('requests', {
     items, tab, tabs: REQUEST_TABS, pager, mine, languages: requests.LANGUAGES, statusLabels: requests.REQUEST_STATUS, form, error,
+    week: requests.weekOf(), pastWeeks: tab === 'week' ? requests.pastWeeks(4) : [],
     seo: {
       title: `Novel requests — vote for the next translation | ${s.site_name}`,
       description: `Request a web novel for ${s.site_name} to translate and vote for others. The most-voted novels each week are ranked here.`,

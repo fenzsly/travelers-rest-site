@@ -9,6 +9,13 @@
         <nav class="tabs-bar">
           <% Object.entries(tabs).forEach(([k, v]) => { %><a href="/requests<%= k === 'week' ? '' : `?tab=${k}` %>" class="<%= tab === k ? 'on' : '' %>"><%= k === 'week' ? '🔥 ' : k === 'added' ? '✅ ' : '' %><%= v %></a><% }) %>
         </nav>
+        <% if (tab === 'week') { const fmt = (ms) => new Date(ms).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' }); const left = week.end - Date.now(); %>
+          <div class="week-banner">
+            <div><strong>🏆 Week of <%= fmt(week.start) %> – <%= fmt(week.end - 1) %></strong><div class="muted small">Every reader gets one vote per novel each week. The board resets every Monday.</div></div>
+            <div class="week-reset" title="Resets Monday 00:00 UTC">resets in <strong data-countdown="<%= week.end %>"><%= Math.floor(left / 86400000) %>d <%= Math.floor(left % 86400000 / 3600000) %>h</strong></div>
+          </div>
+        <% } %>
+        <% if (tab === 'week' && items.length && !items.some((r) => r.week_votes > 0)) { %><p class="muted small">No votes yet this week. Be the first to vote!</p><% } %>
         <% if (!items.length) { %>
           <div class="empty"><%= tab === 'added' ? 'No requested novels have been added yet.' : 'No requests yet. Be the first!' %></div>
         <% } %>
@@ -47,6 +54,23 @@
         </ol>
         <%- include('partials/pager', { pager, base: '/requests' }) %>
       </section>
+      <% if (pastWeeks.length) { %>
+      <section class="block">
+        <h2 class="block-title">Past weekly winners</h2>
+        <div class="past-weeks">
+          <% pastWeeks.forEach((w) => { %>
+            <div class="past-week">
+              <div class="muted small">Week of <%= new Date(w.start).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }) %></div>
+              <ol>
+                <% w.top.forEach((t, i) => { %>
+                  <li><span><%= ['🥇', '🥈', '🥉'][i] %></span> <% if (t.status === 'added' && t.novel_slug) { %><a href="/novel/<%= t.novel_slug %>"><%= t.title %></a><% } else { %><a href="/requests?tab=all#r<%= t.id %>"><%= t.title %></a><% } %> <span class="muted small">👍 <%= t.votes %></span></li>
+                <% }) %>
+              </ol>
+            </div>
+          <% }) %>
+        </div>
+      </section>
+      <% } %>
     </div>
     <aside class="sidebar">
       <section class="block auth" id="request-form">

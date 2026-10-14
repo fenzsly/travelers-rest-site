@@ -1,5 +1,5 @@
 <%- include('partials/top', { title: 'Novel requests' }) %>
-<p class="hint" style="margin-top: 0">Readers request novels on <a href="<%= site('/requests') %>" target="_blank" rel="noopener">the Requests page</a> and vote for them. <strong>This week</strong> counts votes from the last 7 days. Mark one <em>Planned</em> when you start it, then <em>Added</em> and pick the novel once it’s on the site, so voters see a “Read” button.</p>
+<p class="hint" style="margin-top: 0">Readers request novels on <a href="<%= site('/requests') %>" target="_blank" rel="noopener">the Requests page</a> and vote for them. <strong>This week</strong> counts votes since Monday 00:00 UTC; the leaderboard resets every week and readers can vote again. Mark one <em>Planned</em> when you start it, then <em>Added</em> and pick the novel once it’s on the site, so voters see a “Read” button.</p>
 <nav class="tabs" style="margin: 0 0 10px; display: inline-flex; flex-wrap: wrap">
   <% Object.entries(statusLabels).forEach(([k, v]) => { %>
     <a href="<%= A(`/requests?show=${k}&sort=${sort}`) %>" class="<%= show === k ? 'on' : '' %>"><%= k === 'open' ? 'New' : v %> (<%= counts[k] || 0 %>)</a>

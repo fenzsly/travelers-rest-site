@@ -25,6 +25,8 @@ const DEFAULTS = {
   social_links: '',
   // --- Email ---
   require_email: '0', // '1' = an email address is required to sign up
+  // Guests must create a free account after reading this many chapters (0 = never). Stops scrapers.
+  guest_chapter_limit: '40',
   smtp_host: '',
   smtp_port: '587',
   smtp_user: '',

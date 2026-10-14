@@ -29,7 +29,9 @@ if (!ADMIN_PORT) {
 app.use(publicRouter);
 errorHandlers(app, 'error');
 
-app.listen(PORT, () => {
+// Behind Caddy, only accept connections from this machine, so nobody can skip HTTPS by visiting IP:port directly.
+const HOST = process.env.HOST || (process.env.TRUST_PROXY === '1' ? '127.0.0.1' : '0.0.0.0');
+app.listen(PORT, HOST, () => {
   console.log(`Site running at http://localhost:${PORT}`);
   if (!ADMIN_PORT) console.log(`Admin panel at  http://localhost:${PORT}/admin`);
 });
@@ -37,5 +39,5 @@ app.listen(PORT, () => {
 if (ADMIN_PORT) {
   // Fully separate admin server (e.g. only reachable on a private network / VPN).
   const admin = createAdminApp({ base: '', publicUrl: PUBLIC_URL || `http://localhost:${PORT}` });
-  admin.listen(ADMIN_PORT, () => console.log(`Admin panel at  http://localhost:${ADMIN_PORT}`));
+  admin.listen(ADMIN_PORT, HOST, () => console.log(`Admin panel at  http://localhost:${ADMIN_PORT}`));
 }

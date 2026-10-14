@@ -32,6 +32,8 @@ const DEFAULTS = {
   smtp_user: '',
   smtp_pass: '',
   smtp_from: '', // e.g. TravellerMTL <no-reply@travellermtl.com>
+  // --- Security ---
+  require_2fa: '0', // '1' = every staff account must use two-factor login for the admin panel
   // --- Ads ---
   adsense_client: 'ca-pub-2543393434361716', // Google AdSense publisher ID (empty = no ads)
 };
@@ -49,12 +51,25 @@ function getSettings() {
   return cache;
 }
 
+// Secret settings are stored encrypted (see security.js); read them with security.decrypt().
+const ENCRYPTED = ['smtp_pass'];
+
 function saveSettings(values) {
+  const { encrypt, isEncrypted } = require('./security');
   // Unknown keys are ignored; only settings with a default can be saved.
   for (const key of Object.keys(DEFAULTS)) {
-    if (values[key] !== undefined) upsert.run(key, String(values[key]));
+    if (values[key] === undefined) continue;
+    let value = String(values[key]);
+    if (ENCRYPTED.includes(key) && value && !isEncrypted(value)) value = encrypt(value);
+    upsert.run(key, value);
   }
   cache = null;
+}
+
+// Encrypt secrets saved by older versions (stored as plain text).
+for (const key of ENCRYPTED) {
+  const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
+  if (row && row.value && !require('./security').isEncrypted(row.value)) saveSettings({ [key]: row.value });
 }
 
 module.exports = { getSettings, saveSettings, DEFAULTS };

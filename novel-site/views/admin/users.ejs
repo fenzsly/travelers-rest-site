@@ -16,7 +16,7 @@
     <tbody>
     <% users.forEach((x) => { %>
       <tr>
-        <td><strong><%= x.username %></strong><% if (x.is_owner) { %> <span class="pill pill-owner" title="Protected: only this account can manage itself">👑 Owner</span><% } %><% if (x.id === user.id) { %> <span class="pill">you</span><% } %></td>
+        <td><strong><%= x.username %></strong><%= x.totp_enabled ? ' 🔐' : '' %><% if (x.is_owner) { %> <span class="pill pill-owner" title="Protected: only this account can manage itself">👑 Owner</span><% } %><% if (x.id === user.id) { %> <span class="pill">you</span><% } %></td>
         <td class="small"><% if (x.email) { %><%= x.email %> <%= x.email_verified ? '✅' : '' %><% } else { %><span class="muted">—</span><% } %></td>
         <td>
           <% const locked = x.id === user.id || x.is_owner || (!user.is_owner && x.role === 'admin'); %>
@@ -38,6 +38,14 @@
             <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn btn-sm" name="action" value="reset">Reset password</button>
           </form>
           <% if (x.id !== user.id) { %>
+          <form method="post" action="<%= A(`/users/${x.id}`) %>" class="inline" onsubmit="return confirm('Log <%= x.username %> out on all their devices?')">
+            <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn btn-sm" name="action" value="logout" title="End all their sessions">Log out</button>
+          </form>
+          <% if (x.totp_enabled) { %>
+          <form method="post" action="<%= A(`/users/${x.id}`) %>" class="inline" onsubmit="return confirm('Turn off two-factor login for <%= x.username %>? Only do this if they lost their phone and backup codes.')">
+            <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn btn-sm" name="action" value="reset2fa" title="They lost their phone">Reset 2FA</button>
+          </form>
+          <% } %>
           <form method="post" action="<%= A(`/users/${x.id}`) %>" class="inline" onsubmit="return confirm('Delete <%= x.username %>? Their comments are deleted; their novels are kept.')">
             <input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn btn-sm btn-danger" name="action" value="delete">Delete</button>
           </form>

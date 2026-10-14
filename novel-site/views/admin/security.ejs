@@ -1,0 +1,110 @@
+<%- include('partials/top', { title: '🔐 Security' }) %>
+<% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
+
+<% if (codes) { %>
+<section class="card" style="border-color: var(--primary)">
+  <h2>🧾 Your backup codes<%= typeof justEnabled !== 'undefined' ? ': two-factor login is on!' : '' %></h2>
+  <p>If you lose your phone, each of these codes lets you in <strong>once</strong>. Save them now (screenshot, print, or a password manager). <strong>They won’t be shown again.</strong></p>
+  <div class="backup-codes"><% codes.forEach((c) => { %><code><%= c %></code><% }) %></div>
+  <button type="button" class="btn btn-sm" onclick="navigator.clipboard && navigator.clipboard.writeText(<%= JSON.stringify(codes.join('\n')) %>).then(() => { this.textContent = '✓ Copied'; })">📋 Copy all</button>
+</section>
+<% } %>
+
+<div class="grid-2">
+  <section class="card" id="setup">
+    <h2>📱 Two-factor login</h2>
+    <% if (me.totp_enabled) { %>
+      <p><span class="pill" style="background: #dcf5e3; color: #1e7a3a">✓ On</span> The admin panel asks for a code from your authenticator app (at least once a week, and on every new device). Even someone who steals your password can’t get in.</p>
+      <p class="hint">Backup codes left: <strong><%= backupLeft %></strong> of 10.</p>
+      <details>
+        <summary class="btn btn-sm">Make new backup codes</summary>
+        <form method="post" action="<%= A('/security/backup-codes') %>" class="inline-form" style="margin-top: 10px">
+          <input type="hidden" name="_csrf" value="<%= csrf %>">
+          <input name="code" inputmode="numeric" autocomplete="one-time-code" placeholder="Current 6-digit code" required maxlength="9">
+          <button class="btn btn-primary" type="submit">Make new codes</button>
+        </form>
+        <p class="hint">Your old backup codes stop working.</p>
+      </details>
+      <details style="margin-top: 10px">
+        <summary class="btn btn-sm btn-danger">Turn off two-factor login</summary>
+        <form method="post" action="<%= A('/security/2fa/disable') %>" style="margin-top: 10px">
+          <input type="hidden" name="_csrf" value="<%= csrf %>">
+          <label class="field">Password <input name="password" type="password" required autocomplete="current-password"></label>
+          <label class="field">Current 6-digit code (or a backup code) <input name="code" required maxlength="9" autocomplete="one-time-code"></label>
+          <button class="btn btn-danger" type="submit">Turn off</button>
+          <% if (settings.require_2fa === '1') { %><p class="hint">Two-factor login is required on this site, so you’ll be asked to set it up again.</p><% } %>
+        </form>
+      </details>
+    <% } else if (qr) { %>
+      <ol class="steps">
+        <li>Install an authenticator app on your phone: <strong>Google Authenticator</strong>, <strong>Microsoft Authenticator</strong>, <strong>Authy</strong> or <strong>1Password</strong> (all free).</li>
+        <li>In the app, tap <strong>+</strong> → <strong>Scan a QR code</strong> and scan this:
+          <div class="qr"><%- qr %></div>
+          <div class="hint">Can’t scan? Choose “Enter a setup key” and type: <code class="secret"><%= secret %></code></div></li>
+        <li>Type the 6-digit code the app shows:
+          <form method="post" action="<%= A('/security/2fa/confirm') %>" class="inline-form" style="margin-top: 8px">
+            <input type="hidden" name="_csrf" value="<%= csrf %>">
+            <input name="code" inputmode="numeric" autocomplete="one-time-code" placeholder="123456" required maxlength="7" autofocus style="max-width: 140px; font-size: 18px; letter-spacing: 3px">
+            <button class="btn btn-primary" type="submit">Turn on</button>
+          </form></li>
+      </ol>
+      <form method="post" action="<%= A('/security/2fa/cancel') %>"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn btn-ghost btn-sm" type="submit">Cancel</button></form>
+    <% } else { %>
+      <p><span class="pill" style="background: #fde7e7; color: #b13232">Off</span> Right now your password is the only thing protecting the admin panel.</p>
+      <p>Turn on two-factor login: after your password, the admin panel also asks for a 6-digit code from an app on your phone. A stolen or guessed password alone is then useless. <strong>Strongly recommended for every admin.</strong></p>
+      <form method="post" action="<%= A('/security/2fa/start') %>"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn btn-primary" type="submit">Set up two-factor login</button></form>
+    <% } %>
+  </section>
+
+  <section class="card">
+    <h2>💻 Devices &amp; password</h2>
+    <p>Logged in on a computer that isn’t yours, or think someone else has your password? Log out every other device right away. Changing your password does this too.</p>
+    <form method="post" action="<%= A('/security/logout-all') %>" onsubmit="return confirm('Log out on every other device?')"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn" type="submit">Log out all other devices</button></form>
+    <p style="margin-top: 14px"><a href="<%= A('/account') %>">Change my password →</a></p>
+    <p class="hint">Protection that is always on: after 5 wrong passwords an account is locked for 15 minutes (20 from one internet address); passwords are stored scrambled (scrypt) so nobody, not even us, can read them; your email-sending key and two-factor keys are stored encrypted; you get an email when the admin panel is opened from a new place (if your account has an email address).</p>
+  </section>
+</div>
+
+<% if (staff.length) { %>
+<section class="card">
+  <h2>👥 Staff accounts</h2>
+  <% if (user.is_owner) { %>
+  <form method="post" action="<%= A('/security/settings') %>" style="margin-bottom: 12px">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <label class="switch"><input type="checkbox" name="require_2fa" value="1" <%= settings.require_2fa === '1' ? 'checked' : '' %> onchange="this.form.submit()"><span></span> Require two-factor login for every admin and translator</label>
+  </form>
+  <% } else { %><p class="hint">Two-factor login is <strong><%= settings.require_2fa === '1' ? 'required' : 'optional' %></strong> for staff (the owner decides).</p><% } %>
+  <table class="table">
+    <thead><tr><th>Account</th><th>Role</th><th>Two-factor</th><th>Email for alerts</th><th>Last sign-in</th></tr></thead>
+    <tbody>
+    <% staff.forEach((s) => { %>
+      <tr><td><strong><%= s.username %></strong><%= s.is_owner ? ' 👑' : '' %></td><td><%= s.role %></td>
+        <td><%= s.totp_enabled ? '✅ On' : '⚠️ Off' %></td><td><%= s.email ? '✅' : '—' %></td>
+        <td class="muted small"><%= s.last_login ? u.timeAgo(s.last_login) : 'never' %></td></tr>
+    <% }) %>
+    </tbody>
+  </table>
+  <p class="hint">To log someone out everywhere or turn off their two-factor login (for example if they lost their phone), use the buttons on the <a href="<%= A('/users') %>">Users</a> page.</p>
+</section>
+<% } %>
+
+<section class="card flush">
+  <h2 style="padding: 18px 20px 0">📜 Security log <span class="muted small" style="font-weight: 400"><%= user.role === 'admin' ? 'everyone' : 'your account' %>, last 6 months</span></h2>
+  <% if (!events.length) { %><p class="muted" style="padding: 0 20px 18px">Nothing yet.</p><% } else { %>
+  <table class="table">
+    <thead><tr><th>When</th><th>Account</th><th>What</th><th>IP address</th><th>Device</th></tr></thead>
+    <tbody>
+    <% events.forEach((e) => { const bad = /failed|locked/.test(e.event); %>
+      <tr class="<%= bad ? 'log-bad' : '' %>">
+        <td class="nowrap small" title="<%= new Date(e.created_at * 1000).toUTCString() %>"><%= u.timeAgo(e.created_at) %></td>
+        <td><%= e.username || '—' %></td>
+        <td><%= bad ? '⚠️ ' : '' %><%= labels[e.event] || e.event %><% if (e.detail) { %> <span class="muted small">(<%= e.detail %>)</span><% } %></td>
+        <td class="small"><code><%= e.ip %></code></td>
+        <td class="small muted" title="<%= e.user_agent %>"><%= /iPhone|iPad/.test(e.user_agent) ? 'iPhone/iPad' : /Android/.test(e.user_agent) ? 'Android' : /Mac OS X/.test(e.user_agent) ? 'Mac' : /Windows/.test(e.user_agent) ? 'Windows' : /Linux/.test(e.user_agent) ? 'Linux' : '?' %> · <%= /Edg\//.test(e.user_agent) ? 'Edge' : /Chrome\//.test(e.user_agent) ? 'Chrome' : /Firefox\//.test(e.user_agent) ? 'Firefox' : /Safari\//.test(e.user_agent) ? 'Safari' : 'other' %></td>
+      </tr>
+    <% }) %>
+    </tbody>
+  </table>
+  <% } %>
+</section>
+<%- include('partials/bottom') %>

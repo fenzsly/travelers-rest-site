@@ -22,7 +22,7 @@
         ['/requests', '🙋', 'Novel requests'],
       ];
       if (user.role === 'admin') nav.push(['/genres', '🏷', 'Genres'], ['/users', '👥', 'Users'], ['/comments', '💬', 'Comments & reviews'], ['/settings', '🛠', 'Site settings'], ['/seo', '🔍', 'SEO'], ['/email', '✉', 'Email & sign-ups'], ['/system', '🔄', 'Update & backup']);
-      nav.push(['/account', '🔑', 'My account']);
+      nav.push(['/security', '🔐', 'Security'], ['/account', '🔑', 'My account']);
       const current = path.replace(/\/$/, '') || '/';
       nav.forEach(([href, icon, label]) => {
         const full = A(href).replace(/\/$/, '') || '/';

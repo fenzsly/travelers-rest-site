@@ -16,6 +16,14 @@ function isConfigured() {
   return Boolean(s.smtp_host && s.smtp_from);
 }
 
+function smtpPassword(stored) {
+  try {
+    return require('./security').decrypt(stored);
+  } catch {
+    throw new Error('The saved email password can’t be read (was the site moved to a new server?). Enter it again in Admin → Email.');
+  }
+}
+
 function transport() {
   const s = getSettings();
   const port = Number(s.smtp_port) || 587;
@@ -23,7 +31,7 @@ function transport() {
     host: s.smtp_host,
     port,
     secure: port === 465,
-    auth: s.smtp_user ? { user: s.smtp_user, pass: s.smtp_pass } : undefined,
+    auth: s.smtp_user ? { user: s.smtp_user, pass: smtpPassword(s.smtp_pass) } : undefined,
     connectionTimeout: 15000,
     greetingTimeout: 15000,
     socketTimeout: 20000,

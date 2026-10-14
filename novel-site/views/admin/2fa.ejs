@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Two-factor code · Admin · <%= settings.site_name %></title>
+<link rel="stylesheet" href="<%= AV('/assets/admin.css') %>">
+</head>
+<body class="login-body">
+  <form class="login-card" method="post" action="<%= A('/2fa') %>">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <div class="login-logo">🔐</div>
+    <h1>Two-factor code</h1>
+    <p class="muted">Signed in as <strong><%= user.username %></strong>. Open your authenticator app and type the 6-digit code for <%= settings.site_name %>.</p>
+    <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
+    <label>Code<input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]{6,7}|[a-zA-Z0-9-]{8,9}" maxlength="9" required autofocus placeholder="123 456" style="font-size: 22px; letter-spacing: 4px; text-align: center"></label>
+    <button class="btn btn-primary btn-block" type="submit">Continue</button>
+    <p class="muted small" style="margin-top: 14px">Lost your phone? Type one of your <strong>backup codes</strong> instead (like <code>ab3d-ef5h</code>).</p>
+  </form>
+  <form method="post" action="<%= A('/logout') %>" style="text-align: center; margin-top: 12px"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn btn-ghost btn-sm" type="submit">Log out</button></form>
+</body>
+</html>

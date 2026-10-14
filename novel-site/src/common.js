@@ -26,6 +26,20 @@ function assetUrl(urlPath, dir = path.join(__dirname, '..', 'public'), prefix = 
   return v ? `${urlPath}?v=${v}` : urlPath;
 }
 
+/** Browser security headers for every page. */
+function securityHeaders(req, res, next) {
+  res.set({
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'SAMEORIGIN', // no other site can show our pages in a frame (clickjacking)
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
+    'Content-Security-Policy': "frame-ancestors 'self'; base-uri 'self'; object-src 'none'; form-action 'self'",
+    'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
+  });
+  if (process.env.COOKIE_SECURE === '1') res.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  next();
+}
+
 function sessionSecret() {
   if (process.env.SESSION_SECRET) return process.env.SESSION_SECRET;
   const file = path.join(DATA_DIR, 'session-secret');
@@ -50,9 +64,11 @@ function baseApp(viewsDir, { mounted = false } = {}) {
   const app = express();
   app.set('view engine', 'ejs');
   app.set('views', viewsDir);
-  app.set('trust proxy', process.env.TRUST_PROXY === '1');
+  // Behind Caddy: trust exactly one proxy hop, so visitors can't fake their IP address with X-Forwarded-For.
+  app.set('trust proxy', process.env.TRUST_PROXY === '1' ? 1 : false);
   app.disable('x-powered-by');
   if (mounted) return app;
+  app.use(securityHeaders);
   app.use(session);
   app.use(express.urlencoded({ extended: false, limit: '5mb' }));
   app.use(express.json({ limit: '60mb' }));

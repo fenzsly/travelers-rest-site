@@ -84,9 +84,13 @@ function setNovelGenres(novelId, genreIds) {
   for (const gid of genreIds) ins.run(novelId, Number(gid));
 }
 
+const DUMMY_HASH = hashPassword('not-a-real-password');
+
 /** Returns the logged-in user id or throws a user-facing error. */
 function login(username, password) {
   const user = q.userByName.get(String(username || '').trim());
+  // Check a password even for unknown usernames, so response times don't reveal which usernames exist.
+  if (!user) verifyPassword(String(password || ''), DUMMY_HASH);
   if (!user || !verifyPassword(String(password || ''), user.password_hash)) {
     throw Object.assign(new Error('Wrong username or password.'), { status: 400 });
   }
@@ -117,7 +121,7 @@ function register(username, password, email) {
   if (!/^[A-Za-z0-9_.-]{3,24}$/.test(username)) {
     throw Object.assign(new Error('Username must be 3–24 characters: letters, numbers, _ . -'), { status: 400 });
   }
-  if (password.length < 8) throw Object.assign(new Error('Password must be at least 8 characters.'), { status: 400 });
+  require('./security').checkPasswordStrength(password, username);
   if (q.userByName.get(username)) throw Object.assign(new Error('That username is taken.'), { status: 400 });
   checkEmail(email, null, !first && getSettings().require_email === '1');
   const role = first ? 'admin' : (getSettings().default_role === 'translator' ? 'translator' : 'reader');

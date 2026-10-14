@@ -40,6 +40,9 @@ UNIT=/etc/systemd/system/novel-site.service
 if [[ -f "$UNIT" ]]; then
   sed -i '/^Environment=PUBLIC_URL=/d' "$UNIT"
   sed -i "/^\[Service\]/a Environment=PUBLIC_URL=https://$MAIN" "$UNIT"
+  # The site is on HTTPS now: login cookies are only ever sent over HTTPS.
+  sed -i '/^Environment=COOKIE_SECURE=/d' "$UNIT"
+  sed -i "/^\[Service\]/a Environment=COOKIE_SECURE=1" "$UNIT"
   systemctl daemon-reload
   systemctl restart novel-site
 fi

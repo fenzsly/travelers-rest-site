@@ -7,6 +7,7 @@ const requests = require('../requests');
 const updateRequests = require('../update-requests');
 const guard = require('../guard');
 const notifications = require('../notifications');
+const security = require('../security');
 const { hashPassword, verifyPassword } = require('../auth');
 const { verifyCsrf, requireLogin } = require('../auth');
 const { getSettings } = require('../settings');
@@ -710,8 +711,20 @@ router.get('/login', (req, res) => res.render('login', { mode: 'login', error: n
 router.get('/register', (req, res) => res.render('login', { mode: 'register', error: null, next: safeNext(req.query.next), username: '', email: '', seo: { title: `Sign up | ${getSettings().site_name}`, noindex: true } }));
 
 router.post('/login', (req, res) => {
+  const username = String(req.body.username || '').trim();
   try {
-    req.session.uid = login(req.body.username, req.body.password);
+    security.checkLock(req, username);
+    let uid;
+    try {
+      uid = login(username, req.body.password);
+    } catch (err) {
+      security.recordFailure(req, username);
+      security.log(req, 'login_failed', { username });
+      throw err;
+    }
+    security.clearFailures(username);
+    security.startSession(req, uid);
+    security.log(req, 'login', { userId: uid, username });
     res.redirect(safeNext(req.body.next));
   } catch (err) {
     res.status(400).render('login', { mode: 'login', error: err.message, next: safeNext(req.body.next), username: req.body.username || '' });
@@ -728,7 +741,7 @@ router.post('/register', async (req, res) => {
       seo: { title: `Sign up | ${getSettings().site_name}`, noindex: true },
     });
   }
-  req.session.uid = uid;
+  security.startSession(req, uid);
   const user = db.prepare('SELECT id, username, email FROM users WHERE id = ?').get(uid);
   if (user.email && mail.isConfigured()) {
     try {
@@ -793,10 +806,19 @@ router.post('/reset-password', (req, res) => {
   const t = mail.findToken(token, 'reset');
   if (!t) return res.status(400).render('reset', { token, valid: false, error: null, seo: authSeo('Choose a new password') });
   const password = String(req.body.password || '');
-  if (password.length < 8) return res.status(400).render('reset', { token, valid: true, error: 'Password must be at least 8 characters.', seo: authSeo('Choose a new password') });
+  const who = db.prepare('SELECT username FROM users WHERE id = ?').get(t.user_id);
+  try {
+    security.checkPasswordStrength(password, who?.username);
+  } catch (err) {
+    return res.status(400).render('reset', { token, valid: true, error: err.message, seo: authSeo('Choose a new password') });
+  }
   mail.useToken(token);
   db.prepare('UPDATE users SET password_hash = ?, email_verified = 1 WHERE id = ?').run(hashPassword(password), t.user_id);
-  req.session.uid = t.user_id;
+  // Anyone who was logged in to this account (maybe the reason for the reset) is logged out.
+  security.bumpTokenVersion(t.user_id);
+  security.startSession(req, t.user_id);
+  security.clearFailures(who?.username);
+  security.log(req, 'password_reset', { userId: t.user_id, username: who?.username });
   req.flash('ok', 'Your password has been changed and you’re logged in.');
   res.redirect('/');
 });
@@ -835,9 +857,15 @@ router.post('/account/email', requireLogin, async (req, res) => {
 router.post('/account/password', requireLogin, (req, res) => {
   const row = db.prepare('SELECT password_hash FROM users WHERE id = ?').get(req.user.id);
   if (!verifyPassword(String(req.body.current || ''), row.password_hash)) return accountPage(req, res, { error: 'Your current password is wrong.' });
-  if (String(req.body.password || '').length < 8) return accountPage(req, res, { error: 'New password must be at least 8 characters.' });
+  try {
+    security.checkPasswordStrength(req.body.password, req.user.username);
+  } catch (err) {
+    return accountPage(req, res, { error: err.message });
+  }
   db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hashPassword(req.body.password), req.user.id);
-  req.flash('ok', 'Password changed.');
+  security.bumpTokenVersion(req.user.id, req); // other devices are logged out; this one stays in
+  security.log(req, 'password_changed', { userId: req.user.id, username: req.user.username });
+  req.flash('ok', 'Password changed. You’ve been logged out on your other devices.');
   res.redirect('/account');
 });
 
@@ -847,6 +875,14 @@ router.post('/account/prefs', requireLogin, (req, res) => {
   const prefs = savePrefs(req.user.id, reset ? {} : req.body, { replace: reset });
   if (req.accepts(['html', 'json']) === 'json') return res.json({ ok: true, prefs });
   req.flash('ok', reset ? 'Reading settings reset to the defaults.' : 'Reading settings saved.');
+  res.redirect('/account');
+});
+
+// End every session of this account on other phones/computers (e.g. after using a shared computer).
+router.post('/account/logout-all', requireLogin, (req, res) => {
+  security.bumpTokenVersion(req.user.id, req);
+  security.log(req, 'logout_all', { userId: req.user.id, username: req.user.username });
+  req.flash('ok', 'Done: you’ve been logged out everywhere else.');
   res.redirect('/account');
 });
 

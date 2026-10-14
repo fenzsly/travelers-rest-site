@@ -263,6 +263,29 @@ CREATE TABLE IF NOT EXISTS notifications (
 CREATE INDEX IF NOT EXISTS notifications_user ON notifications (user_id, read_at, created_at);
 `);
 
+// ---- Security ----
+// token_version: bumped on password change / "log out everywhere", which ends every other session.
+if (!hasColumn('users', 'token_version')) db.exec('ALTER TABLE users ADD COLUMN token_version INTEGER NOT NULL DEFAULT 0');
+// Two-factor login (authenticator app). The secret is stored encrypted; backup codes are stored hashed.
+if (!hasColumn('users', 'totp_secret')) db.exec('ALTER TABLE users ADD COLUMN totp_secret TEXT');
+if (!hasColumn('users', 'totp_enabled')) db.exec('ALTER TABLE users ADD COLUMN totp_enabled INTEGER NOT NULL DEFAULT 0');
+if (!hasColumn('users', 'totp_last_step')) db.exec('ALTER TABLE users ADD COLUMN totp_last_step INTEGER NOT NULL DEFAULT 0');
+if (!hasColumn('users', 'totp_backup')) db.exec("ALTER TABLE users ADD COLUMN totp_backup TEXT NOT NULL DEFAULT '[]'");
+db.exec(`
+CREATE TABLE IF NOT EXISTS security_log (
+  id         INTEGER PRIMARY KEY,
+  user_id    INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  username   TEXT NOT NULL DEFAULT '',
+  event      TEXT NOT NULL,
+  ip         TEXT NOT NULL DEFAULT '',
+  user_agent TEXT NOT NULL DEFAULT '',
+  detail     TEXT NOT NULL DEFAULT '',
+  created_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
+CREATE INDEX IF NOT EXISTS security_log_recent ON security_log (created_at);
+CREATE INDEX IF NOT EXISTS security_log_user ON security_log (user_id, event);
+`);
+
 const DEFAULT_GENRES = [
   'Action', 'Adventure', 'Comedy', 'Drama', 'Fantasy', 'Harem', 'Historical', 'Horror',
   'Isekai', 'Martial Arts', 'Mecha', 'Mystery', 'Psychological', 'Reincarnation', 'Romance',

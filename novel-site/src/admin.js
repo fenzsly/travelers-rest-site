@@ -10,6 +10,7 @@ const { baseApp, errorHandlers, assetUrl, UPLOAD_DIR } = require('./common');
 const { verifyCsrf, requireRole, canManageNovel, hashPassword } = require('./auth');
 const { q, ADMIN_NOVEL_COLUMNS: NOVEL_COLUMNS, VISIBLE, RELEASED, setNovelGenres, cleanGenreName, createGenre, login } = require('./queries');
 const system = require('./system');
+const security = require('./security');
 const content = require('./content');
 const { getSettings, saveSettings } = require('./settings');
 const { slugify, paginate, STATUS_LABELS } = require('./util');
@@ -19,6 +20,16 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
   const app = baseApp(path.join(__dirname, '..', 'views'), { mounted });
   const A = (p = '') => `${base}${p}`; // admin URL builder
 
+  // The admin panel is never cached, framed, or allowed to load scripts from other sites.
+  app.use((req, res, next) => {
+    res.set({
+      'Cache-Control': 'no-store',
+      'X-Robots-Tag': 'noindex, nofollow',
+      'X-Frame-Options': 'DENY',
+      'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self'; font-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'",
+    });
+    next();
+  });
   app.use('/assets', express.static(path.join(__dirname, '..', 'public', 'admin'), { maxAge: '1h' }));
   app.use('/uploads', express.static(UPLOAD_DIR, { maxAge: '7d' }));
   app.use((req, res, next) => {
@@ -39,18 +50,31 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
     res.render('admin/login', { error: null, firstRun, username: '' });
   });
 
-  app.post('/login', verifyCsrf, (req, res) => {
+  app.post('/login', verifyCsrf, async (req, res) => {
     const firstRun = q.userCount.get().n === 0;
+    const username = String(req.body.username || '').trim();
     try {
       if (firstRun) {
         // First visit: create the owner account right here.
         const { register } = require('./queries');
-        req.session.uid = register(req.body.username, req.body.password);
+        const uid = register(username, req.body.password);
+        security.startSession(req, uid);
+        security.log(req, 'login', { userId: uid, username, detail: 'owner account created' });
       } else {
-        const uid = login(req.body.username, req.body.password);
+        security.checkLock(req, username);
+        let uid;
+        try {
+          uid = login(username, req.body.password);
+        } catch (err) {
+          security.recordFailure(req, username);
+          security.log(req, 'login_failed', { username, detail: 'admin panel' });
+          throw err;
+        }
         const user = db.prepare('SELECT role FROM users WHERE id = ?').get(uid);
         if (user.role === 'reader') throw fail(403, 'This account does not have access to the admin panel.');
-        req.session.uid = uid;
+        security.clearFailures(username);
+        security.startSession(req, uid);
+        security.log(req, 'login', { userId: uid, username, detail: 'admin panel' });
       }
       res.redirect(A('/'));
     } catch (err) {
@@ -58,14 +82,84 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
     }
   });
 
+  // ---------- Two-factor step ----------
+  const MFA_MAX_AGE = 7 * 86400 * 1000; // ask for a fresh code at least once a week
+
+  app.get('/2fa', (req, res) => {
+    if (!req.user || req.user.role === 'reader') return res.redirect(A('/login'));
+    if (!req.user.totp_enabled) return res.redirect(A('/'));
+    res.render('admin/2fa', { error: null });
+  });
+
+  app.post('/2fa', verifyCsrf, async (req, res) => {
+    if (!req.user || req.user.role === 'reader') return res.redirect(A('/login'));
+    try {
+      security.checkLock(req, `2fa:${req.user.username}`);
+    } catch (err) {
+      return res.status(429).render('admin/2fa', { error: err.message });
+    }
+    const kind = security.verifySecondFactor(req.user.id, req.body.code);
+    if (!kind) {
+      security.recordFailure(req, `2fa:${req.user.username}`);
+      security.log(req, 'twofa_failed', { userId: req.user.id, username: req.user.username });
+      return res.status(400).render('admin/2fa', { error: 'That code didn’t work. Check the time on your phone is correct, and use the newest code.' });
+    }
+    security.clearFailures(`2fa:${req.user.username}`);
+    req.session.mfa = 1;
+    req.session.mfaAt = Date.now();
+    security.log(req, kind === 'backup' ? 'twofa_backup' : 'twofa_ok', { userId: req.user.id, username: req.user.username });
+    await newDeviceAlert(req);
+    if (kind === 'backup') {
+      const left = JSON.parse(db.prepare('SELECT totp_backup FROM users WHERE id = ?').get(req.user.id).totp_backup).length;
+      req.flash(left <= 3 ? 'error' : 'ok', `Backup code used. ${left} left${left <= 3 ? ': make new ones under 🔐 Security' : ''}.`);
+    }
+    res.redirect(A('/'));
+  });
+
+  /** Email the account owner the first time the admin panel is opened from a new IP address. */
+  async function newDeviceAlert(req) {
+    const seen = db.prepare("SELECT 1 FROM security_log WHERE user_id = ? AND event = 'admin_login' AND ip = ? LIMIT 1").get(req.user.id, req.ip);
+    const first = !db.prepare("SELECT 1 FROM security_log WHERE user_id = ? AND event = 'admin_login' LIMIT 1").get(req.user.id);
+    security.log(req, 'admin_login', { userId: req.user.id, username: req.user.username });
+    if (seen || first) return;
+    const me = db.prepare('SELECT email FROM users WHERE id = ?').get(req.user.id);
+    const mail = require('./mail');
+    if (!me?.email || !mail.isConfigured()) return;
+    try {
+      await mail.send({
+        to: me.email,
+        subject: `New sign-in to the ${getSettings().site_name} admin panel`,
+        text: `Hi ${req.user.username},\n\nYour account was just used to open the admin panel from a new place:\n\nIP address: ${req.ip}\nBrowser: ${req.get('user-agent') || 'unknown'}\nTime: ${new Date().toUTCString()}\n\nIf this was you, you can ignore this email.\nIf it wasn't, change your password right away and press “Log out all devices” in the admin panel under 🔐 Security.`,
+      });
+      security.log(req, 'new_device_alert', { userId: req.user.id, username: req.user.username });
+    } catch (err) {
+      console.error('New sign-in email failed:', err.message);
+    }
+  }
+
   app.post('/logout', verifyCsrf, (req, res) => {
     req.session = null;
     res.redirect(A('/login'));
   });
 
   // Everything below requires staff access.
-  app.use((req, res, next) => {
+  app.use(async (req, res, next) => {
     if (!req.user || req.user.role === 'reader') return res.redirect(A('/login'));
+    // Two-factor: a fresh code is needed for the admin panel (at least once a week).
+    if (req.user.totp_enabled) {
+      if (!req.session.mfa || !(Date.now() - (req.session.mfaAt || 0) < MFA_MAX_AGE)) return res.redirect(A('/2fa'));
+    } else {
+      // Without two-factor, still record (and alert on) admin sign-ins from new places, once per session.
+      if (!req.session.seenAdmin) {
+        req.session.seenAdmin = 1;
+        await newDeviceAlert(req);
+      }
+      // The owner can require two-factor login for all staff: set it up before anything else.
+      if (getSettings().require_2fa === '1' && !/^\/(security|logout)(\/|$)/.test(req.path)) {
+        req.flash('error', 'Two-factor login is required for staff on this site. Please set it up to continue.');
+        return res.redirect(A('/security'));
+      }
+    }
     next();
   });
   const adminOnly = requireRole('admin');
@@ -662,8 +756,8 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
     if (role === 'admin' && !req.user.is_owner) throw fail(403, 'Only the site owner can create admin accounts.');
     if (!/^[A-Za-z0-9_.-]{3,24}$/.test(username)) throw fail(400, 'Username must be 3–24 characters: letters, numbers, _ . -');
     if (q.userByName.get(username)) throw fail(400, 'That username is taken.');
-    const password = String(req.body.password || '') || crypto.randomBytes(6).toString('base64url');
-    if (password.length < 8) throw fail(400, 'Password must be at least 8 characters (or leave empty to generate one).');
+    const password = String(req.body.password || '') || crypto.randomBytes(9).toString('base64url');
+    security.checkPasswordStrength(password, username);
     q.insertUser.run(username, hashPassword(password), role);
     req.flash('ok', `Created ${role} “${username}”. Password: ${password}`);
     res.redirect(A('/users'));
@@ -683,16 +777,114 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
     }
     if (action === 'role' && ['reader', 'translator', 'admin'].includes(req.body.role)) {
       db.prepare('UPDATE users SET role = ? WHERE id = ?').run(req.body.role, uid);
+      security.bumpTokenVersion(uid); // they log in again with their new permissions
+      security.log(req, 'role_changed', { userId: uid, username: target.username, detail: `${target.role} → ${req.body.role} by ${req.user.username}` });
       req.flash('ok', `${target.username} is now ${req.body.role === 'admin' ? 'an admin' : `a ${req.body.role}`}.`);
     } else if (action === 'reset') {
-      const password = crypto.randomBytes(6).toString('base64url');
+      const password = crypto.randomBytes(9).toString('base64url');
       db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hashPassword(password), uid);
+      security.bumpTokenVersion(uid, req);
+      security.log(req, 'admin_reset_password', { userId: uid, username: target.username, detail: `by ${req.user.username}` });
       req.flash('ok', `New password for ${target.username}: ${password}`);
+    } else if (action === 'logout') {
+      security.bumpTokenVersion(uid);
+      security.log(req, 'forced_logout', { userId: uid, username: target.username, detail: `by ${req.user.username}` });
+      req.flash('ok', `${target.username} has been logged out on all devices.`);
+    } else if (action === 'reset2fa') {
+      db.prepare("UPDATE users SET totp_enabled = 0, totp_secret = NULL, totp_backup = '[]' WHERE id = ?").run(uid);
+      security.bumpTokenVersion(uid);
+      security.log(req, 'twofa_off', { userId: uid, username: target.username, detail: `turned off by ${req.user.username}` });
+      req.flash('ok', `Two-factor login turned off for ${target.username} (and they were logged out). They can set it up again under 🔐 Security.`);
     } else if (action === 'delete') {
       db.prepare('DELETE FROM users WHERE id = ?').run(uid);
       req.flash('ok', `Deleted ${target.username}. Their novels were kept.`);
     }
     res.redirect(A('/users'));
+  });
+
+  // ---------- Security: two-factor login, devices, security log ----------
+  const securityPage = (req, res, extra = {}) => {
+    const me = db.prepare('SELECT totp_enabled, totp_secret, totp_backup FROM users WHERE id = ?').get(req.user.id);
+    const isAdmin = req.user.role === 'admin';
+    const events = db.prepare(`SELECT * FROM security_log ${isAdmin ? '' : 'WHERE user_id = ?'} ORDER BY id DESC LIMIT 150`).all(...(isAdmin ? [] : [req.user.id]));
+    const staff = isAdmin ? db.prepare(`SELECT id, username, role, is_owner, totp_enabled, email,
+        (SELECT MAX(created_at) FROM security_log l WHERE l.user_id = u.id AND l.event IN ('login', 'admin_login')) AS last_login
+      FROM users u WHERE role != 'reader' ORDER BY is_owner DESC, role, username`).all() : [];
+    const render = async () => {
+      let qr = null;
+      let secret = null;
+      if (!me.totp_enabled && me.totp_secret) {
+        secret = security.decrypt(me.totp_secret);
+        const label = encodeURIComponent(`${getSettings().site_name}:${req.user.username}`);
+        const uri = `otpauth://totp/${label}?secret=${secret}&issuer=${encodeURIComponent(getSettings().site_name)}&algorithm=SHA1&digits=6&period=30`;
+        qr = await require('qrcode').toString(uri, { type: 'svg', margin: 1, width: 220 });
+      }
+      res.status(extra.error ? 400 : 200).render('admin/security', {
+        me, backupLeft: JSON.parse(me.totp_backup || '[]').length, qr, secret: secret && secret.replace(/(.{4})/g, '$1 ').trim(),
+        events, staff, labels: security.EVENT_LABELS, error: null, codes: null, ...extra,
+      });
+    };
+    return render();
+  };
+
+  app.get('/security', (req, res) => securityPage(req, res));
+
+  app.post('/security/2fa/start', (req, res) => {
+    db.prepare('UPDATE users SET totp_secret = ?, totp_enabled = 0 WHERE id = ?').run(security.encrypt(security.newTotpSecret()), req.user.id);
+    res.redirect(A('/security#setup'));
+  });
+
+  app.post('/security/2fa/cancel', (req, res) => {
+    db.prepare('UPDATE users SET totp_secret = NULL WHERE id = ? AND totp_enabled = 0').run(req.user.id);
+    res.redirect(A('/security'));
+  });
+
+  app.post('/security/2fa/confirm', (req, res) => {
+    const me = db.prepare('SELECT totp_secret, totp_enabled FROM users WHERE id = ?').get(req.user.id);
+    if (me.totp_enabled || !me.totp_secret) return res.redirect(A('/security'));
+    const step = security.matchTotp(security.decrypt(me.totp_secret), req.body.code);
+    if (step === null) return securityPage(req, res, { error: 'That code didn’t match. Type the 6-digit code your app shows right now (and check your phone’s clock is set automatically).' });
+    const { codes, hashes } = security.newBackupCodes();
+    db.prepare('UPDATE users SET totp_enabled = 1, totp_last_step = ?, totp_backup = ? WHERE id = ?').run(step, JSON.stringify(hashes), req.user.id);
+    security.bumpTokenVersion(req.user.id, req); // other sessions must log in again (with a code)
+    req.session.mfa = 1;
+    req.session.mfaAt = Date.now();
+    security.log(req, 'twofa_on', { userId: req.user.id, username: req.user.username });
+    req.user.totp_enabled = 1;
+    return securityPage(req, res, { codes, justEnabled: true });
+  });
+
+  app.post('/security/2fa/disable', (req, res) => {
+    const row = db.prepare('SELECT password_hash FROM users WHERE id = ?').get(req.user.id);
+    const { verifyPassword } = require('./auth');
+    if (!verifyPassword(String(req.body.password || ''), row.password_hash)) return securityPage(req, res, { error: 'Your password is wrong.' });
+    if (!security.verifySecondFactor(req.user.id, req.body.code)) return securityPage(req, res, { error: 'That two-factor code didn’t work.' });
+    db.prepare("UPDATE users SET totp_enabled = 0, totp_secret = NULL, totp_backup = '[]' WHERE id = ?").run(req.user.id);
+    security.log(req, 'twofa_off', { userId: req.user.id, username: req.user.username });
+    req.flash('ok', 'Two-factor login is now off.');
+    res.redirect(A('/security'));
+  });
+
+  app.post('/security/backup-codes', (req, res) => {
+    if (!security.verifySecondFactor(req.user.id, req.body.code)) return securityPage(req, res, { error: 'That two-factor code didn’t work.' });
+    const { codes, hashes } = security.newBackupCodes();
+    db.prepare('UPDATE users SET totp_backup = ? WHERE id = ?').run(JSON.stringify(hashes), req.user.id);
+    security.log(req, 'backup_new', { userId: req.user.id, username: req.user.username });
+    return securityPage(req, res, { codes });
+  });
+
+  app.post('/security/logout-all', (req, res) => {
+    security.bumpTokenVersion(req.user.id, req);
+    security.log(req, 'logout_all', { userId: req.user.id, username: req.user.username });
+    req.flash('ok', 'Done: every other device has been logged out.');
+    res.redirect(A('/security'));
+  });
+
+  app.post('/security/settings', adminOnly, (req, res) => {
+    if (!req.user.is_owner) throw fail(403, 'Only the site owner can change this.');
+    saveSettings({ require_2fa: req.body.require_2fa ? '1' : '0' });
+    req.flash('ok', req.body.require_2fa ? 'Two-factor login is now required for all staff. Anyone without it will be asked to set it up.' : 'Two-factor login is now optional.');
+    res.redirect(A('/security'));
   });
 
   // ---------- Own account ----------
@@ -702,10 +894,14 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
     const { verifyPassword } = require('./auth');
     let error = null;
     if (!verifyPassword(String(req.body.current || ''), row.password_hash)) error = 'Current password is wrong.';
-    else if (String(req.body.password || '').length < 8) error = 'New password must be at least 8 characters.';
+    else {
+      try { security.checkPasswordStrength(req.body.password, req.user.username); } catch (err) { error = err.message; }
+    }
     if (error) return res.status(400).render('admin/account', { error });
     db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hashPassword(req.body.password), req.user.id);
-    req.flash('ok', 'Password changed.');
+    security.bumpTokenVersion(req.user.id, req);
+    security.log(req, 'password_changed', { userId: req.user.id, username: req.user.username });
+    req.flash('ok', 'Password changed. You’ve been logged out on your other devices.');
     res.redirect(A('/account'));
   });
 

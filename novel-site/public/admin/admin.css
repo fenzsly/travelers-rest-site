@@ -292,3 +292,12 @@ button.quick-card { font: inherit; text-align: left; cursor: pointer; }
 .issue-list { margin: 0; padding: 0; list-style: none; color: #b45309; font-size: 13px; }
 .ok-text { color: var(--ok); font-weight: 600; font-size: 13px; }
 .count-over { color: var(--danger); font-weight: 700; }
+
+/* Security page */
+.backup-codes { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; margin: 12px 0; }
+.backup-codes code { font-size: 15px; padding: 8px 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; text-align: center; letter-spacing: 1px; }
+.steps { padding-left: 20px; display: grid; gap: 14px; margin: 0 0 12px; }
+.qr { background: #fff; display: inline-block; padding: 8px; border-radius: 8px; margin: 10px 0 4px; line-height: 0; }
+.qr svg { width: 200px; height: 200px; }
+.secret { font-size: 14px; letter-spacing: 1px; word-break: break-all; }
+.log-bad td { background: rgba(220, 53, 69, .06); }

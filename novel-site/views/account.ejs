@@ -31,6 +31,12 @@
       <label>New password <input name="password" type="password" minlength="8" required autocomplete="new-password"></label>
       <button class="btn" type="submit">Change password</button>
     </form>
+    <h2 class="sub-h">Devices</h2>
+    <p class="muted small">Logged in on a shared or lost device? This logs you out everywhere except here.</p>
+    <form method="post" action="/account/logout-all" onsubmit="return confirm('Log out on all your other devices?')">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <button class="btn" type="submit">Log out all other devices</button>
+    </form>
   </section>
 </main>
 <%- include('partials/footer') %>

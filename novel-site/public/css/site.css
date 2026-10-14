@@ -573,3 +573,7 @@ body { overflow-x: hidden; }
 .ad-slot ins { min-height: 100px; }
 .ad-chapter_mid ins { min-height: 250px; }
 .ad-slot:has(ins[data-ad-status="unfilled"]) { display: none; }
+
+/* Contact page */
+.hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+.prose ul { padding-left: 20px; }

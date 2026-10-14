@@ -39,7 +39,7 @@ function transport() {
 }
 
 /** Send a plain-text email with a simple HTML version. Throws if sending fails. */
-async function send({ to, subject, text }) {
+async function send({ to, subject, text, replyTo }) {
   if (!isConfigured()) throw new Error('Email isn’t set up yet (Admin → Email).');
   const s = getSettings();
   const esc = (t) => t.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -47,10 +47,10 @@ async function send({ to, subject, text }) {
     ${esc(text).replace(/(https?:\/\/\S+)/g, '<a href="$1">$1</a>').replace(/\n/g, '<br>')}
     <p style="color:#7a808c;font-size:12.5px;margin-top:24px">${esc(s.site_name)}</p></div>`;
   if (process.env.MAIL_OUTBOX) { // automated tests: record instead of sending
-    require('node:fs').appendFileSync(process.env.MAIL_OUTBOX, `${JSON.stringify({ to, subject, text })}\n`);
+    require('node:fs').appendFileSync(process.env.MAIL_OUTBOX, `${JSON.stringify({ to, subject, text, replyTo })}\n`);
     return;
   }
-  await transport().sendMail({ from: s.smtp_from, to, subject, text, html });
+  await transport().sendMail({ from: s.smtp_from, to, subject, text, html, ...(replyTo ? { replyTo } : {}) });
 }
 
 /** Create a one-time token (stored hashed). Returns the raw token for the link. */

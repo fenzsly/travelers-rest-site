@@ -318,6 +318,23 @@ CREATE TABLE IF NOT EXISTS traffic_daily (
 // Original works (written for the site, not translated): shown without a translator.
 if (!hasColumn('novels', 'is_original')) db.exec('ALTER TABLE novels ADD COLUMN is_original INTEGER NOT NULL DEFAULT 0');
 
+db.exec(`
+-- Messages sent from the Contact page (shown in Admin → Messages).
+CREATE TABLE IF NOT EXISTS contact_messages (
+  id         INTEGER PRIMARY KEY,
+  user_id    INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  name       TEXT NOT NULL,
+  email      TEXT NOT NULL,
+  topic      TEXT NOT NULL,
+  message    TEXT NOT NULL,
+  page       TEXT NOT NULL DEFAULT '',
+  sender     TEXT NOT NULL DEFAULT '', -- anonymous hash, for the daily limit
+  status     TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new','done')),
+  created_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
+CREATE INDEX IF NOT EXISTS contact_messages_status ON contact_messages (status, created_at);
+`);
+
 const DEFAULT_GENRES = [
   'Action', 'Adventure', 'Comedy', 'Drama', 'Fantasy', 'Harem', 'Historical', 'Horror',
   'Isekai', 'Martial Arts', 'Mecha', 'Mystery', 'Psychological', 'Reincarnation', 'Romance',

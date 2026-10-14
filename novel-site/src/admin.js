@@ -172,6 +172,7 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
   app.use((req, res, next) => {
     res.locals.openReports = openReports(req.user);
     res.locals.openRequests = db.prepare("SELECT COUNT(*) AS n FROM novel_requests WHERE status = 'open'").get().n;
+    res.locals.newMessages = req.user.role === 'admin' ? db.prepare("SELECT COUNT(*) AS n FROM contact_messages WHERE status = 'new'").get().n : 0;
     res.locals.waitingUpdates = require('./update-requests').waitingNovels(req.user.role === 'admin' ? null : req.user.id);
     next();
   });
@@ -760,6 +761,22 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
     res.redirect(req.get('referer')?.includes('/requests') ? req.get('referer') : A('/requests'));
   });
 
+  // ---------- Messages from the Contact page (admin) ----------
+  app.get('/messages', adminOnly, (req, res) => {
+    const show = req.query.show === 'done' ? 'done' : 'new';
+    const items = db.prepare(`SELECT m.*, u.username FROM contact_messages m LEFT JOIN users u ON u.id = m.user_id
+      WHERE m.status = ? ORDER BY m.created_at DESC LIMIT 300`).all(show);
+    const counts = Object.fromEntries(db.prepare('SELECT status, COUNT(*) AS n FROM contact_messages GROUP BY status').all().map((r) => [r.status, r.n]));
+    res.render('admin/messages', { items, show, counts, emailReady: require('./mail').isConfigured() });
+  });
+
+  app.post('/messages/:mid', adminOnly, (req, res) => {
+    const id = Number(req.params.mid);
+    if (req.body.action === 'delete') db.prepare('DELETE FROM contact_messages WHERE id = ?').run(id);
+    else db.prepare('UPDATE contact_messages SET status = ? WHERE id = ?').run(req.body.action === 'reopen' ? 'new' : 'done', id);
+    res.redirect(req.get('referer')?.includes('/messages') ? req.get('referer') : A('/messages'));
+  });
+
   // ---------- Users (admin) ----------
   app.get('/users', adminOnly, (req, res) => {
     const users = db.prepare(`SELECT u.*, (SELECT COUNT(*) FROM novels n WHERE n.owner_id = u.id) AS novel_count,
@@ -1050,6 +1067,7 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
       comments_enabled: req.body.comments_enabled ? '1' : '0',
       default_theme: req.body.default_theme === 'light' ? 'light' : 'dark',
       default_role: req.body.default_role === 'translator' ? 'translator' : 'reader',
+      contact_email: require('./mail').isValidEmail(String(req.body.contact_email || '').trim()) ? String(req.body.contact_email).trim() : '',
     });
     req.flash('ok', 'Settings saved.');
     res.redirect(A('/settings'));

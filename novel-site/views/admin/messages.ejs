@@ -1,0 +1,26 @@
+<%- include('partials/top', { title: '📨 Messages' }) %>
+<p class="hint" style="margin-top: 0">Messages sent from the public <a href="<%= site('/contact') %>" target="_blank" rel="noopener">Contact page</a>. <%= emailReady ? 'Admins with an email address on their account also get each message by email: just reply to that email to answer.' : 'Tip: set up email (✉ Email & sign-ups) and add your email under My account to also get messages by email.' %></p>
+<nav class="tabs" style="margin: 0 0 16px; display: inline-flex">
+  <a href="<%= A('/messages') %>" class="<%= show === 'new' ? 'on' : '' %>">New (<%= counts.new || 0 %>)</a>
+  <a href="<%= A('/messages?show=done') %>" class="<%= show === 'done' ? 'on' : '' %>">Done (<%= counts.done || 0 %>)</a>
+</nav>
+<% if (!items.length) { %><div class="card empty-state"><p><%= show === 'new' ? 'No new messages.' : 'Nothing here yet.' %></p></div><% } %>
+<% items.forEach((m) => { %>
+  <section class="card report">
+    <div class="report-head">
+      <span class="pill"><%= { general: 'General', copyright: '⚖ Copyright', bug: 'Site problem', ads: 'Business', other: 'Other' }[m.topic] || m.topic %></span>
+      <strong><%= m.name %></strong>
+      <a href="mailto:<%= m.email %>?subject=<%= encodeURIComponent(`Re: your message to ${settings.site_name}`) %>"><%= m.email %></a>
+      <% if (m.username) { %><span class="muted small">account: <%= m.username %></span><% } %>
+      <span class="muted small"><%= u.timeAgo(m.created_at) %></span>
+    </div>
+    <p class="report-msg"><%= m.message %></p>
+    <form method="post" action="<%= A(`/messages/${m.id}`) %>" class="report-actions">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <a class="btn btn-sm btn-primary" href="mailto:<%= m.email %>?subject=<%= encodeURIComponent(`Re: your message to ${settings.site_name}`) %>">↩ Reply by email</a>
+      <% if (show === 'new') { %><button class="btn btn-sm" name="action" value="done">✓ Done</button><% } else { %><button class="btn btn-sm" name="action" value="reopen">↺ Back to new</button><% } %>
+      <button class="btn btn-sm btn-ghost" name="action" value="delete" onclick="return confirm('Delete this message?')">Delete</button>
+    </form>
+  </section>
+<% }) %>
+<%- include('partials/bottom') %>

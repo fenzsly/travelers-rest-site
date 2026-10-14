@@ -18,7 +18,10 @@
     <p>Bookmark <a href="/"><%= baseUrl.replace(/^https?:\/\//, '') %></a>, add novels to your library, or subscribe to the <a href="/rss.xml">RSS feed</a>.<% const links = (settings.social_links || '').split(/\s+/).filter((l) => /^https?:\/\//.test(l)); if (links.length) { %> You can also find us here: <% links.forEach((l, i) => { %><a href="<%= l %>" rel="me noopener" target="_blank"><%= l.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '') %></a><%= i < links.length - 1 ? ', ' : '' %><% }) %>.<% } %></p>
 
     <h2>Translations</h2>
-    <p><%= settings.footer_text %> If you are an author or rights holder and would like a work removed, please contact us and we will respond promptly.</p>
+    <p><%= settings.footer_text %> If you are an author or rights holder and would like a work removed, please <a href="/contact?topic=copyright">contact us</a> and we will respond promptly.</p>
+
+    <h2>Contact</h2>
+    <p>Questions, feedback, problems with the site or business enquiries: use the <a href="/contact">contact page</a><% if (settings.contact_email) { %> or email <a href="mailto:<%= settings.contact_email %>"><%= settings.contact_email %></a><% } %>.</p>
   </section>
 </main>
 <%- include('partials/footer') %>

@@ -4,6 +4,7 @@
   <h2>Branding</h2>
   <label class="field">Site name<input name="site_name" value="<%= settings.site_name %>" required maxlength="80"></label>
   <label class="field">Tagline<input name="site_tagline" value="<%= settings.site_tagline %>" maxlength="200"></label>
+  <label class="field">Contact email <span class="hint">Shown on the public Contact page and About page (optional: the contact form works without it, and messages arrive under 📨 Messages).</span><input name="contact_email" type="email" value="<%= settings.contact_email %>" maxlength="200" placeholder="hello@travellermtl.com"></label>
   <label class="field">Announcement banner<span class="hint">Shown at the top of every public page. Leave empty to hide.</span><input name="announcement" value="<%= settings.announcement %>" maxlength="1000" placeholder="e.g. Double releases this weekend!"></label>
   <label class="field">Footer text<textarea name="footer_text" rows="2"><%= settings.footer_text %></textarea></label>
   <label class="field">Default look for visitors

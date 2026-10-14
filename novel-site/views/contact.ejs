@@ -1,0 +1,40 @@
+<%- include('partials/head') %>
+<%- include('partials/header') %>
+<main class="wrap narrow-text">
+  <section class="block prose">
+    <h1 class="block-title page-h1">Contact <%= settings.site_name %></h1>
+    <% if (sent) { %>
+      <div class="flash flash-ok">✓ Thanks! Your message was sent. We usually reply within a few days.</div>
+    <% } %>
+    <p>Questions, feedback, a problem with the site, or a business enquiry? Send us a message below and we’ll reply by email.<% if (settings.contact_email) { %> You can also email us directly at <a href="mailto:<%= settings.contact_email %>"><strong><%= settings.contact_email %></strong></a>.<% } %></p>
+    <p class="muted small">Found a typo in a chapter? The quickest way is the <strong>🛠 Found an error?</strong> box under the chapter.</p>
+  </section>
+
+  <section class="block auth contact-form">
+    <h2 class="block-title">Send a message</h2>
+    <% if (error) { %><div class="flash flash-error"><%= error %></div><% } %>
+    <form method="post" action="/contact">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <div class="hp" aria-hidden="true"><label>Website <input name="website" tabindex="-1" autocomplete="off"></label></div>
+      <label>Your name <input name="name" required maxlength="80" value="<%= form.name %>" autocomplete="name"></label>
+      <label>Your email <span class="muted small">(so we can reply; never shown publicly)</span>
+        <input name="email" type="email" required maxlength="200" value="<%= form.email %>" autocomplete="email"></label>
+      <label>What is it about?
+        <select name="topic"><% Object.entries(topics).forEach(([k, v]) => { %><option value="<%= k %>" <%= form.topic === k ? 'selected' : '' %>><%= v %></option><% }) %></select></label>
+      <label>Message <textarea name="message" rows="6" required minlength="10" maxlength="5000"><%= form.message %></textarea></label>
+      <button class="btn btn-accent" type="submit">Send message</button>
+    </form>
+  </section>
+
+  <section class="block prose" id="copyright">
+    <h2 class="block-title">Copyright &amp; takedowns</h2>
+    <p>We respect authors’ and publishers’ rights. If you own the rights to a work on <%= settings.site_name %> and want it removed, choose <em>Copyright / takedown request</em> above and include:</p>
+    <ul>
+      <li>the title of the work and links to the pages concerned,</li>
+      <li>who you are and your relationship to the rights holder,</li>
+      <li>a statement that the information you give is accurate.</li>
+    </ul>
+    <p>We review every request and remove infringing content promptly, usually within a few days.</p>
+  </section>
+</main>
+<%- include('partials/footer') %>

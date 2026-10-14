@@ -23,6 +23,8 @@ const DEFAULTS = {
   site_alternate_names: 'Traveller MTL, TravellerMTL Novels, travellermtl.com',
   // Links to the site's profiles elsewhere (Discord, X, Reddit…), one per line. Helps Google recognise the brand.
   social_links: '',
+  // Shown on the Contact page (optional; the contact form works without it).
+  contact_email: '',
   // --- Email ---
   require_email: '0', // '1' = an email address is required to sign up
   // Guests must create a free account after reading this many chapters (0 = never). Stops scrapers.

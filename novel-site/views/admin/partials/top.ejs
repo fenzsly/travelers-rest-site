@@ -21,13 +21,13 @@
         ['/update-requests', '📣', 'Update requests'],
         ['/requests', '🙋', 'Novel requests'],
       ];
-      if (user.role === 'admin') nav.push(['/genres', '🏷', 'Genres'], ['/users', '👥', 'Users'], ['/comments', '💬', 'Comments & reviews'], ['/settings', '🛠', 'Site settings'], ['/seo', '🔍', 'SEO'], ['/email', '✉', 'Email & sign-ups'], ['/system', '🔄', 'Update & backup']);
+      if (user.role === 'admin') nav.push(['/genres', '🏷', 'Genres'], ['/users', '👥', 'Users'], ['/messages', '📨', 'Messages'], ['/comments', '💬', 'Comments & reviews'], ['/settings', '🛠', 'Site settings'], ['/seo', '🔍', 'SEO'], ['/email', '✉', 'Email & sign-ups'], ['/system', '🔄', 'Update & backup']);
       nav.push(['/security', '🔐', 'Security'], ['/account', '🔑', 'My account']);
       const current = path.replace(/\/$/, '') || '/';
       nav.forEach(([href, icon, label]) => {
         const full = A(href).replace(/\/$/, '') || '/';
         const active = href === '/' ? current === full : (current === full || (href === '/novels' && current.startsWith(full + '/') && !current.endsWith('/new') && !current.endsWith('/upload')) || (href === '/upload' && current.endsWith('/upload')) || (href === '/system' && current.startsWith(full))); %>
-        <a href="<%= A(href) %>" class="<%= active ? 'active' : '' %>"><span class="ico"><%= icon %></span><%= label %><% if (href === '/reports' && openReports) { %><span class="nav-badge"><%= openReports %></span><% } %><% if (href === '/update-requests' && waitingUpdates) { %><span class="nav-badge"><%= waitingUpdates %></span><% } %><% if (href === '/requests' && openRequests) { %><span class="nav-badge"><%= openRequests %></span><% } %></a>
+        <a href="<%= A(href) %>" class="<%= active ? 'active' : '' %>"><span class="ico"><%= icon %></span><%= label %><% if (href === '/reports' && openReports) { %><span class="nav-badge"><%= openReports %></span><% } %><% if (href === '/messages' && newMessages) { %><span class="nav-badge"><%= newMessages %></span><% } %><% if (href === '/update-requests' && waitingUpdates) { %><span class="nav-badge"><%= waitingUpdates %></span><% } %><% if (href === '/requests' && openRequests) { %><span class="nav-badge"><%= openRequests %></span><% } %></a>
       <% }) %>
     </nav>
     <div class="side-foot">

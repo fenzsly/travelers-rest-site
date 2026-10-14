@@ -650,6 +650,7 @@ router.get('/sitemap-novels.xml', (req, res) => {
 ${urlTag(`${base}/`, latest)}
 ${urlTag(`${base}/novels`, latest)}
 ${urlTag(`${base}/about`, null)}
+${urlTag(`${base}/contact`, null)}
 ${genres.map((g) => urlTag(`${base}/novels?genre=${g.slug}`, null)).join('\n')}
 ${novels.map((n) => urlTag(`${base}/novel/${n.slug}`, n.lastmod,
     n.cover ? `<image:image><image:loc>${xmlEscape(`${base}/uploads/covers/${n.cover}`)}</image:loc></image:image>` : '')).join('\n')}
@@ -673,6 +674,72 @@ ${rows.map((c) => urlTag(`${base}/novel/${c.slug}/c/${formatNumber(c.number)}`, 
 router.get('/ads.txt', (req, res) => {
   const m = String(getSettings().adsense_client || '').match(/^ca-pub-(\d{10,20})$/);
   res.type('text/plain').send(m ? `google.com, pub-${m[1]}, DIRECT, f08c47fec0942fa0\n` : '');
+});
+
+// ---------- Contact ----------
+const CONTACT_TOPICS = {
+  general: 'General question or feedback',
+  copyright: 'Copyright / takedown request',
+  bug: 'Problem with the site',
+  ads: 'Advertising or business',
+  other: 'Something else',
+};
+
+function contactPage(req, res, extra = {}) {
+  const s = getSettings();
+  // Signed timestamp: forms sent within a few seconds of loading are almost always bots.
+  req.session.contactAt = Date.now();
+  res.status(extra.error ? 400 : 200).render('contact', {
+    topics: CONTACT_TOPICS, error: null, sent: false,
+    form: { name: req.user?.username || '', email: '', topic: Object.hasOwn(CONTACT_TOPICS, String(req.query.topic)) ? req.query.topic : 'general', message: '' },
+    ...extra,
+    seo: {
+      title: `Contact ${s.site_name}`,
+      description: `Contact ${s.site_name}: questions, feedback, copyright and takedown requests, problems with the site or advertising.`,
+      canonical: `${res.locals.baseUrl}/contact`,
+      jsonld: { '@context': 'https://schema.org', '@type': 'ContactPage', name: `Contact ${s.site_name}`, url: `${res.locals.baseUrl}/contact` },
+    },
+  });
+}
+
+router.get('/contact', (req, res) => contactPage(req, res, { sent: req.query.sent === '1' }));
+
+router.post('/contact', async (req, res) => {
+  const form = {
+    name: String(req.body.name || '').replace(/\s+/g, ' ').trim().slice(0, 80),
+    email: String(req.body.email || '').trim().toLowerCase().slice(0, 200),
+    topic: Object.hasOwn(CONTACT_TOPICS, String(req.body.topic)) ? req.body.topic : 'other',
+    message: String(req.body.message || '').trim().slice(0, 5000),
+  };
+  const tooFast = !req.session.contactAt || Date.now() - req.session.contactAt < 3000;
+  if (req.body.website || tooFast) {
+    // Bot: pretend it worked.
+    return res.redirect('/contact?sent=1');
+  }
+  if (!form.name) return contactPage(req, res, { form, error: 'Please enter your name.' });
+  if (!mail.isValidEmail(form.email)) return contactPage(req, res, { form, error: 'Please enter a valid email address so we can reply.' });
+  if (form.message.length < 10) return contactPage(req, res, { form, error: 'Please write a little more in your message.' });
+  const sender = security.keyedHash(`contact|${req.ip}`).slice(0, 24);
+  const today = db.prepare('SELECT COUNT(*) AS n FROM contact_messages WHERE sender = ? AND created_at > unixepoch() - 86400').get(sender).n;
+  if (today >= 5) return contactPage(req, res, { form, error: 'You’ve sent several messages today. We’ll read them and get back to you. Please try again tomorrow.' });
+
+  db.prepare('INSERT INTO contact_messages (user_id, name, email, topic, message, page, sender) VALUES (?, ?, ?, ?, ?, ?, ?)')
+    .run(req.user?.id ?? null, form.name, form.email, form.topic, form.message, String(req.get('referer') || '').slice(0, 300), sender);
+
+  // Tell the admins by email (if email is set up); replying goes straight to the sender.
+  if (mail.isConfigured()) {
+    const admins = db.prepare("SELECT email FROM users WHERE role = 'admin' AND email IS NOT NULL").all();
+    const s = getSettings();
+    for (const { email } of admins) {
+      mail.send({
+        to: email, replyTo: form.email,
+        subject: `[${s.site_name}] ${CONTACT_TOPICS[form.topic]}: message from ${form.name}`,
+        text: `${form.name} <${form.email}> wrote via the contact page:\n\n${form.message}\n\n— Reply to this email to answer them, or see all messages in the admin panel.`,
+      }).catch((err) => console.error('Contact email failed:', err.message));
+    }
+  }
+  req.session.contactAt = null;
+  res.redirect('/contact?sent=1');
 });
 
 router.get('/about', (req, res) => {

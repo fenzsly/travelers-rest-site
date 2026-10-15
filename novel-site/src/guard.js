@@ -11,7 +11,7 @@ const CRAWLER_UA = /Googlebot|Google-InspectionTool|GoogleOther|Mediapartners-Go
 // AI-training and data-harvesting bots: told no in robots.txt and refused chapter/novel pages.
 const AI_UA = /GPTBot|ChatGPT-User|OAI-SearchBot|CCBot|ClaudeBot|Claude-Web|anthropic-ai|Bytespider|PerplexityBot|Perplexity-User|Amazonbot|meta-externalagent|meta-externalfetcher|FacebookBot|Diffbot|ImagesiftBot|omgili|Timpibot|cohere-ai|YouBot|AI2Bot|Scrapy|PetalBot|SemrushBot|AhrefsBot|MJ12bot|DotBot|DataForSeoBot|serpstatbot|SeekportBot|Barkrowler|BLEXBot|webzio|img2dataset|Kangaroo Bot|Sidetrade/i;
 const CRAWLER_HOSTS = /\.(googlebot\.com|google\.com|googleusercontent\.com|search\.msn\.com|applebot\.apple\.com|yandex\.(ru|net|com))$/i;
-const PER_MINUTE = 40;
+const PER_MINUTE = 40; // default; Admin → Anti-scraping → speed limit
 const DAY = 86400000;
 
 const crawlerCache = new Map(); // ip -> { ok, until }
@@ -20,12 +20,25 @@ const ipRate = new Map(); // ip -> [timestamps in the last minute]
 
 const userReads = new Map(); // user id -> { day, ids: Set, username }
 
+/** Is this anti-scraping feature switched on? (The master switch turns them all off.) */
+function enabled(key) {
+  const s = getSettings();
+  return s.anti_scraping !== '0' && s[key] !== '0';
+}
+
+function speedLimit() {
+  const n = Number(getSettings().chapter_speed_limit ?? PER_MINUTE);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+}
+
 function accountDailyLimit() {
+  if (getSettings().anti_scraping === '0') return 0;
   const n = Number(getSettings().account_daily_limit);
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
 }
 
 function guestLimit() {
+  if (getSettings().anti_scraping === '0') return 0;
   const n = Number(getSettings().guest_chapter_limit);
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
 }
@@ -72,6 +85,7 @@ async function isVerifiedCrawler(req) {
  * Returns null (allowed), { gate: 'signup', limit } or { gate: 'slow' }.
  */
 async function checkChapter(req, chapterId) {
+  if (getSettings().anti_scraping === '0') return null;
   if (await isVerifiedCrawler(req)) return null;
   const now = Date.now();
   const ip = req.ip || 'unknown';
@@ -80,7 +94,8 @@ async function checkChapter(req, chapterId) {
   const recent = (ipRate.get(ip) || []).filter((t) => t > now - 60000);
   recent.push(now);
   ipRate.set(ip, recent);
-  if (recent.length > PER_MINUTE) return { gate: 'slow' };
+  const perMinute = speedLimit();
+  if (perMinute && recent.length > perMinute) return { gate: 'slow' };
 
   // Accounts: a generous daily cap (people don't read hundreds of chapters a day; scripts do).
   if (req.user) {
@@ -107,7 +122,7 @@ async function checkChapter(req, chapterId) {
   let entry = ipReads.get(ip);
   if (!entry || entry.start < now - DAY) ipReads.set(ip, entry = { start: now, ids: new Set() });
   entry.ua = String(req.get('user-agent') || '').slice(0, 200);
-  if (!entry.ids.has(chapterId) && entry.ids.size >= Math.max(limit * 3, 60)) return { gate: 'signup', limit };
+  if (enabled('guest_ip_limit') && !entry.ids.has(chapterId) && entry.ids.size >= Math.max(limit * 3, 60)) return { gate: 'signup', limit };
   entry.ids.add(chapterId);
 
   if (isNew) req.session.guestReads = read + 1;
@@ -150,4 +165,4 @@ function busiestAccounts(limit = 10) {
 /** For tests. */
 function reset() { crawlerCache.clear(); ipReads.clear(); ipRate.clear(); userReads.clear(); }
 
-module.exports = { AI_UA, classify, busiestAccounts, accountDailyLimit, busiest, checkChapter, isVerifiedCrawler, isKnownCrawler, guestLimit, reset, PER_MINUTE };
+module.exports = { enabled, speedLimit, AI_UA, classify, busiestAccounts, accountDailyLimit, busiest, checkChapter, isVerifiedCrawler, isKnownCrawler, guestLimit, reset, PER_MINUTE };

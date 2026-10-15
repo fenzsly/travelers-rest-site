@@ -80,6 +80,7 @@ const TRAFFIC_FIELDS = ['chapter_loads', 'chapter_reads', 'bot_loads', 'gate_hit
 const bumpStmts = Object.fromEntries(TRAFFIC_FIELDS.map((f) => [f, db.prepare(`INSERT INTO traffic_daily (day, ${f}) VALUES (?, 1)
   ON CONFLICT(day) DO UPDATE SET ${f} = ${f} + 1`)]));
 function bump(field) {
+  if (!require('./guard').enabled('scraper_check')) return;
   try { bumpStmts[field].run(today()); } catch { /* never break a page over stats */ }
 }
 

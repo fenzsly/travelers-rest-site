@@ -265,7 +265,7 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
       readersToday: readerChart.at(-1).views,
       readersYesterday: readerChart.at(-2).views,
     };
-    const trafficToday = req.user.role === 'admin' ? require('./visitors').trafficByDay(1)[0] : null;
+    const trafficToday = req.user.role === 'admin' && require('./guard').enabled('scraper_check') ? require('./visitors').trafficByDay(1)[0] : null;
     const wantUpdates = require('./update-requests').leaderboard({ ownerId: req.user.role === 'admin' ? null : req.user.id, limit: 5 }).filter((n) => n.waiting);
     res.render('admin/dashboard', { stats, novels: novels.slice(0, 8), recent, scheduled, chart, top, wantUpdates, people, visitorChart, readerChart, trafficToday, update: system.status() });
   });
@@ -856,9 +856,7 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
       res.status(extra.error ? 400 : 200).render('admin/security', {
         me, backupLeft: JSON.parse(me.totp_backup || '[]').length, qr, secret: secret && secret.replace(/(.{4})/g, '$1 ').trim(),
         events, staff, labels: security.EVENT_LABELS, error: null, codes: null, flood: require('./ratelimit').status(),
-        traffic: isAdmin ? require('./visitors').trafficByDay(7) : null, busiest: isAdmin ? require('./guard').busiest(10) : [],
-        banned: isAdmin ? require('./ratelimit').bannedList() : [],
-        blocks: isAdmin ? require('./blocklist').list() : [], accounts: isAdmin ? require('./guard').busiestAccounts(10) : [],
+
         behindCloudflare: Boolean(req.get('cf-connecting-ip') || req.get('cf-ray')), ...extra,
       });
     };
@@ -919,15 +917,36 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
   });
 
   // ---------- Scraper protection (admin) ----------
-  app.post('/security/scrape-settings', adminOnly, (req, res) => {
-    const num = (v, max) => String(Math.min(max, Math.max(0, Math.floor(Number(v) || 0))));
-    saveSettings({
-      browser_check: req.body.browser_check ? '1' : '0',
-      guest_chapter_limit: num(req.body.guest_chapter_limit, 1000),
-      account_daily_limit: num(req.body.account_daily_limit, 10000),
+  app.get('/scraping', adminOnly, (req, res) => {
+    const guard = require('./guard');
+    res.render('admin/scraping', {
+      traffic: guard.enabled('scraper_check') ? require('./visitors').trafficByDay(7) : null,
+      busiest: guard.busiest(10), banned: require('./ratelimit').bannedList(),
+      blocks: require('./blocklist').list(), accounts: guard.busiestAccounts(10),
     });
-    req.flash('ok', 'Protection settings saved.');
-    res.redirect(A('/security#scrapers'));
+  });
+
+  app.post('/scraping', adminOnly, (req, res) => {
+    // The big button: master switch only, everything else stays as it was.
+    if (req.body.master === 'on' || req.body.master === 'off') {
+      saveSettings({ anti_scraping: req.body.master === 'on' ? '1' : '0' });
+      security.log(req, 'anti_scraping', { userId: req.user.id, username: req.user.username, detail: req.body.master });
+      req.flash(req.body.master === 'on' ? 'ok' : 'error', req.body.master === 'on' ? 'Anti-scraping protection is on.' : 'All anti-scraping protection is now OFF.');
+      return res.redirect(A('/scraping'));
+    }
+    const num = (v, min, max, fallback) => String(Math.min(max, Math.max(min, Math.floor(Number(v) || fallback))));
+    const flag = (k) => (req.body[k] ? '1' : '0');
+    saveSettings({
+      scraper_check: flag('scraper_check'),
+      browser_check: flag('browser_check'),
+      guest_ip_limit: flag('guest_ip_limit'),
+      block_ai_bots: flag('block_ai_bots'),
+      guest_chapter_limit: req.body.guest_limit_on ? num(req.body.guest_chapter_limit, 1, 1000, 40) : '0',
+      account_daily_limit: req.body.account_cap_on ? num(req.body.account_daily_limit, 1, 10000, 400) : '0',
+      chapter_speed_limit: req.body.speed_on ? num(req.body.chapter_speed_limit, 5, 1000, 40) : '0',
+    });
+    req.flash('ok', 'Anti-scraping settings saved.');
+    res.redirect(A('/scraping'));
   });
 
   app.post('/security/block', adminOnly, (req, res) => {
@@ -938,13 +957,13 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
     require('./blocklist').block(ip, hours, 'scraping', req.user.username);
     security.log(req, 'ip_blocked', { userId: req.user.id, username: req.user.username, detail: `${ip} for ${hours} h` });
     req.flash('ok', `Blocked ${ip} for ${hours >= 48 ? `${Math.round(hours / 24)} days` : `${hours} hours`}.`);
-    res.redirect(A('/security#scrapers'));
+    res.redirect(A('/scraping#scrapers'));
   });
 
   app.post('/security/unblock', adminOnly, (req, res) => {
     require('./blocklist').unblock(String(req.body.ip || ''));
     req.flash('ok', 'Unblocked.');
-    res.redirect(A('/security#scrapers'));
+    res.redirect(A('/scraping#scrapers'));
   });
 
   app.post('/security/settings', adminOnly, (req, res) => {
@@ -1008,7 +1027,6 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
     saveSettings({
       require_email: req.body.require_email ? '1' : '0',
       allow_registration: req.body.allow_registration ? '1' : '0',
-      guest_chapter_limit: String(Math.min(1000, Math.max(0, Math.floor(Number(req.body.guest_chapter_limit) || 0)))),
       smtp_host: String(req.body.smtp_host || '').trim().slice(0, 200),
       smtp_port: String(port),
       smtp_user: String(req.body.smtp_user || '').trim().slice(0, 200),

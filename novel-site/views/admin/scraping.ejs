@@ -1,0 +1,116 @@
+<%- include('partials/top', { title: '🕵️ Anti-scraping' }) %>
+<% const on = (k) => settings[k] !== '0'; const master = on('anti_scraping'); %>
+<form method="post" action="<%= A('/scraping') %>" class="card scrape-panel<%= master ? '' : ' is-off' %>">
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <div class="master-row">
+    <div>
+      <h2 style="margin: 0">Anti-scraping protection is <%= master ? 'ON' : 'OFF' %></h2>
+      <p class="hint" style="margin: 4px 0 0"><%= master ? 'Each protection below can also be switched on or off on its own.' : 'Everything below is paused: anyone can read and copy every chapter without limits.' %></p>
+    </div>
+    <button class="btn <%= master ? 'btn-danger' : 'btn-primary' %> btn-lg" name="master" value="<%= master ? 'off' : 'on' %>" type="submit"
+      <% if (master) { %>onclick="return confirm('Turn off ALL anti-scraping protection?')"<% } %>><%= master ? 'Turn everything off' : 'Turn protection on' %></button>
+  </div>
+
+  <div class="toggles">
+    <div class="toggle-row">
+      <label class="switch"><input type="checkbox" name="scraper_check" value="1" <%= on('scraper_check') ? 'checked' : '' %>><span></span> <strong>Scraper check</strong></label>
+      <p class="hint">Counts chapter downloads vs. chapters really opened in a browser, shows the report below and warns on the dashboard when a lot is never opened.</p>
+    </div>
+    <div class="toggle-row">
+      <label class="switch"><input type="checkbox" name="browser_check" value="1" <%= on('browser_check') ? 'checked' : '' %>><span></span> <strong>Browser check for guests</strong></label>
+      <p class="hint">Chapter text is only sent after the visitor’s browser runs the page (once per browser, about a second). Simple scraping scripts get no text. Google and Bing always get the full page.</p>
+    </div>
+    <div class="toggle-row">
+      <label class="switch"><input type="checkbox" name="guest_limit_on" value="1" <%= Number(settings.guest_chapter_limit) > 0 ? 'checked' : '' %>><span></span> <strong>Free-chapter limit for guests</strong></label>
+      <label class="inline-num">Guests must sign up after <input name="guest_chapter_limit" type="number" min="1" max="1000" value="<%= Number(settings.guest_chapter_limit) > 0 ? settings.guest_chapter_limit : 40 %>"> chapters</label>
+    </div>
+    <div class="toggle-row">
+      <label class="switch"><input type="checkbox" name="guest_ip_limit" value="1" <%= on('guest_ip_limit') ? 'checked' : '' %>><span></span> <strong>Also limit guests per internet address</strong></label>
+      <p class="hint">Catches scrapers that delete cookies: one address can read 3× the free chapters per day (at least 60), because families and schools share addresses.</p>
+    </div>
+    <div class="toggle-row">
+      <label class="switch"><input type="checkbox" name="account_cap_on" value="1" <%= Number(settings.account_daily_limit) > 0 ? 'checked' : '' %>><span></span> <strong>Daily limit for accounts</strong></label>
+      <label class="inline-num">At most <input name="account_daily_limit" type="number" min="1" max="10000" value="<%= Number(settings.account_daily_limit) > 0 ? settings.account_daily_limit : 400 %>"> chapters per account per day</label>
+    </div>
+    <div class="toggle-row">
+      <label class="switch"><input type="checkbox" name="speed_on" value="1" <%= Number(settings.chapter_speed_limit ?? 40) > 0 ? 'checked' : '' %>><span></span> <strong>Speed limit</strong></label>
+      <label class="inline-num">At most <input name="chapter_speed_limit" type="number" min="5" max="1000" value="<%= Number(settings.chapter_speed_limit) > 0 ? settings.chapter_speed_limit : 40 %>"> chapters per minute (anyone, even logged in)</label>
+    </div>
+    <div class="toggle-row">
+      <label class="switch"><input type="checkbox" name="block_ai_bots" value="1" <%= on('block_ai_bots') ? 'checked' : '' %>><span></span> <strong>Block AI &amp; data-harvesting bots</strong></label>
+      <p class="hint">GPTBot, CCBot, Bytespider, ClaudeBot, PerplexityBot, Amazonbot and others: disallowed in robots.txt and refused if they come anyway. Search engines are not affected.</p>
+    </div>
+  </div>
+  <p class="hint">Always on, whatever these switches say: the site-wide flood protection (Security page) and addresses you block below.</p>
+  <button class="btn btn-primary" type="submit">💾 Save</button>
+</form>
+
+<% if (!traffic) { %>
+<section class="card"><p class="muted">The scraper check is switched off<%= master ? '' : ' (with everything else)' %>, so no report is collected.</p>
+<% if (blocks.length) { %>
+  <h2 style="margin-top: 14px">Blocked addresses</h2>
+  <table class="table"><tbody><% blocks.forEach((b) => { %><tr><td><code><%= b.ip %></code></td><td class="small">until <%= new Date(b.until * 1000).toUTCString().slice(0, 22) %> UTC</td>
+    <td class="right"><form method="post" action="<%= A('/security/unblock') %>" class="inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="ip" value="<%= b.ip %>"><button class="btn btn-sm">Unblock</button></form></td></tr><% }) %></tbody></table>
+<% } %>
+</section>
+<% } %>
+<% if (traffic) { const t0 = traffic[0]; %>
+<section class="card" id="scrapers">
+  <h2>📊 Scraper check report</h2>
+  <p>Every chapter page sent to a browser is counted, and so is every chapter that actually opened in a real browser (the page checks in after a moment). Scraping scripts download pages without opening them, so <strong>a big gap means someone is copying chapters</strong>. Search engines and Google’s AdSense reviewer are counted separately and never trigger the alert. Only real browser opens count towards views, visitors and readers.</p>
+  <% if (t0.chapter_loads >= 20 && t0.pct >= 30) { %><div class="alert alert-error" style="display: block">⚠️ Today <%= t0.pct %>% of chapter downloads by browser-looking visitors were never opened: likely scraping. The browser check, free-chapter limit and speed limits are stopping it; block the worst addresses below.</div>
+  <% } else if (t0.chapter_loads >= 20) { %><div class="alert alert-ok" style="display: block">✅ Looks normal today: most chapter downloads were opened in real browsers.</div><% } %>
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>Day</th><th class="right" title="Chapter pages sent to browser-looking visitors">Downloaded</th><th class="right" title="Confirmed by the page running in a browser">Opened</th><th class="right">Never opened</th><th class="right" title="Google, Bing, AdSense reviewer and other declared bots or link previews">Search engines &amp; bots</th><th class="right" title="AI-training and data-harvesting bots turned away">AI bots refused</th><th class="right" title="Sign-up wall, daily limit or slow-down page shown instead of a chapter">Limited</th><th class="right" title="Requests refused for going too fast">Too fast</th></tr></thead>
+    <tbody>
+    <% traffic.forEach((r, i) => { %>
+      <tr class="<%= r.chapter_loads >= 20 && r.pct >= 30 ? 'log-bad' : '' %>"><td><%= i === 0 ? 'Today' : i === 1 ? 'Yesterday' : new Date(r.day + 'T00:00:00Z').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }) %></td>
+        <td class="right"><%= r.chapter_loads.toLocaleString('en-US') %></td><td class="right"><%= r.chapter_reads.toLocaleString('en-US') %></td>
+        <td class="right"><strong><%= r.unconfirmed.toLocaleString('en-US') %></strong><% if (r.chapter_loads) { %> <span class="muted small">(<%= r.pct %>%)</span><% } %></td>
+        <td class="right muted"><%= r.bot_loads.toLocaleString('en-US') %></td><td class="right"><%= (r.ai_blocked || 0).toLocaleString('en-US') %></td><td class="right"><%= r.gate_hits.toLocaleString('en-US') %></td><td class="right"><%= r.rate_limited.toLocaleString('en-US') %></td></tr>
+    <% }) %>
+    </tbody>
+  </table></div>
+  <p class="hint">A small gap (10–20%) is normal: people who close a tab instantly, browsers with JavaScript off. Before this update, Google’s AdSense reviewer was wrongly counted as “never opened”, so older days may look worse than they were.</p>
+
+
+
+  <h2 style="margin-top: 18px">Busiest guest addresses, last 24 hours</h2>
+  <% if (!busiest.length) { %><p class="muted">No guest chapter reads since the server last restarted.</p><% } else { %>
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>IP address</th><th class="right">Chapters</th><th>Browser / tool</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+    <% busiest.forEach((b) => { const ban = banned.find((x) => x.ip === b.ip); const blockedNow = blocks.find((x) => x.ip === b.ip); %>
+      <tr class="<%= b.blocked || ban || blockedNow ? 'log-bad' : '' %>"><td><code><%= b.ip %></code></td><td class="right"><%= b.chapters %></td>
+        <td class="small muted" title="<%= b.ua %>" style="max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap"><%= b.ua || '(none)' %></td>
+        <td class="small"><%= blockedNow ? '⛔ blocked by you' : ban ? `⛔ banned for flooding (${ban.minutesLeft} min)` : b.blocked ? '🚧 hit the limit' : b.chapters > 40 ? '⚠️ reading a lot' : 'normal' %></td>
+        <td class="right nowrap"><% if (!blockedNow) { %>
+          <form method="post" action="<%= A('/security/block') %>" class="inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="ip" value="<%= b.ip %>">
+            <button class="btn btn-sm" name="hours" value="24">Block 24h</button> <button class="btn btn-sm btn-danger" name="hours" value="168">Block 7 days</button></form>
+        <% } %></td></tr>
+    <% }) %>
+    </tbody>
+  </table></div>
+  <p class="hint">One address can be a whole school or phone network: block only clear scrapers (hundreds of chapters, or a tool name like python, curl or Go-http-client). Logged-in readers aren’t listed here. The admin panel always stays reachable from a blocked address.</p>
+  <% } %>
+
+  <% if (accounts.length) { %>
+  <h2 style="margin-top: 18px">Busiest accounts today</h2>
+  <table class="table">
+    <thead><tr><th>Account</th><th class="right">Chapters today</th><th>Status</th></tr></thead>
+    <tbody><% accounts.forEach((a) => { %><tr class="<%= a.capped ? 'log-bad' : '' %>"><td><%= a.username %></td><td class="right"><%= a.chapters %></td><td class="small"><%= a.capped ? '🌙 reached the daily limit' : 'normal' %></td></tr><% }) %></tbody>
+  </table>
+  <p class="hint">To stop an account for good, delete it or change its role on the <a href="<%= A('/users') %>">Users</a> page.</p>
+  <% } %>
+
+  <% if (blocks.length) { %>
+  <h2 style="margin-top: 18px">Blocked addresses</h2>
+  <table class="table">
+    <thead><tr><th>IP address</th><th>Until</th><th>By</th><th></th></tr></thead>
+    <tbody><% blocks.forEach((b) => { %><tr><td><code><%= b.ip %></code></td><td class="small"><%= new Date(b.until * 1000).toUTCString().slice(0, 22) %> UTC</td><td class="small muted"><%= b.created_by %></td>
+      <td class="right"><form method="post" action="<%= A('/security/unblock') %>" class="inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="ip" value="<%= b.ip %>"><button class="btn btn-sm">Unblock</button></form></td></tr><% }) %></tbody>
+  </table>
+  <% } %>
+</section>
+<% } %>
+<%- include('partials/bottom') %>

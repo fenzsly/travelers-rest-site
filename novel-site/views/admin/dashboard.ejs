@@ -36,7 +36,7 @@
 </div>
 
 <% if (trafficToday && trafficToday.chapter_loads >= 20 && trafficToday.pct >= 30) { %>
-<div class="alert alert-error" style="display: block">🕵️ <strong>Possible scraping today:</strong> <%= trafficToday.pct %>% of chapter downloads (<%= trafficToday.unconfirmed.toLocaleString('en-US') %>) were never opened in a browser. They don’t count in your views or visitors. <a href="<%= A('/security#scrapers') %>">See the scraper check →</a></div>
+<div class="alert alert-error" style="display: block">🕵️ <strong>Possible scraping today:</strong> <%= trafficToday.pct %>% of chapter downloads (<%= trafficToday.unconfirmed.toLocaleString('en-US') %>) were never opened in a browser. They don’t count in your views or visitors. <a href="<%= A('/scraping#scrapers') %>">See the scraper check →</a></div>
 <% } %>
 <% if (visitorChart) { %>
 <div class="grid-2">

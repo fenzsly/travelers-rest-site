@@ -40,7 +40,7 @@ function xmlEscape(s) {
 
 // AI-training / data-harvesting bots get nothing but robots.txt (which tells them to stay away).
 router.use((req, res, next) => {
-  if (req.path === '/robots.txt' || guard.classify(req) !== 'ai') return next();
+  if (req.path === '/robots.txt' || !guard.enabled('block_ai_bots') || guard.classify(req) !== 'ai') return next();
   visitors.bump('ai_blocked');
   res.status(403).type('text/plain').send('Automated collection of this site’s content is not allowed.');
 });
@@ -353,7 +353,7 @@ router.get('/novel/:slug/c/:num', loadNovel, async (req, res, next) => {
   // Browser check: a guest's first chapter text is only sent once their browser has run the page's script
   // (real search engines, checked by DNS, always get the full page).
   const verifiedCrawler = kind === 'crawler' && await guard.isVerifiedCrawler(req);
-  const pendingText = !req.user && !req.session.human && !verifiedCrawler && getSettings().browser_check === '1';
+  const pendingText = !req.user && !req.session.human && !verifiedCrawler && guard.enabled('browser_check');
   if (pendingText) {
     req.session.hc = require('node:crypto').randomBytes(12).toString('hex');
     req.session.hcAt = Date.now();
@@ -653,8 +653,8 @@ router.get('/robots.txt', (req, res) => {
   const aiBots = ['GPTBot', 'ChatGPT-User', 'OAI-SearchBot', 'CCBot', 'ClaudeBot', 'Claude-Web', 'anthropic-ai', 'Google-Extended', 'Applebot-Extended',
     'Bytespider', 'PerplexityBot', 'Amazonbot', 'meta-externalagent', 'FacebookBot', 'Diffbot', 'cohere-ai', 'Omgilibot', 'ImagesiftBot', 'Timpibot', 'AI2Bot', 'YouBot'];
   res.type('text/plain').send([
-    '# AI training and data-harvesting bots are not allowed to collect this site’s content.',
-    ...aiBots.flatMap((b) => [`User-agent: ${b}`, 'Disallow: /', '']),
+    ...(guard.enabled('block_ai_bots') ? ['# AI training and data-harvesting bots are not allowed to collect this site’s content.'] : []),
+    ...(guard.enabled('block_ai_bots') ? aiBots.flatMap((b) => [`User-agent: ${b}`, 'Disallow: /', '']) : []),
     'User-agent: *',
     'Disallow: /admin', 'Disallow: /api/', 'Disallow: /login', 'Disallow: /register', 'Disallow: /library',
     'Disallow: /history', 'Disallow: /random', 'Disallow: /search', 'Disallow: /*?q=', 'Disallow: /*&q=',

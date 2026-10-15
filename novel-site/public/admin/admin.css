@@ -332,3 +332,13 @@ button.quick-card { font: inherit; text-align: left; cursor: pointer; }
 .bars-people .bar-fill { background: #14a37f; }
 .table-wrap { overflow-x: auto; }
 .scrape-settings .switch { align-items: flex-start; }
+
+/* Anti-scraping page */
+.master-row { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; padding-bottom: 14px; margin-bottom: 14px; border-bottom: 1px solid var(--border); }
+.scrape-panel.is-off .toggles { opacity: .45; pointer-events: none; }
+.toggles { display: grid; gap: 14px; margin-bottom: 14px; }
+.toggle-row .switch { margin-bottom: 2px; }
+.toggle-row .hint { margin: 0 0 0 54px; }
+.inline-num { display: block; margin-left: 54px; font-size: 13.5px; }
+.inline-num input { width: 90px !important; display: inline-block; margin: 0 4px; padding: 5px 8px !important; }
+@media (max-width: 760px) { .toggle-row .hint, .inline-num { margin-left: 0; } }

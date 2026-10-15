@@ -21,7 +21,7 @@
         ['/update-requests', '📣', 'Update requests'],
         ['/requests', '🙋', 'Novel requests'],
       ];
-      if (user.role === 'admin') nav.push(['/genres', '🏷', 'Genres'], ['/users', '👥', 'Users'], ['/messages', '📨', 'Messages'], ['/comments', '💬', 'Comments & reviews'], ['/settings', '🛠', 'Site settings'], ['/seo', '🔍', 'SEO'], ['/email', '✉', 'Email & sign-ups'], ['/system', '🔄', 'Update & backup']);
+      if (user.role === 'admin') nav.push(['/genres', '🏷', 'Genres'], ['/users', '👥', 'Users'], ['/messages', '📨', 'Messages'], ['/scraping', '🕵️', 'Anti-scraping'], ['/comments', '💬', 'Comments & reviews'], ['/settings', '🛠', 'Site settings'], ['/seo', '🔍', 'SEO'], ['/email', '✉', 'Email & sign-ups'], ['/system', '🔄', 'Update & backup']);
       nav.push(['/security', '🔐', 'Security'], ['/account', '🔑', 'My account']);
       const current = path.replace(/\/$/, '') || '/';
       nav.forEach(([href, icon, label]) => {

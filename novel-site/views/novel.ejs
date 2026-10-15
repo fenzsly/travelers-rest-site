@@ -113,7 +113,7 @@
             <article class="review">
               <div class="review-head">
                 <a class="avatar" href="/user/<%= encodeURIComponent(r.username) %>" style="--h: <%= [...r.username].reduce((a, c) => a + c.charCodeAt(0), 0) % 360 %>"><%= r.username[0].toUpperCase() %></a>
-                <div><a href="/user/<%= encodeURIComponent(r.username) %>"><strong><%= r.username %></strong></a><% if (r.role !== 'reader') { %> <span class="badge badge-role"><%= r.role %></span><% } %>
+                <div><a href="/user/<%= encodeURIComponent(r.username) %>"><strong><%= r.username %></strong></a> <%- include('partials/badges', { role: r.role, titles: titles[r.user_id] }) %>
                   <div class="muted small"><% if (r.score) { %><span class="stars"><%= '★'.repeat(r.score) %><%= '☆'.repeat(5 - r.score) %></span> · <% } %><%= u.timeAgo(r.updated_at) %></div></div>
                 <% if (user && (user.id === r.user_id || user.role === 'admin' || novel.owner_id === user.id)) { %>
                   <form method="post" action="/review/<%= r.id %>/delete" class="inline review-del" onsubmit="return confirm('Delete this review?')"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="linklike small">delete</button></form>

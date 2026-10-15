@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS users (
   id            INTEGER PRIMARY KEY,
   username      TEXT NOT NULL UNIQUE COLLATE NOCASE,
   password_hash TEXT NOT NULL,
-  role          TEXT NOT NULL DEFAULT 'reader' CHECK (role IN ('reader','translator','admin')),
+  role          TEXT NOT NULL DEFAULT 'reader' CHECK (role IN ('reader','supporter','translator','admin')),
   created_at    INTEGER NOT NULL DEFAULT (unixepoch())
 );
 
@@ -367,6 +367,36 @@ function tx(fn) {
   } catch (err) {
     db.exec('ROLLBACK');
     throw err;
+  }
+}
+
+// Supporters (no ads): older databases only allow reader/translator/admin in users.role, so rebuild the table once
+// with the wider rule (SQLite can't change a CHECK in place). Same columns, same data, same ids.
+{
+  const row = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'users'").get();
+  if (row && !row.sql.includes("'supporter'")) {
+    const sql = row.sql
+      .replace(/^CREATE TABLE "?users"?/, 'CREATE TABLE users_new')
+      .replace(/role IN \('reader',\s*'translator',\s*'admin'\)/, "role IN ('reader','supporter','translator','admin')");
+    if (!sql.includes("'supporter'")) throw new Error('Could not update the users table for the Supporter role.');
+    const indexes = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'index' AND tbl_name = 'users' AND sql IS NOT NULL").all().map((r) => r.sql);
+    db.exec('PRAGMA foreign_keys = OFF');
+    try {
+      db.exec('BEGIN');
+      db.exec(sql);
+      const cols = db.prepare('PRAGMA table_info(users)').all().map((c) => `"${c.name}"`).join(', ');
+      db.exec(`INSERT INTO users_new (${cols}) SELECT ${cols} FROM users`);
+      db.exec('DROP TABLE users');
+      db.exec('ALTER TABLE users_new RENAME TO users');
+      for (const ix of indexes) db.exec(ix);
+      if (db.prepare('PRAGMA foreign_key_check').all().length) throw new Error('foreign key check failed');
+      db.exec('COMMIT');
+    } catch (err) {
+      db.exec('ROLLBACK');
+      throw err;
+    } finally {
+      db.exec('PRAGMA foreign_keys = ON');
+    }
   }
 }
 

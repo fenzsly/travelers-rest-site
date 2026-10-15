@@ -1,0 +1,56 @@
+<%- include('partials/top', { title: 'Titles' }) %>
+<section class="card">
+  <h2>🎖 Create a title</h2>
+  <p class="hint" style="margin-top: 0">Titles are badges shown next to someone’s name in comments, reviews and on their profile, like <span class="title-chip" style="--b: #e0a526">🏆 Top Reader</span> or <span class="title-chip" style="--b: #2f9e6e">🧪 Beta Reader</span>. They’re just for show: they don’t give any extra access. A person can have as many as you like.</p>
+  <form method="post" action="<%= A('/titles/new') %>" class="title-form">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <label>Icon<input name="icon" class="title-icon" placeholder="🏆" maxlength="8" aria-label="Icon (an emoji)"></label>
+    <label class="grow">Name<input name="name" placeholder="e.g. Top Reader" maxlength="40" required></label>
+    <label>Colour<input type="color" name="color" value="#8b5cf6"></label>
+    <label class="grow">Description <span class="muted small">(shown on hover)</span><input name="description" placeholder="Optional" maxlength="300"></label>
+    <button class="btn btn-primary" type="submit">➕ Create title</button>
+  </form>
+  <p class="hint">Icon: paste any emoji (on a Mac press <kbd>Ctrl</kbd>+<kbd>⌘</kbd>+<kbd>Space</kbd>, on Windows <kbd>Win</kbd>+<kbd>.</kbd>). Ideas: <% ['🏆','⭐','🔥','💎','👑','🧪','📖','🐉','⚔️','🌙','🎨','🦊','🍵','🧠','💬','🎉'].forEach((e) => { %><button type="button" class="emoji-pick" data-emoji="<%= e %>"><%= e %></button><% }) %></p>
+</section>
+
+<% if (!list.length) { %>
+<div class="card"><p class="muted">No titles yet. Create one above.</p></div>
+<% } %>
+<% list.forEach((t) => { %>
+<section class="card" id="title-<%= t.id %>">
+  <h2 style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap"><span class="title-chip big" style="--b: <%= t.color %>"><%= t.icon %> <%= t.name %></span> <span class="muted small" style="font-weight: 400"><%= t.members %> <%= t.members === 1 ? 'person' : 'people' %></span></h2>
+  <form method="post" action="<%= A(`/titles/${t.id}`) %>" class="title-form">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <label>Icon<input name="icon" class="title-icon" value="<%= t.icon %>" maxlength="8"></label>
+    <label class="grow">Name<input name="name" value="<%= t.name %>" maxlength="40" required></label>
+    <label>Colour<input type="color" name="color" value="<%= t.color %>"></label>
+    <label class="grow">Description<input name="description" value="<%= t.description %>" maxlength="300"></label>
+    <label>Order<input type="number" name="position" value="<%= t.position %>" min="0" max="9999" style="width: 80px" title="Lower numbers are shown first"></label>
+    <button class="btn" name="action" value="save" type="submit">Save</button>
+    <button class="btn btn-danger" name="action" value="delete" type="submit" formnovalidate onclick="return confirm('Delete the title “<%= t.name.replace(/['"\\]/g, '') %>”? It will be taken away from everyone who has it.')">Delete</button>
+  </form>
+  <div class="title-people">
+    <% t.people.forEach((p) => { %>
+      <form method="post" action="<%= A(`/titles/${t.id}`) %>" class="person-chip">
+        <input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="user_id" value="<%= p.id %>">
+        <a href="<%= site(`/user/${encodeURIComponent(p.username)}`) %>" target="_blank" rel="noopener"><%= p.username %></a>
+        <button class="chip-x" name="action" value="take" title="Take this title away from <%= p.username %>" aria-label="Remove">✕</button>
+      </form>
+    <% }) %>
+    <form method="post" action="<%= A(`/titles/${t.id}`) %>" class="inline-form give-form">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <input name="usernames" placeholder="Give to… (usernames, comma-separated)" required>
+      <button class="btn btn-sm btn-primary" name="action" value="give" type="submit">Give</button>
+    </form>
+  </div>
+</section>
+<% }) %>
+<script>
+  // Emoji ideas fill the icon box of the "create" form.
+  document.querySelectorAll('.emoji-pick').forEach((b) => b.addEventListener('click', () => {
+    const input = document.querySelector('.title-form .title-icon');
+    input.value = b.dataset.emoji;
+    input.focus();
+  }));
+</script>
+<%- include('partials/bottom') %>

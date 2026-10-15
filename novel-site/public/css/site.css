@@ -577,3 +577,7 @@ body { overflow-x: hidden; }
 /* Contact page */
 .hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
 .prose ul { padding-left: 20px; }
+
+/* Supporter role and titles (title colours are picked in the admin panel) */
+.badge-supporter { background: color-mix(in srgb, #e0a526 18%, transparent); color: #b7791f; }
+.badge-title { background: color-mix(in srgb, var(--b, #8b5cf6) 15%, transparent); color: color-mix(in srgb, var(--b, #8b5cf6) 70%, var(--text)); border: 1px solid color-mix(in srgb, var(--b, #8b5cf6) 35%, transparent); white-space: nowrap; }

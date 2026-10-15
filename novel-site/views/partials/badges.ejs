@@ -1,0 +1,4 @@
+<%# Badges next to a name: their role (translator, supporter…) and any titles. include('partials/badges', { role, titles }) %>
+<% const roleBadge = { admin: ['🛡', 'Admin'], translator: ['✍', 'Translator'], supporter: ['💎', 'Supporter'] }[locals.role]; %>
+<% if (roleBadge) { %><span class="badge badge-role badge-<%= role %>"><%= roleBadge[0] %> <%= roleBadge[1] %></span> <% } %>
+<% (locals.titles || []).forEach((t) => { %><span class="badge badge-title" style="--b: <%= t.color %>"<% if (t.description) { %> title="<%= t.description %>"<% } %>><% if (t.icon) { %><span aria-hidden="true"><%= t.icon %></span> <% } %><%= t.name %></span> <% }) %>

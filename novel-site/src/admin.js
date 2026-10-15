@@ -7,7 +7,7 @@ const express = require('express');
 const multer = require('multer');
 const { db, tx } = require('./db');
 const { baseApp, errorHandlers, assetUrl, UPLOAD_DIR } = require('./common');
-const { verifyCsrf, requireRole, canManageNovel, hashPassword } = require('./auth');
+const { verifyCsrf, requireRole, canManageNovel, hashPassword, isStaff } = require('./auth');
 const { q, ADMIN_NOVEL_COLUMNS: NOVEL_COLUMNS, VISIBLE, RELEASED, setNovelGenres, cleanGenreName, createGenre, login } = require('./queries');
 const system = require('./system');
 const security = require('./security');
@@ -45,7 +45,7 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
 
   // ---------- Login (independent from the public site) ----------
   app.get('/login', (req, res) => {
-    if (req.user && req.user.role !== 'reader') return res.redirect(A('/'));
+    if (isStaff(req.user)) return res.redirect(A('/'));
     const firstRun = q.userCount.get().n === 0;
     res.render('admin/login', { error: null, firstRun, username: '' });
   });
@@ -71,7 +71,7 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
           throw err;
         }
         const user = db.prepare('SELECT role FROM users WHERE id = ?').get(uid);
-        if (user.role === 'reader') throw fail(403, 'This account does not have access to the admin panel.');
+        if (!isStaff(user)) throw fail(403, 'This account does not have access to the admin panel.');
         security.clearFailures(username);
         security.startSession(req, uid);
         security.log(req, 'login', { userId: uid, username, detail: 'admin panel' });
@@ -86,13 +86,13 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
   const MFA_MAX_AGE = 7 * 86400 * 1000; // ask for a fresh code at least once a week
 
   app.get('/2fa', (req, res) => {
-    if (!req.user || req.user.role === 'reader') return res.redirect(A('/login'));
+    if (!isStaff(req.user)) return res.redirect(A('/login'));
     if (!req.user.totp_enabled) return res.redirect(A('/'));
     res.render('admin/2fa', { error: null });
   });
 
   app.post('/2fa', verifyCsrf, async (req, res) => {
-    if (!req.user || req.user.role === 'reader') return res.redirect(A('/login'));
+    if (!isStaff(req.user)) return res.redirect(A('/login'));
     try {
       security.checkLock(req, `2fa:${req.user.username}`);
     } catch (err) {
@@ -144,7 +144,7 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
 
   // Everything below requires staff access.
   app.use(async (req, res, next) => {
-    if (!req.user || req.user.role === 'reader') return res.redirect(A('/login'));
+    if (!isStaff(req.user)) return res.redirect(A('/login'));
     // Two-factor: a fresh code is needed for the admin panel (at least once a week).
     if (req.user.totp_enabled) {
       if (!req.session.mfa || !(Date.now() - (req.session.mfaAt || 0) < MFA_MAX_AGE)) return res.redirect(A('/2fa'));
@@ -631,6 +631,52 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
     res.json(result);
   });
 
+  // ---------- Titles: cosmetic badges next to people's names (admin) ----------
+  const titles = require('./titles');
+
+  app.get('/titles', adminOnly, (req, res) => {
+    const list = titles.listTitles().map((t) => ({ ...t, people: titles.membersOf(t.id) }));
+    res.render('admin/titles', { list });
+  });
+
+  app.post('/titles/new', adminOnly, (req, res) => {
+    const id = titles.saveTitle(null, req.body);
+    req.flash('ok', `Title “${titles.getTitle(id).name}” created. Give it to people below.`);
+    res.redirect(A(`/titles#title-${id}`));
+  });
+
+  app.post('/titles/:tid', adminOnly, (req, res) => {
+    const t = titles.getTitle(req.params.tid);
+    if (!t) throw fail(404, 'Title not found.');
+    const back = A(`/titles#title-${t.id}`);
+    const action = req.body.action;
+    if (action === 'delete') {
+      titles.deleteTitle(t.id);
+      req.flash('ok', `Deleted the title “${t.name}”.`);
+      return res.redirect(A('/titles'));
+    }
+    if (action === 'save') {
+      titles.saveTitle(t.id, req.body);
+      req.flash('ok', 'Title saved.');
+    } else if (action === 'give') {
+      const names = String(req.body.usernames || '').split(/[\s,]+/).map((n) => n.replace(/^@/, '')).filter(Boolean).slice(0, 50);
+      const found = [];
+      const missing = [];
+      for (const name of names) {
+        const u = q.userByName.get(name);
+        if (!u) { missing.push(name); continue; }
+        db.prepare('INSERT OR IGNORE INTO user_titles (user_id, title_id) VALUES (?, ?)').run(u.id, t.id);
+        found.push(u.username);
+      }
+      const msg = [found.length ? `Gave “${t.name}” to ${found.join(', ')}.` : '', missing.length ? `No account named ${missing.join(', ')}.` : ''].filter(Boolean).join(' ');
+      req.flash(missing.length ? 'error' : 'ok', msg || 'Type at least one username.');
+    } else if (action === 'take') {
+      db.prepare('DELETE FROM user_titles WHERE user_id = ? AND title_id = ?').run(Number(req.body.user_id), t.id);
+      req.flash('ok', `Took “${t.name}” away.`);
+    }
+    res.redirect(back);
+  });
+
   // ---------- Genres (admin) ----------
   app.get('/genres', adminOnly, (req, res) => {
     res.render('admin/genres', { genres: q.allGenres.all() });
@@ -781,12 +827,12 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
   app.get('/users', adminOnly, (req, res) => {
     const users = db.prepare(`SELECT u.*, (SELECT COUNT(*) FROM novels n WHERE n.owner_id = u.id) AS novel_count,
       (SELECT COUNT(*) FROM comments c WHERE c.user_id = u.id) AS comment_count FROM users u ORDER BY u.created_at DESC`).all();
-    res.render('admin/users', { users, newPassword: null });
+    res.render('admin/users', { users, newPassword: null, titles: require('./titles').titlesFor(users.map((x) => x.id)) });
   });
 
   app.post('/users/new', adminOnly, (req, res) => {
     const username = String(req.body.username || '').trim();
-    const role = ['reader', 'translator', 'admin'].includes(req.body.role) ? req.body.role : 'translator';
+    const role = ['reader', 'supporter', 'translator', 'admin'].includes(req.body.role) ? req.body.role : 'translator';
     if (role === 'admin' && !req.user.is_owner) throw fail(403, 'Only the site owner can create admin accounts.');
     if (!/^[A-Za-z0-9_.-]{3,24}$/.test(username)) throw fail(400, 'Username must be 3–24 characters: letters, numbers, _ . -');
     if (q.userByName.get(username)) throw fail(400, 'That username is taken.');
@@ -809,7 +855,7 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
     if (!req.user.is_owner && (target.role === 'admin' || req.body.role === 'admin')) {
       throw fail(403, 'Only the site owner can change or remove admin accounts.');
     }
-    if (action === 'role' && ['reader', 'translator', 'admin'].includes(req.body.role)) {
+    if (action === 'role' && ['reader', 'supporter', 'translator', 'admin'].includes(req.body.role)) {
       db.prepare('UPDATE users SET role = ? WHERE id = ?').run(req.body.role, uid);
       security.bumpTokenVersion(uid); // they log in again with their new permissions
       security.log(req, 'role_changed', { userId: uid, username: target.username, detail: `${target.role} → ${req.body.role} by ${req.user.username}` });
@@ -843,7 +889,7 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
     const events = db.prepare(`SELECT * FROM security_log ${isAdmin ? '' : 'WHERE user_id = ?'} ORDER BY id DESC LIMIT 150`).all(...(isAdmin ? [] : [req.user.id]));
     const staff = isAdmin ? db.prepare(`SELECT id, username, role, is_owner, totp_enabled, email,
         (SELECT MAX(created_at) FROM security_log l WHERE l.user_id = u.id AND l.event IN ('login', 'admin_login')) AS last_login
-      FROM users u WHERE role != 'reader' ORDER BY is_owner DESC, role, username`).all() : [];
+      FROM users u WHERE role IN ('translator', 'admin') ORDER BY is_owner DESC, role, username`).all() : [];
     const render = async () => {
       let qr = null;
       let secret = null;

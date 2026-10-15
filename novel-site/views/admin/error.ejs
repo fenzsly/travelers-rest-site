@@ -1,4 +1,4 @@
-<% if (user && user.role !== 'reader') { %>
+<% if (user && ['translator', 'admin'].includes(user.role)) { %>
 <%- include('partials/top', { title: status === 404 ? 'Not found' : 'Something went wrong' }) %>
 <div class="card"><p><%= message %></p><p><a class="btn" href="javascript:history.back()">← Go back</a> <a class="btn" href="<%= A('/') %>">Dashboard</a></p></div>
 <%- include('partials/bottom') %>

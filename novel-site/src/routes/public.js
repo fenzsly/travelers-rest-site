@@ -9,6 +9,7 @@ const guard = require('../guard');
 const notifications = require('../notifications');
 const security = require('../security');
 const visitors = require('../visitors');
+const { titlesFor } = require('../titles');
 const { hashPassword, verifyPassword } = require('../auth');
 const { verifyCsrf, requireLogin } = require('../auth');
 const { getSettings } = require('../settings');
@@ -241,6 +242,7 @@ router.get('/novel/:slug', loadNovel, (req, res) => {
   const updateStatus = updateRequests.status(novel.id, req.user?.id);
   res.render('novel', {
     novel, chapters, pager, order, first, latest, upcoming, upcomingCount, bookmark, myRating, words, readers, rank, genres, similar, updateStatus,
+    titles: titlesFor(reviews.map((r) => r.user_id)),
     dist, reviews, myReview, listCounts, tab: req.query.tab === 'reviews' ? 'reviews' : 'chapters',
     seo: {
       title: novel.seo_title || `${novel.title} Novel — Read Online${novel.chapter_count ? ` (${novel.chapter_count} Chapters)` : ''} | ${getSettings().site_name}`,
@@ -387,6 +389,7 @@ router.get('/novel/:slug/c/:num', loadNovel, async (req, res, next) => {
   const base = `${res.locals.baseUrl}/novel/${novel.slug}/c/`;
   res.render('reader', {
     novel, chapter, prev, next: next_, upcoming, position, bookmarked, comments, reactionCounts, myReaction, pendingText, humanChallenge: req.session.hc,
+    titles: titlesFor(allComments.map((c) => c.user_id)),
     seo: {
       title: `${novel.title} ${u.chapterLabel(chapter)} | ${getSettings().site_name}`,
       ogTitle: `${novel.title} — ${u.chapterLabel(chapter)}`,
@@ -602,7 +605,7 @@ router.get('/user/:name', (req, res, next) => {
   const counts = db.prepare(`SELECT (SELECT COUNT(*) FROM comments WHERE user_id = ?) AS comments,
     (SELECT COUNT(*) FROM ratings WHERE user_id = ?) AS ratings, (SELECT COUNT(*) FROM reviews WHERE user_id = ?) AS reviews`).get(profile.id, profile.id, profile.id);
   res.render('user', {
-    profile, translated, lists, reading, reviews, comments, counts,
+    profile, translated, lists, reading, reviews, comments, counts, titles: titlesFor([profile.id])[profile.id] || [],
     seo: {
       title: `${profile.username}${translated.length ? (translated.every((n) => n.is_original) ? ' — Author' : ' — Translator') : ''} | ${getSettings().site_name}`,
       description: translated.length ? `Novels ${translated.every((n) => n.is_original) ? 'written' : 'translated'} by ${profile.username}: ${translated.map((n) => n.title).slice(0, 5).join(', ')}.` : undefined,

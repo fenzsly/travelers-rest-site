@@ -151,7 +151,7 @@
     <% } %>
     <% const commentHtml = (c, root) => { %>
         <li class="comment" id="c<%= c.id %>">
-          <div class="comment-head"><a href="/user/<%= encodeURIComponent(c.username) %>"><strong><%= c.username %></strong></a><% if (c.role !== 'reader') { %> <span class="badge badge-role"><%= c.role %></span><% } %> <span class="muted small"><%= u.timeAgo(c.created_at) %></span></div>
+          <div class="comment-head"><a href="/user/<%= encodeURIComponent(c.username) %>"><strong><%= c.username %></strong></a> <%- include('partials/badges', { role: c.role, titles: titles[c.user_id] }) %> <span class="muted small"><%= u.timeAgo(c.created_at) %></span></div>
           <div class="comment-body"><%= c.body %></div>
           <div class="comment-actions">
             <% if (user) { %><a class="small" href="?reply=<%= c.id %>#thread-<%= root.id %>" rel="nofollow" data-reply="<%= c.id %>" data-root="<%= root.id %>" data-name="<%= c.username %>">↩ Reply</a>

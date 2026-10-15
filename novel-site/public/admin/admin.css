@@ -342,3 +342,23 @@ button.quick-card { font: inherit; text-align: left; cursor: pointer; }
 .inline-num { display: block; margin-left: 54px; font-size: 13.5px; }
 .inline-num input { width: 90px !important; display: inline-block; margin: 0 4px; padding: 5px 8px !important; }
 @media (max-width: 760px) { .toggle-row .hint, .inline-num { margin-left: 0; } }
+
+/* Titles (cosmetic badges) */
+.pill-supporter { background: #fef3c7; color: #92400e; }
+.title-chip { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; padding: 1px 9px; border-radius: 99px; text-decoration: none;
+  background: color-mix(in srgb, var(--b, #8b5cf6) 15%, transparent); color: color-mix(in srgb, var(--b, #8b5cf6) 75%, black); border: 1px solid color-mix(in srgb, var(--b, #8b5cf6) 35%, transparent); white-space: nowrap; }
+.title-chip.big { font-size: 15px; padding: 3px 12px; }
+.title-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.title-form { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+.title-form label { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; font-weight: 600; }
+.title-form label.grow { flex: 1 1 180px; }
+.title-form .title-icon { width: 64px; text-align: center; font-size: 18px; }
+.title-form input[type=color] { width: 52px; height: 38px; padding: 2px; }
+.title-people { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border, #e5e7eb); }
+.person-chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 6px 3px 10px; border-radius: 99px; background: var(--primary-soft); font-size: 13px; }
+.chip-x { border: 0; background: none; cursor: pointer; color: inherit; padding: 0 4px; opacity: .6; font-size: 12px; } .chip-x:hover { opacity: 1; }
+.give-form { margin-left: auto; }
+.give-form input { min-width: 240px; }
+.emoji-pick { border: 0; background: none; font-size: 18px; cursor: pointer; padding: 2px; }
+@media (prefers-color-scheme: dark) { .title-chip { color: color-mix(in srgb, var(--b, #8b5cf6) 70%, white); } }
+.title-form label:has(.title-icon) { flex: 0 0 72px; } .title-form .title-icon { width: 100%; }

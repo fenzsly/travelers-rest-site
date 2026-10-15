@@ -44,12 +44,12 @@
             <a class="bell-all" href="/library">Open my library →</a>
           </div>
         </details>
-        <% if (user.role !== 'reader' && adminUrl) { %><a class="btn btn-sm btn-accent hide-mobile" href="<%= adminUrl %>">Admin</a><% } %>
+        <% if (isStaff && adminUrl) { %><a class="btn btn-sm btn-accent hide-mobile" href="<%= adminUrl %>">Admin</a><% } %>
         <details class="usermenu">
           <summary aria-label="Account menu"><span class="avatar avatar-sm" style="--h: <%= [...user.username].reduce((a, ch) => a + ch.charCodeAt(0), 0) % 360 %>"><%= user.username[0].toUpperCase() %></span><span class="uname"><%= user.username %></span></summary>
           <div class="usermenu-pop">
             <div class="usermenu-name show-mobile">Signed in as <strong><%= user.username %></strong></div>
-            <% if (user.role !== 'reader' && adminUrl) { %><a class="show-mobile" href="<%= adminUrl %>">⚙ Admin panel</a><% } %>
+            <% if (isStaff && adminUrl) { %><a class="show-mobile" href="<%= adminUrl %>">⚙ Admin panel</a><% } %>
             <a href="/user/<%= encodeURIComponent(user.username) %>">My profile</a>
             <a href="/notifications">Notifications</a>
             <a href="/account">Account &amp; email</a>

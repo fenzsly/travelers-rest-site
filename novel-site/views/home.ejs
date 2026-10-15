@@ -30,7 +30,7 @@
         <% if (!updated.length) { %>
           <div class="empty">
             <p>No chapters have been published yet.</p>
-            <% if (user && user.role !== 'reader' && adminUrl) { %><p><a class="btn btn-accent" href="<%= adminUrl %>">Open the admin panel to add your first novel</a></p>
+            <% if (user && isStaff && adminUrl) { %><p><a class="btn btn-accent" href="<%= adminUrl %>">Open the admin panel to add your first novel</a></p>
             <% } else if (!user) { %><p class="muted">Site owner? <a href="/admin">Set up the admin panel</a>.</p><% } %>
           </div>
         <% } %>

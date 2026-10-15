@@ -4,7 +4,7 @@
   <section class="block profile-head">
     <div class="avatar avatar-lg" style="--h: <%= [...profile.username].reduce((a, c) => a + c.charCodeAt(0), 0) % 360 %>"><%= profile.username[0].toUpperCase() %></div>
     <div>
-      <h1><%= profile.username %> <% if (profile.is_owner) { %><span class="badge badge-owner">👑 Owner</span><% } else if (profile.role !== 'reader') { %><span class="badge badge-role"><%= profile.role %></span><% } %></h1>
+      <h1><%= profile.username %> <% if (profile.is_owner) { %><span class="badge badge-owner">👑 Owner</span><% } %> <%- include('partials/badges', { role: profile.is_owner ? '' : profile.role, titles }) %></h1>
       <div class="muted">Joined <%= u.formatDate(profile.created_at) %></div>
       <div class="profile-stats">
         <% const worksLabel = translated.every((n) => n.is_original) ? 'original works' : translated.some((n) => n.is_original) ? 'novels' : 'translations'; %>

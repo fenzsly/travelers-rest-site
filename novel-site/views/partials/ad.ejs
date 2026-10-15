@@ -2,7 +2,7 @@
     Inside chapters the In-article unit is used (it blends in with the text). Space is reserved so the text doesn't jump when it loads. %>
 <% const adClient = settings.adsense_client || ''; const inArticle = place === 'chapter_mid' && /^\d{6,20}$/.test(settings.adsense_slot_article || '');
    const adSlot = inArticle ? settings.adsense_slot_article : settings.adsense_slot || ''; %>
-<% if (/^ca-pub-\d{10,20}$/.test(adClient) && /^\d{6,20}$/.test(adSlot) && (settings.ad_places || '').split(',').includes(place)) { %>
+<% if (!locals.noAds && /^ca-pub-\d{10,20}$/.test(adClient) && /^\d{6,20}$/.test(adSlot) && (settings.ad_places || '').split(',').includes(place)) { %>
 <div class="ad-slot ad-<%= place %>" aria-label="Advertisement">
   <div class="ad-label">Advertisement</div>
   <% if (inArticle) { %>

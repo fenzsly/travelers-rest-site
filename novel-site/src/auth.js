@@ -26,6 +26,9 @@ function loadUser(req, res, next) {
   if (req.user) req.user.prefs = require('./prefs').parsePrefs(req.user.prefs);
   if (!req.session.csrf) req.session.csrf = crypto.randomBytes(24).toString('hex');
   res.locals.user = req.user;
+  res.locals.isStaff = isStaff(req.user);
+  // Supporters (and staff) don't see ads.
+  res.locals.noAds = !!req.user && req.user.role !== 'reader';
   res.locals.csrf = req.session.csrf;
   next();
 }
@@ -60,9 +63,15 @@ function requireRole(...roles) {
   };
 }
 
+/** Staff = can open the admin panel (translators and admins). Readers and supporters can't. */
+const STAFF = ['translator', 'admin'];
+function isStaff(user) {
+  return !!user && STAFF.includes(user.role);
+}
+
 /** Admins may manage everything; translators only their own novels. */
 function canManageNovel(user, novel) {
   return !!user && !!novel && (user.role === 'admin' || (user.role === 'translator' && novel.owner_id === user.id));
 }
 
-module.exports = { hashPassword, verifyPassword, loadUser, verifyCsrf, requireLogin, requireRole, canManageNovel };
+module.exports = { hashPassword, verifyPassword, loadUser, verifyCsrf, requireLogin, requireRole, canManageNovel, isStaff, STAFF, ROLES: ['reader', 'supporter', 'translator', 'admin'] };

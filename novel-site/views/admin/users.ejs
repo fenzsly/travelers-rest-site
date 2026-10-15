@@ -5,10 +5,10 @@
     <input type="hidden" name="_csrf" value="<%= csrf %>">
     <input name="username" placeholder="Username" required pattern="[A-Za-z0-9_.\-]{3,24}">
     <input name="password" placeholder="Password (empty = generate)" minlength="8">
-    <select name="role"><option value="translator">Translator</option><% if (user.is_owner) { %><option value="admin">Admin</option><% } %><option value="reader">Reader</option></select>
+    <select name="role"><option value="translator">Translator</option><% if (user.is_owner) { %><option value="admin">Admin</option><% } %><option value="reader">Reader</option><option value="supporter">Supporter</option></select>
     <button class="btn btn-primary" type="submit">➕ Create account</button>
   </form>
-  <p class="hint"><strong>Translators</strong> can add novels and upload chapters for their own novels. <strong>Admins</strong> can manage everything, including users and settings. Only the <strong>👑 owner</strong> can create, change or remove admins, and nobody can touch the owner’s account.</p>
+  <p class="hint"><strong>Readers</strong> are normal accounts. <strong>Supporters</strong> are readers who see no ads. <strong>Translators</strong> can add novels and upload chapters for their own novels. <strong>Admins</strong> can manage everything, including users and settings. Only the <strong>👑 owner</strong> can create, change or remove admins, and nobody can touch the owner’s account.</p>
 </section>
 <div class="card flush">
   <table class="table table-lg">
@@ -16,7 +16,8 @@
     <tbody>
     <% users.forEach((x) => { %>
       <tr>
-        <td><strong><%= x.username %></strong><%= x.totp_enabled ? ' 🔐' : '' %><% if (x.is_owner) { %> <span class="pill pill-owner" title="Protected: only this account can manage itself">👑 Owner</span><% } %><% if (x.id === user.id) { %> <span class="pill">you</span><% } %></td>
+        <td><strong><%= x.username %></strong><%= x.totp_enabled ? ' 🔐' : '' %><% if (x.is_owner) { %> <span class="pill pill-owner" title="Protected: only this account can manage itself">👑 Owner</span><% } %><% if (x.id === user.id) { %> <span class="pill">you</span><% } %>
+          <% if (titles[x.id]) { %><div class="title-chips"><% titles[x.id].forEach((t) => { %><a class="title-chip" style="--b: <%= t.color %>" href="<%= A('/titles') %>"><%= t.icon %> <%= t.name %></a><% }) %></div><% } %></td>
         <td class="small"><% if (x.email) { %><%= x.email %> <%= x.email_verified ? '✅' : '' %><% } else { %><span class="muted">—</span><% } %></td>
         <td>
           <% const locked = x.id === user.id || x.is_owner || (!user.is_owner && x.role === 'admin'); %>
@@ -24,7 +25,7 @@
           <form method="post" action="<%= A(`/users/${x.id}`) %>" class="inline">
             <input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="action" value="role">
             <select name="role" onchange="this.form.submit()">
-              <% (user.is_owner ? ['reader', 'translator', 'admin'] : ['reader', 'translator']).forEach((r) => { %><option value="<%= r %>" <%= x.role === r ? 'selected' : '' %>><%= r %></option><% }) %>
+              <% (user.is_owner ? ['reader', 'supporter', 'translator', 'admin'] : ['reader', 'supporter', 'translator']).forEach((r) => { %><option value="<%= r %>" <%= x.role === r ? 'selected' : '' %>><%= r %></option><% }) %>
             </select>
           </form>
           <% } %>

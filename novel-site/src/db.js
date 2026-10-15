@@ -314,6 +314,7 @@ CREATE TABLE IF NOT EXISTS traffic_daily (
   rate_limited  INTEGER NOT NULL DEFAULT 0  -- requests refused for going too fast
 );
 `);
+if (!hasColumn('traffic_daily', 'ai_blocked')) db.exec('ALTER TABLE traffic_daily ADD COLUMN ai_blocked INTEGER NOT NULL DEFAULT 0');
 
 // Original works (written for the site, not translated): shown without a translator.
 if (!hasColumn('novels', 'is_original')) db.exec('ALTER TABLE novels ADD COLUMN is_original INTEGER NOT NULL DEFAULT 0');
@@ -333,6 +334,17 @@ CREATE TABLE IF NOT EXISTS contact_messages (
   created_at INTEGER NOT NULL DEFAULT (unixepoch())
 );
 CREATE INDEX IF NOT EXISTS contact_messages_status ON contact_messages (status, created_at);
+`);
+
+db.exec(`
+-- Addresses blocked by an admin (e.g. scrapers), until a given time.
+CREATE TABLE IF NOT EXISTS blocked_ips (
+  ip         TEXT PRIMARY KEY,
+  reason     TEXT NOT NULL DEFAULT '',
+  until      INTEGER NOT NULL,
+  created_by TEXT NOT NULL DEFAULT '',
+  created_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
 `);
 
 const DEFAULT_GENRES = [

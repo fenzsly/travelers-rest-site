@@ -82,3 +82,47 @@ test('scrapers that drop cookies hit the per-IP limit', async () => {
     Date.now = clock;
   }
 });
+
+test('visitors are classified: browsers, search engines (incl. the AdSense reviewer), AI bots, tools', () => {
+  const k = (ua) => guard.classify(fakeReq('1.1.1.1', { ua }));
+  assert.strictEqual(k('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0) Safari/604.1'), 'browser');
+  assert.strictEqual(k('Mediapartners-Google'), 'crawler');
+  assert.strictEqual(k('Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'), 'crawler');
+  assert.strictEqual(k('Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2)'), 'ai');
+  assert.strictEqual(k('Mozilla/5.0 (Linux; Android 5.0) AppleWebKit/537.36 (KHTML, like Gecko) Mobile Safari/537.36 (compatible; Bytespider)'), 'ai');
+  assert.strictEqual(k('python-requests/2.31'), 'bot');
+  assert.strictEqual(k(''), 'bot');
+});
+
+test('accounts have a daily chapter cap', async () => {
+  guard.reset();
+  saveSettings({ account_daily_limit: '3' });
+  const user = { id: 42, username: 'reader' };
+  const clock = Date.now;
+  let t = clock();
+  Date.now = () => (t += 5000);
+  try {
+    for (const id of [1, 2, 3, 2]) assert.strictEqual(await guard.checkChapter(fakeReq(`10.9.0.${id}`, { user }), id), null);
+    assert.deepStrictEqual(await guard.checkChapter(fakeReq('10.9.0.9', { user }), 4), { gate: 'daily', limit: 3 });
+    assert.deepStrictEqual(guard.busiestAccounts()[0], { id: 42, username: 'reader', chapters: 3, capped: true });
+  } finally {
+    Date.now = clock;
+    saveSettings({ account_daily_limit: '400' });
+  }
+});
+
+test('blocked addresses are refused, except the admin panel', () => {
+  const blocklist = require('../src/blocklist');
+  blocklist.block('203.0.113.7', 24, 'test', 'dimpu');
+  const run = (path) => {
+    let status = 200;
+    let passed = false;
+    const res = { status(s) { status = s; return res; }, set() { return res; }, type() { return res; }, send() { return res; } };
+    blocklist.middleware({ ip: '203.0.113.7', path }, res, () => { passed = true; });
+    return passed ? 200 : status;
+  };
+  assert.strictEqual(run('/novel/x/c/1'), 403);
+  assert.strictEqual(run('/admin/security'), 200);
+  blocklist.unblock('203.0.113.7');
+  assert.strictEqual(run('/novel/x/c/1'), 200);
+});

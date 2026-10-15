@@ -55,7 +55,7 @@ const EVENT_LABELS = {
   twofa_on: 'Turned on two-factor login', twofa_off: 'Turned off two-factor login', backup_new: 'Made new backup codes',
   password_changed: 'Changed password', password_reset: 'Reset password by email', logout_all: 'Logged out all devices',
   admin_reset_password: 'Password reset by an admin', role_changed: 'Role changed', forced_logout: 'Logged out by an admin',
-  new_device_alert: 'New sign-in alert emailed',
+  new_device_alert: 'New sign-in alert emailed', ip_blocked: 'Blocked an address',
 };
 
 // ---------- Login lockouts ----------

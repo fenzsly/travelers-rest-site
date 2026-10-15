@@ -8,6 +8,8 @@ const dns = require('node:dns').promises;
 const { getSettings } = require('./settings');
 
 const CRAWLER_UA = /Googlebot|Google-InspectionTool|GoogleOther|Mediapartners-Google|AdsBot-Google|Storebot-Google|bingbot|BingPreview|msnbot|Applebot|YandexBot|DuckDuckBot/i;
+// AI-training and data-harvesting bots: told no in robots.txt and refused chapter/novel pages.
+const AI_UA = /GPTBot|ChatGPT-User|OAI-SearchBot|CCBot|ClaudeBot|Claude-Web|anthropic-ai|Bytespider|PerplexityBot|Perplexity-User|Amazonbot|meta-externalagent|meta-externalfetcher|FacebookBot|Diffbot|ImagesiftBot|omgili|Timpibot|cohere-ai|YouBot|AI2Bot|Scrapy|PetalBot|SemrushBot|AhrefsBot|MJ12bot|DotBot|DataForSeoBot|serpstatbot|SeekportBot|Barkrowler|BLEXBot|webzio|img2dataset|Kangaroo Bot|Sidetrade/i;
 const CRAWLER_HOSTS = /\.(googlebot\.com|google\.com|googleusercontent\.com|search\.msn\.com|applebot\.apple\.com|yandex\.(ru|net|com))$/i;
 const PER_MINUTE = 40;
 const DAY = 86400000;
@@ -16,6 +18,13 @@ const crawlerCache = new Map(); // ip -> { ok, until }
 const ipReads = new Map(); // ip -> { start, ids: Set }
 const ipRate = new Map(); // ip -> [timestamps in the last minute]
 
+const userReads = new Map(); // user id -> { day, ids: Set, username }
+
+function accountDailyLimit() {
+  const n = Number(getSettings().account_daily_limit);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+}
+
 function guestLimit() {
   const n = Number(getSettings().guest_chapter_limit);
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
@@ -23,6 +32,19 @@ function guestLimit() {
 
 function withTimeout(promise, ms) {
   return Promise.race([promise, new Promise((resolve) => setTimeout(() => resolve(null), ms).unref())]);
+}
+
+/**
+ * What kind of visitor this says it is: 'crawler' (search engines and Google's ad reviewer), 'ai' (AI/data
+ * harvesters), 'bot' (other self-declared tools and link previews) or 'browser'.
+ */
+function classify(req) {
+  const ua = req.get('user-agent') || '';
+  if (!ua) return 'bot';
+  if (AI_UA.test(ua)) return 'ai';
+  if (CRAWLER_UA.test(ua)) return 'crawler';
+  if (require('./queries').BOT_RE.test(ua)) return 'bot';
+  return 'browser';
 }
 
 /** True only for genuine search-engine crawlers (user agent AND DNS both check out). */
@@ -60,8 +82,20 @@ async function checkChapter(req, chapterId) {
   ipRate.set(ip, recent);
   if (recent.length > PER_MINUTE) return { gate: 'slow' };
 
+  // Accounts: a generous daily cap (people don't read hundreds of chapters a day; scripts do).
+  if (req.user) {
+    const cap = accountDailyLimit();
+    if (!cap) return null;
+    const day = new Date().toISOString().slice(0, 10);
+    let u = userReads.get(req.user.id);
+    if (!u || u.day !== day) userReads.set(req.user.id, u = { day, ids: new Set(), username: req.user.username });
+    if (!u.ids.has(chapterId) && u.ids.size >= cap) return { gate: 'daily', limit: cap };
+    u.ids.add(chapterId);
+    return null;
+  }
+
   const limit = guestLimit();
-  if (req.user || !limit) return null;
+  if (!limit) return null;
 
   // Per browser: chapters read as a guest (re-opening one you've read doesn't count).
   const seen = Array.isArray(req.session.seen) ? req.session.seen : [];
@@ -72,6 +106,7 @@ async function checkChapter(req, chapterId) {
   // Per IP address, for scrapers without cookies. Higher, since several readers can share one address.
   let entry = ipReads.get(ip);
   if (!entry || entry.start < now - DAY) ipReads.set(ip, entry = { start: now, ids: new Set() });
+  entry.ua = String(req.get('user-agent') || '').slice(0, 200);
   if (!entry.ids.has(chapterId) && entry.ids.size >= Math.max(limit * 3, 60)) return { gate: 'signup', limit };
   entry.ids.add(chapterId);
 
@@ -99,12 +134,20 @@ function busiest(limit = 10) {
   const max = Math.max(guestLimit() * 3, 60);
   return [...ipReads.entries()]
     .filter(([, e]) => e.start > now - DAY)
-    .map(([ip, e]) => ({ ip, chapters: e.ids.size, blocked: guestLimit() > 0 && e.ids.size >= max }))
+    .map(([ip, e]) => ({ ip, ua: e.ua || '', chapters: e.ids.size, blocked: guestLimit() > 0 && e.ids.size >= max }))
     .sort((a, b) => b.chapters - a.chapters)
     .slice(0, limit);
 }
 
-/** For tests. */
-function reset() { crawlerCache.clear(); ipReads.clear(); ipRate.clear(); }
+/** Accounts that opened the most chapters today. */
+function busiestAccounts(limit = 10) {
+  const day = new Date().toISOString().slice(0, 10);
+  return [...userReads.entries()].filter(([, u]) => u.day === day)
+    .map(([id, u]) => ({ id, username: u.username, chapters: u.ids.size, capped: accountDailyLimit() > 0 && u.ids.size >= accountDailyLimit() }))
+    .sort((a, b) => b.chapters - a.chapters).slice(0, limit);
+}
 
-module.exports = { busiest, checkChapter, isVerifiedCrawler, isKnownCrawler, guestLimit, reset, PER_MINUTE };
+/** For tests. */
+function reset() { crawlerCache.clear(); ipReads.clear(); ipRate.clear(); userReads.clear(); }
+
+module.exports = { AI_UA, classify, busiestAccounts, accountDailyLimit, busiest, checkChapter, isVerifiedCrawler, isKnownCrawler, guestLimit, reset, PER_MINUTE };

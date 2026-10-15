@@ -38,6 +38,13 @@ function xmlEscape(s) {
   return String(s).replace(/[<>&'"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' }[c]));
 }
 
+// AI-training / data-harvesting bots get nothing but robots.txt (which tells them to stay away).
+router.use((req, res, next) => {
+  if (req.path === '/robots.txt' || guard.classify(req) !== 'ai') return next();
+  visitors.bump('ai_blocked');
+  res.status(403).type('text/plain').send('Automated collection of this site’s content is not allowed.');
+});
+
 router.use((req, res, next) => {
   res.locals.baseUrl = baseUrl(req);
   res.locals.seoLib = seo;
@@ -327,8 +334,9 @@ router.get('/novel/:slug/c/:num', loadNovel, async (req, res, next) => {
   const chapter = Number.isFinite(num) ? q.visibleChapterByNumber.get(novel.id, num) : null;
   if (!chapter) return next(notFound('Chapter not found (it may not be released yet).'));
 
-  // Scraper check: count every chapter download (self-declared bots separately).
-  visitors.bump(visitors.isBot(req) ? 'bot_loads' : 'chapter_loads');
+  // Scraper check: count every chapter download (search engines and self-declared bots separately).
+  const kind = guard.classify(req);
+  visitors.bump(kind === 'browser' ? 'chapter_loads' : 'bot_loads');
 
   // Guests past the free-chapter limit (and anything reading too fast) see a sign-up page instead.
   const blocked = await guard.checkChapter(req, chapter.id);
@@ -340,6 +348,15 @@ router.get('/novel/:slug/c/:num', loadNovel, async (req, res, next) => {
       teaser: seo.excerpt(seo.plainText(chapter.content), 400),
       seo: { title: `${title} | ${getSettings().site_name}`, noindex: true },
     });
+  }
+
+  // Browser check: a guest's first chapter text is only sent once their browser has run the page's script
+  // (real search engines, checked by DNS, always get the full page).
+  const verifiedCrawler = kind === 'crawler' && await guard.isVerifiedCrawler(req);
+  const pendingText = !req.user && !req.session.human && !verifiedCrawler && getSettings().browser_check === '1';
+  if (pendingText) {
+    req.session.hc = require('node:crypto').randomBytes(12).toString('hex');
+    req.session.hcAt = Date.now();
   }
 
   const prev = db.prepare(`SELECT c.number, c.title FROM chapters c WHERE c.novel_id = ? AND c.number < ? AND ${VISIBLE} ORDER BY c.number DESC LIMIT 1`).get(novel.id, chapter.number);
@@ -369,7 +386,7 @@ router.get('/novel/:slug/c/:num', loadNovel, async (req, res, next) => {
   const myReaction = req.user ? db.prepare('SELECT emoji FROM reactions WHERE chapter_id = ? AND user_id = ?').get(chapter.id, req.user.id)?.emoji || null : null;
   const base = `${res.locals.baseUrl}/novel/${novel.slug}/c/`;
   res.render('reader', {
-    novel, chapter, prev, next: next_, upcoming, position, bookmarked, comments, reactionCounts, myReaction,
+    novel, chapter, prev, next: next_, upcoming, position, bookmarked, comments, reactionCounts, myReaction, pendingText, humanChallenge: req.session.hc,
     seo: {
       title: `${novel.title} ${u.chapterLabel(chapter)} | ${getSettings().site_name}`,
       ogTitle: `${novel.title} — ${u.chapterLabel(chapter)}`,
@@ -382,6 +399,24 @@ router.get('/novel/:slug/c/:num', loadNovel, async (req, res, next) => {
       jsonld: seo.chapterSchema(res.locals.baseUrl, novel, chapter),
     },
   });
+});
+
+// Browser check, step 1: the page's script answers the challenge it was given.
+router.post('/human', (req, res) => {
+  const ok = typeof req.body.answer === 'string' && req.session.hc && req.body.answer === req.session.hc
+    && Date.now() - (req.session.hcAt || 0) > 150;
+  if (ok) { req.session.human = Date.now(); req.session.hc = null; }
+  res.status(ok ? 200 : 403).json({ ok });
+});
+
+// Browser check, step 2: the chapter text, only for a checked browser that has just opened this chapter's page.
+router.get('/novel/:slug/c/:num/text', loadNovel, (req, res, next) => {
+  const chapter = q.visibleChapterByNumber.get(req.novel.id, Number(req.params.num));
+  if (!chapter) return next(notFound());
+  const seen = Array.isArray(req.session.seen) ? req.session.seen : [];
+  if (!(req.user || req.session.human) || !seen.includes(chapter.id)) return res.status(403).json({ error: 'Please reload the page.' });
+  res.set('Cache-Control', 'private, no-store');
+  res.render('partials/chapter-body', { chapter }, (err, html) => (err ? next(err) : res.json({ html })));
 });
 
 router.post('/novel/:slug/c/:num/comment', requireLogin, loadNovel, (req, res, next) => {
@@ -615,7 +650,11 @@ router.get('/novel/:slug/rss.xml', loadNovel, (req, res) => {
 router.get('/robots.txt', (req, res) => {
   const base = res.locals.baseUrl;
   if (getSettings().search_indexing === '0') return res.type('text/plain').send('User-agent: *\nDisallow: /\n');
+  const aiBots = ['GPTBot', 'ChatGPT-User', 'OAI-SearchBot', 'CCBot', 'ClaudeBot', 'Claude-Web', 'anthropic-ai', 'Google-Extended', 'Applebot-Extended',
+    'Bytespider', 'PerplexityBot', 'Amazonbot', 'meta-externalagent', 'FacebookBot', 'Diffbot', 'cohere-ai', 'Omgilibot', 'ImagesiftBot', 'Timpibot', 'AI2Bot', 'YouBot'];
   res.type('text/plain').send([
+    '# AI training and data-harvesting bots are not allowed to collect this site’s content.',
+    ...aiBots.flatMap((b) => [`User-agent: ${b}`, 'Disallow: /', '']),
     'User-agent: *',
     'Disallow: /admin', 'Disallow: /api/', 'Disallow: /login', 'Disallow: /register', 'Disallow: /library',
     'Disallow: /history', 'Disallow: /random', 'Disallow: /search', 'Disallow: /*?q=', 'Disallow: /*&q=',

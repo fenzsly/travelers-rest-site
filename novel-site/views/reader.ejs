@@ -64,8 +64,33 @@
     <div class="chapter-eyebrow">Chapter <%= u.formatNumber(chapter.number) %> of <%= u.formatNumber(novel.latest_number ?? chapter.number) %></div>
     <h1 class="chapter-title"><span class="ct-full"><%= u.chapterLabel(chapter) %></span><span class="ct-dash"><%= dashLabel %></span></h1>
     <div class="chapter-meta muted small"><%= u.formatDate(chapter.released_at) %> · 👁 <%= chapter.views.toLocaleString("en-US") %> views · <%= chapter.word_count.toLocaleString('en-US') %> words · ~<%= Math.max(1, Math.round(chapter.word_count / 230)) %> min read · chapter <%= position %> of <%= novel.chapter_count %></div>
-    <% const paras = chapter.content.split('</p>'); const mid = paras.length >= 30 ? Math.floor(paras.length * 0.6) : 0; %>
-    <div class="chapter-text" id="chapter-text"><% if (mid) { %><%- paras.slice(0, mid).join('</p>') + '</p>' %><%- include('partials/ad', { place: 'chapter_mid' }) %><%- paras.slice(mid).join('</p>') %><% } else { %><%- chapter.content %><% } %></div>
+    <% if (pendingText) { %>
+    <div class="chapter-text" id="chapter-text" data-pending="<%= humanChallenge %>" data-url="/novel/<%= novel.slug %>/c/<%= u.formatNumber(chapter.number) %>/text" data-csrf="<%= csrf %>">
+      <div class="text-loading" aria-live="polite"><span></span><span></span><span></span></div>
+      <noscript><p class="muted">Please turn on JavaScript to read this chapter, or <a href="/login">log in</a>.</p></noscript>
+    </div>
+    <script>
+    // Browser check: prove this is a real browser, then load the chapter text (once per browser).
+    (function () {
+      var box = document.getElementById('chapter-text');
+      function fail() { box.innerHTML = '<p class="muted">Couldn’t load the chapter. <a href="">Reload the page</a>.</p>'; }
+      setTimeout(function () {
+        fetch('/human', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRF-Token': box.dataset.csrf },
+          body: 'answer=' + encodeURIComponent(box.dataset.pending) })
+          .then(function (r) { if (!r.ok) throw 0; return fetch(box.dataset.url, { credentials: 'same-origin' }); })
+          .then(function (r) { if (!r.ok) throw 0; return r.json(); })
+          .then(function (d) {
+            box.innerHTML = d.html;
+            box.removeAttribute('data-pending');
+            box.querySelectorAll('ins.adsbygoogle').forEach(function () { try { (window.adsbygoogle = window.adsbygoogle || []).push({}); } catch (e) {} });
+          })
+          .catch(fail);
+      }, 180);
+    })();
+    </script>
+    <% } else { %>
+    <div class="chapter-text" id="chapter-text"><%- include('partials/chapter-body', { chapter }) %></div>
+    <% } %>
   </article>
   <section class="reactions" id="reactions" data-url="/novel/<%= novel.slug %>/c/<%= u.formatNumber(chapter.number) %>/react">
     <span class="muted small">How was this chapter?</span>

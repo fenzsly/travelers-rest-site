@@ -330,3 +330,5 @@ button.quick-card { font: inherit; text-align: left; cursor: pointer; }
 }
 .stat small { display: block; font-size: 11.5px; font-weight: 400; }
 .bars-people .bar-fill { background: #14a37f; }
+.table-wrap { overflow-x: auto; }
+.scrape-settings .switch { align-items: flex-start; }

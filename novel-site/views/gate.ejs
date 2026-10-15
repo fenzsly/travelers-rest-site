@@ -12,6 +12,13 @@
         <p>You’ve opened a lot of chapters in the last minute. Wait a minute, then reload this page.</p>
         <a class="btn btn-accent btn-lg" href="<%= here %>">Try again</a>
       </div>
+    <% } else if (gate === 'daily') { %>
+      <div class="gate-box">
+        <div class="gate-icon">🌙</div>
+        <h2>That’s <%= limit %> chapters today!</h2>
+        <p>You’ve reached today’s reading limit for one account. It resets at midnight (UTC), so you can carry on tomorrow. Time for a break?</p>
+        <a class="btn btn-lg" href="/novel/<%= novel.slug %>">Back to the novel</a>
+      </div>
     <% } else { %>
       <p class="gate-teaser"><%= teaser %></p>
       <div class="gate-box">

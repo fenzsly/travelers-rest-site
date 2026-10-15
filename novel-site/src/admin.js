@@ -858,6 +858,7 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
         events, staff, labels: security.EVENT_LABELS, error: null, codes: null, flood: require('./ratelimit').status(),
         traffic: isAdmin ? require('./visitors').trafficByDay(7) : null, busiest: isAdmin ? require('./guard').busiest(10) : [],
         banned: isAdmin ? require('./ratelimit').bannedList() : [],
+        blocks: isAdmin ? require('./blocklist').list() : [], accounts: isAdmin ? require('./guard').busiestAccounts(10) : [],
         behindCloudflare: Boolean(req.get('cf-connecting-ip') || req.get('cf-ray')), ...extra,
       });
     };
@@ -915,6 +916,35 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
     security.log(req, 'logout_all', { userId: req.user.id, username: req.user.username });
     req.flash('ok', 'Done: every other device has been logged out.');
     res.redirect(A('/security'));
+  });
+
+  // ---------- Scraper protection (admin) ----------
+  app.post('/security/scrape-settings', adminOnly, (req, res) => {
+    const num = (v, max) => String(Math.min(max, Math.max(0, Math.floor(Number(v) || 0))));
+    saveSettings({
+      browser_check: req.body.browser_check ? '1' : '0',
+      guest_chapter_limit: num(req.body.guest_chapter_limit, 1000),
+      account_daily_limit: num(req.body.account_daily_limit, 10000),
+    });
+    req.flash('ok', 'Protection settings saved.');
+    res.redirect(A('/security#scrapers'));
+  });
+
+  app.post('/security/block', adminOnly, (req, res) => {
+    const ip = String(req.body.ip || '').trim();
+    if (!/^[0-9a-fA-F:.]{3,64}$/.test(ip)) throw fail(400, 'That doesn’t look like an IP address.');
+    if (ip === req.ip) throw fail(400, 'That’s your own address: blocking it would lock you out of the site.');
+    const hours = Math.min(24 * 365, Math.max(1, Number(req.body.hours) || 24));
+    require('./blocklist').block(ip, hours, 'scraping', req.user.username);
+    security.log(req, 'ip_blocked', { userId: req.user.id, username: req.user.username, detail: `${ip} for ${hours} h` });
+    req.flash('ok', `Blocked ${ip} for ${hours >= 48 ? `${Math.round(hours / 24)} days` : `${hours} hours`}.`);
+    res.redirect(A('/security#scrapers'));
+  });
+
+  app.post('/security/unblock', adminOnly, (req, res) => {
+    require('./blocklist').unblock(String(req.body.ip || ''));
+    req.flash('ok', 'Unblocked.');
+    res.redirect(A('/security#scrapers'));
   });
 
   app.post('/security/settings', adminOnly, (req, res) => {

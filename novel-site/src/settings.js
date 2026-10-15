@@ -29,6 +29,10 @@ const DEFAULTS = {
   require_email: '0', // '1' = an email address is required to sign up
   // Guests must create a free account after reading this many chapters (0 = never). Stops scrapers.
   guest_chapter_limit: '40',
+  // Accounts can open this many different chapters per day (0 = no limit). Stops scrapers that sign up.
+  account_daily_limit: '400',
+  // Guests' chapter text is only sent after their browser proves it runs JavaScript (stops simple scrapers).
+  browser_check: '1',
   smtp_host: '',
   smtp_port: '587',
   smtp_user: '',

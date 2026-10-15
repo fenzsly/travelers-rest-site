@@ -68,6 +68,7 @@ function baseApp(viewsDir, { mounted = false, adminOnly = false } = {}) {
   app.set('trust proxy', process.env.TRUST_PROXY === '1' ? 1 : false);
   app.disable('x-powered-by');
   if (mounted) return app;
+  app.use(require('./blocklist').middleware); // addresses blocked by an admin
   app.use(require('./ratelimit').middleware); // first, so floods cost as little as possible
   app.use(securityHeaders);
   app.use(session);

@@ -207,3 +207,10 @@ body.reader-page { background: var(--r-page); }
 .immersive[data-theme="dark"][data-rtheme=""] { --r-bg: #12151c; --r-page: #12151c; --r-text: #d2d7e1; --border: #232833; --muted: #8b93a4; --block: #12151c; --block-alt: #1b1f29; }
 .chapter-text .ad-slot { font-size: 14px; line-height: 1.4; margin: 2em 0; padding: 10px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
 .immersive .ad-chapter_end { margin-left: 12px; margin-right: 12px; }
+
+/* Loading dots while the browser check fetches the chapter (a fraction of a second, once per browser) */
+.text-loading { display: flex; gap: 8px; justify-content: center; padding: 60px 0; }
+.text-loading span { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); opacity: .4; animation: tl 1s infinite ease-in-out; }
+.text-loading span:nth-child(2) { animation-delay: .15s; }
+.text-loading span:nth-child(3) { animation-delay: .3s; }
+@keyframes tl { 50% { opacity: 1; transform: translateY(-4px); } }

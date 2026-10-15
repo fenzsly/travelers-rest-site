@@ -4,7 +4,6 @@
 //    The code can't be turned back into an IP address and changes every day, so nobody is tracked across days.
 // Bots are not counted. Raw rows are kept for 120 days; the admin panel shows daily totals.
 const { db } = require('./db');
-const { BOT_RE } = require('./queries');
 const { keyedHash } = require('./security');
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -29,7 +28,8 @@ function visitorId(req) {
   return keyedHash(`${today()}|${req.ip}|${req.get('user-agent') || ''}`).slice(0, 20);
 }
 
-const isBot = (req) => BOT_RE.test(req.get('user-agent') || '') || !req.get('user-agent');
+// Anything that isn't a normal browser (search engines, ad reviewers, tools, AI bots) never counts as a visitor.
+const isBot = (req) => require('./guard').classify(req) !== 'browser';
 
 const insertVisit = db.prepare('INSERT OR IGNORE INTO site_visitors_daily (day, visitor) VALUES (?, ?)');
 const insertReader = db.prepare('INSERT OR IGNORE INTO novel_readers_daily (novel_id, day, visitor) VALUES (?, ?, ?)');
@@ -76,7 +76,7 @@ function readersByDay(days, novelIds) {
 }
 
 // ---------- Scraper check: downloads vs. real browser reads ----------
-const TRAFFIC_FIELDS = ['chapter_loads', 'chapter_reads', 'bot_loads', 'gate_hits', 'rate_limited'];
+const TRAFFIC_FIELDS = ['chapter_loads', 'chapter_reads', 'bot_loads', 'gate_hits', 'rate_limited', 'ai_blocked'];
 const bumpStmts = Object.fromEntries(TRAFFIC_FIELDS.map((f) => [f, db.prepare(`INSERT INTO traffic_daily (day, ${f}) VALUES (?, 1)
   ON CONFLICT(day) DO UPDATE SET ${f} = ${f} + 1`)]));
 function bump(field) {
@@ -89,7 +89,7 @@ function trafficByDay(days = 7) {
   const out = [];
   for (let i = 0; i < days; i++) {
     const day = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
-    const r = rows[day] || { day, chapter_loads: 0, chapter_reads: 0, bot_loads: 0, gate_hits: 0, rate_limited: 0 };
+    const r = rows[day] || { day, chapter_loads: 0, chapter_reads: 0, bot_loads: 0, gate_hits: 0, rate_limited: 0, ai_blocked: 0 };
     r.unconfirmed = Math.max(0, r.chapter_loads - r.chapter_reads);
     r.pct = r.chapter_loads ? Math.round((r.unconfirmed / r.chapter_loads) * 100) : 0;
     out.push(r);

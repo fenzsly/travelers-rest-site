@@ -128,6 +128,7 @@ function register(username, password, email) {
   const id = Number(q.insertUser.run(username, hashPassword(password), role).lastInsertRowid);
   if (first) db.prepare('UPDATE users SET is_owner = 1 WHERE id = ?').run(id);
   if (email) db.prepare('UPDATE users SET email = ? WHERE id = ?').run(email, id);
+  require('./titles').syncAutoTitles(); // e.g. Ancient Reader for early accounts
   return id;
 }
 

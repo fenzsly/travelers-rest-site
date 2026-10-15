@@ -9,6 +9,8 @@ const { importBundledNovels } = require('./src/content');
 importBundledNovels();
 // Tell IndexNow search engines (Bing, Yandex, …) about new pages every few minutes.
 require('./src/indexnow').start();
+// Automatic titles (Top Reader of the day, Ancient Reader).
+require('./src/titles').start();
 
 const PORT = Number(process.env.PORT) || 3000;
 const ADMIN_PORT = Number(process.env.ADMIN_PORT) || 0;

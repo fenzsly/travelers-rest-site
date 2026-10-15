@@ -581,3 +581,12 @@ body { overflow-x: hidden; }
 /* Supporter role and titles (title colours are picked in the admin panel) */
 .badge-supporter { background: color-mix(in srgb, #e0a526 18%, transparent); color: #b7791f; }
 .badge-title { background: color-mix(in srgb, var(--b, #8b5cf6) 15%, transparent); color: color-mix(in srgb, var(--b, #8b5cf6) 70%, var(--text)); border: 1px solid color-mix(in srgb, var(--b, #8b5cf6) 35%, transparent); white-space: nowrap; }
+
+/* Long menus scroll inside themselves instead of running off the screen (phone menu with Genres open, account menu). */
+@media (max-width: 900px) {
+  .mainnav { max-height: calc(100vh - 56px); max-height: calc(100dvh - 56px - env(safe-area-inset-top)); overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+}
+@media (max-width: 640px) {
+  .usermenu-pop { max-height: calc(100dvh - 72px - env(safe-area-inset-top)); overflow-y: auto; overscroll-behavior: contain; }
+}
+.bell-pop { overscroll-behavior: contain; }

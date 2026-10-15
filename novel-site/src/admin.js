@@ -650,6 +650,7 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
     if (!t) throw fail(404, 'Title not found.');
     const back = A(`/titles#title-${t.id}`);
     const action = req.body.action;
+    if (t.auto && ['delete', 'give', 'take'].includes(action)) throw fail(400, 'This title is handed out automatically, so it can’t be given, taken away or deleted by hand. You can still change its name, icon and colour.');
     if (action === 'delete') {
       titles.deleteTitle(t.id);
       req.flash('ok', `Deleted the title “${t.name}”.`);

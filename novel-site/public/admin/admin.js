@@ -434,3 +434,16 @@
     if (state.chapters.length && $('#step-3').hidden) { e.preventDefault(); e.returnValue = ''; }
   });
 })();
+
+// Sidebar menu: keep its scroll position between pages, and make sure the current page's item is visible.
+(() => {
+  const nav = document.querySelector('.side-nav');
+  if (!nav) return;
+  try { nav.scrollTop = Number(sessionStorage.getItem('sideScroll')) || 0; } catch (e) {}
+  const active = nav.querySelector('a.active');
+  if (active) {
+    const a = active.getBoundingClientRect(), n = nav.getBoundingClientRect();
+    if (a.top < n.top || a.bottom > n.bottom) active.scrollIntoView({ block: 'center' });
+  }
+  addEventListener('pagehide', () => { try { sessionStorage.setItem('sideScroll', String(nav.scrollTop)); } catch (e) {} });
+})();

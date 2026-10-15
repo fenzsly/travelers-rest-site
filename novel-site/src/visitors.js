@@ -115,6 +115,11 @@ function beacon(req, res) {
     if (!chapter) return;
     bump('chapter_reads');
     recordReader(req, chapter.novel_id);
+    if (req.user) {
+      const titles = require('./titles');
+      titles.recordRead(req.user.id, chapter.id); // for the automatic Top Reader title
+      titles.nudge();
+    }
     // A view counts once per browser session per chapter.
     const viewed = Array.isArray(req.session.viewed) ? req.session.viewed : [];
     if (!viewed.includes(chapter.id)) {

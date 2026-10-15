@@ -366,9 +366,9 @@ button.quick-card { font: inherit; text-align: left; cursor: pointer; }
 /* Sidebar: the menu scrolls on its own when it's taller than the screen; the name and "Log out" stay put. */
 .side { height: 100vh; height: 100dvh; overflow: hidden; }
 .side-brand, .side-foot { flex-shrink: 0; }
-.side-nav { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; margin: 0 -6px; padding: 0 6px 8px; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.18) transparent; }
-.side-nav::-webkit-scrollbar { width: 6px; }
-.side-nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,.18); border-radius: 6px; }
-.side-nav::-webkit-scrollbar-track { background: transparent; }
+.side-nav { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; margin: 0 -6px; padding: 0 6px 8px; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.35) rgba(255,255,255,.05); scrollbar-gutter: stable; }
+.side-nav::-webkit-scrollbar { width: 8px; }
+.side-nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,.35); border-radius: 8px; }
+.side-nav::-webkit-scrollbar-track { background: rgba(255,255,255,.05); border-radius: 8px; }
 .side-foot { padding-bottom: max(10px, env(safe-area-inset-bottom)); }
 @media (max-height: 700px) { .side-nav a { padding: 7px 12px; } .side-brand { padding-bottom: 10px; } }

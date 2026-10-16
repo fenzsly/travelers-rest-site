@@ -1,0 +1,55 @@
+[
+  {
+    "id": "2026-10-16-update-log",
+    "date": "2026-10-16",
+    "title": "Update history",
+    "changes": [
+      "Update & backup now keeps a log of every update: its release date and its main changes.",
+      "Before installing, you see what's new in plain words instead of technical notes.",
+      "Each update in the log shows when it was installed on your site."
+    ]
+  },
+  {
+    "id": "2026-10-15-auto-titles",
+    "date": "2026-10-15",
+    "title": "Automatic titles and scrolling menus",
+    "changes": [
+      "🏆 Top Reader: given automatically to the top 10% of registered readers by chapters read today (India time); resets at midnight IST.",
+      "📜 Ancient Reader: given automatically to every account created before 1 December 2026.",
+      "The admin panel's left menu scrolls on its own on short screens and phones; Log out stays visible.",
+      "The phone menu and account menu on the site scroll instead of running off the screen."
+    ]
+  },
+  {
+    "id": "2026-10-15-supporters-titles",
+    "date": "2026-10-15",
+    "title": "Supporter role and titles",
+    "changes": [
+      "New Supporter role: a reader who sees no ads. Set it under Users.",
+      "Admins and translators no longer see ads (avoids accidental clicks on your own ads).",
+      "New Titles page: create badges with an icon, name and colour and give them to people. They're just for show.",
+      "Role and title badges appear next to names in comments, reviews and profiles."
+    ]
+  },
+  {
+    "id": "2026-10-15-anti-scraping",
+    "date": "2026-10-15",
+    "title": "Stronger anti-scraping",
+    "changes": [
+      "Browser check: chapter text only loads in real browsers, so simple scrapers get nothing.",
+      "AI training bots (GPTBot, ClaudeBot, CCBot…) are blocked.",
+      "Daily chapter cap for accounts, chapter speed limit, and blocking of IP addresses.",
+      "New Anti-scraping page in the admin panel with a master on/off switch and a switch for each protection."
+    ]
+  },
+  {
+    "id": "2026-10-14-ads-contact",
+    "date": "2026-10-14",
+    "title": "Ads and Contact page",
+    "changes": [
+      "AdSense ad units on the home page, novel pages and chapter ends, plus one gentle in-article ad inside long chapters.",
+      "New Contact page, with messages arriving in the admin panel's Messages inbox.",
+      "Heavens Devour The Worthy by Fenz Sly added, marked as an original work (no translator)."
+    ]
+  }
+]

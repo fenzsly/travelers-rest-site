@@ -41,6 +41,7 @@ async function info(check = false) {
       await run('git', ['fetch', '--quiet', 'origin', git.branch]);
       const log = await run('git', ['log', '--format=%h|%cI|%s', `HEAD..origin/${git.branch}`]);
       result.pending = log ? log.split('\n').map((l) => { const [hash, date, ...s] = l.split('|'); return { hash, date, subject: s.join('|') }; }) : [];
+      result.whatsNew = result.pending.length ? await pendingChangelog(`origin/${git.branch}`) : [];
     } catch (err) {
       result.checkError = (err.output || err.message).slice(0, 500);
     }
@@ -50,6 +51,50 @@ async function info(check = false) {
     result.dbSize = fs.statSync(dbFile).size;
   } catch { /* ignore */ }
   return result;
+}
+
+// ---------- Update history (CHANGELOG.json, written with each update) ----------
+db.exec(`CREATE TABLE IF NOT EXISTS update_history (
+  id           TEXT PRIMARY KEY,   -- changelog entry id
+  installed_at INTEGER             -- when this site first ran the update (NULL = before the log existed)
+)`);
+
+function parseChangelog(text) {
+  try {
+    const list = JSON.parse(text);
+    return Array.isArray(list) ? list.filter((e) => e && e.id && e.date && Array.isArray(e.changes)) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Every update in this version's changelog, newest first, with when it was installed here. */
+function changelog() {
+  let entries = [];
+  try { entries = parseChangelog(fs.readFileSync(path.join(APP_DIR, 'CHANGELOG.json'), 'utf8')); } catch { /* none */ }
+  const seen = Object.fromEntries(db.prepare('SELECT id, installed_at FROM update_history').all().map((r) => [r.id, r.installed_at]));
+  return entries.map((e) => ({ ...e, installed_at: seen[e.id] ?? null }));
+}
+
+/** On start-up: note the install time of updates this site hasn't run before. */
+function recordInstalledUpdates() {
+  const entries = changelog();
+  const firstRun = !db.prepare('SELECT 1 FROM update_history LIMIT 1').get();
+  const ins = db.prepare('INSERT OR IGNORE INTO update_history (id, installed_at) VALUES (?, ?)');
+  const now = Math.floor(Date.now() / 1000);
+  // The very first time, only the newest entry was just installed; older ones came before the log existed.
+  entries.forEach((e, i) => ins.run(e.id, firstRun && i > 0 ? null : now));
+}
+recordInstalledUpdates();
+
+/** Changelog entries in the version waiting on GitHub that aren't installed yet. */
+async function pendingChangelog(ref) {
+  try {
+    const have = new Set(changelog().map((e) => e.id));
+    return parseChangelog(await run('git', ['show', `${ref}:./CHANGELOG.json`])).filter((e) => !have.has(e.id));
+  } catch {
+    return [];
+  }
 }
 
 function status() {
@@ -133,4 +178,4 @@ function backupDatabase() {
   return file;
 }
 
-module.exports = { info, status, startUpdate, undoLastUpdate, lastUpdate, backupDatabase };
+module.exports = { info, changelog, status, startUpdate, undoLastUpdate, lastUpdate, backupDatabase };

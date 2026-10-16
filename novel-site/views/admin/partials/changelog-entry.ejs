@@ -1,0 +1,10 @@
+<%# One update in the update history. { e: { date, title, changes, installed_at }, isNew, current } %>
+<% const released = new Date(e.date + 'T12:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }); %>
+<div class="log-entry<%= locals.isNew ? ' log-new' : '' %>">
+  <div class="log-head">
+    <strong><%= e.title || 'Update' %></strong>
+    <% if (locals.isNew) { %><span class="pill">new</span><% } else if (locals.current) { %><span class="pill pill-completed">current</span><% } %>
+    <span class="muted small">released <%= released %><% if (e.installed_at) { %> · installed <span class="local-time" data-ts="<%= e.installed_at %>"><%= u.formatDate(e.installed_at) %></span><% } %></span>
+  </div>
+  <ul class="changes"><% e.changes.forEach((c) => { %><li><%= c %></li><% }) %></ul>
+</div>

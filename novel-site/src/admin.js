@@ -1190,6 +1190,7 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
   // ---------- Settings (admin) ----------
   app.get('/settings', adminOnly, (req, res) => res.render('admin/settings', {
     novelList: db.prepare('SELECT id, title, slug, members_only FROM novels ORDER BY title COLLATE NOCASE').all(),
+    about: require('./about'),
   }));
   app.post('/settings', adminOnly, (req, res) => {
     saveSettings({
@@ -1202,6 +1203,13 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
       default_theme: req.body.default_theme === 'light' ? 'light' : 'dark',
       default_role: req.body.default_role === 'translator' ? 'translator' : 'reader',
       contact_email: require('./mail').isValidEmail(String(req.body.contact_email || '').trim()) ? String(req.body.contact_email).trim() : '',
+      about_title: String(req.body.about_title || '').trim().slice(0, 120),
+      // Unchanged built-in text is stored as empty, so later improvements to it still show up.
+      about_body: (() => {
+        const t = String(req.body.about_body || '').replace(/\r\n?/g, '\n').trim().slice(0, 30000);
+        return t === require('./about').DEFAULT_ABOUT.trim() ? '' : t;
+      })(),
+      about_description: String(req.body.about_description || '').trim().slice(0, 300),
     });
     // Public novels: everything not ticked stays hidden from guests (members only).
     if (req.body.novel_visibility === '1') {

@@ -1,5 +1,16 @@
 [
   {
+    "id": "2026-10-17-editable-about",
+    "date": "2026-10-17",
+    "title": "Editable About page",
+    "changes": [
+      "Site settings now has an “About us page” section: change the page title, all of its text, and the description Google shows.",
+      "The text box starts with the current About text, so you can edit it instead of starting from scratch. Clear it and save to go back to the built-in text.",
+      "Simple formatting: ## for headings, - for bullet points, **bold**, *italic* and [links](https://…).",
+      "Automatic values like {novels} and {chapters} fill in the current numbers."
+    ]
+  },
+  {
     "id": "2026-10-17-hidden-stays-on-google",
     "date": "2026-10-17",
     "title": "Hidden novels stay on Google",

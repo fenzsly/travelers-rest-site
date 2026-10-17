@@ -17,6 +17,18 @@
   <label class="field">New accounts start as
     <select name="default_role"><option value="reader" <%= settings.default_role === 'reader' ? 'selected' : '' %>>Reader (recommended)</option><option value="translator" <%= settings.default_role === 'translator' ? 'selected' : '' %>>Translator (can upload immediately)</option></select>
   </label>
+  <h2 id="about-page">About us page</h2>
+  <p class="hint" style="margin-top: 0">The page at <a href="<%= site('/about') %>" target="_blank" rel="noopener"><%= site('/about').replace(/^https?:\/\//, '') %></a> (linked in the footer). Google and AdSense reviewers read it, so say who runs the site and what it offers.</p>
+  <label class="field">Page title <span class="hint">Empty = “About <%= settings.site_name %>”.</span><input name="about_title" value="<%= settings.about_title %>" maxlength="120" placeholder="About <%= settings.site_name %>"></label>
+  <label class="field">Page text
+    <span class="hint">Write normally. Start a line with <code>## </code> for a heading and <code>- </code> for a bullet; <code>**bold**</code>, <code>*italic*</code>, <code>[link text](https://…)</code>. Leave a blank line between paragraphs. Clear the box and save to go back to the built-in text.</span>
+    <textarea name="about_body" rows="18" class="mono" maxlength="30000"><%= settings.about_body || about.DEFAULT_ABOUT %></textarea>
+  </label>
+  <details class="small" style="margin: -4px 0 12px"><summary>Automatic values you can use in the text</summary>
+    <ul style="margin: 6px 0"><% Object.entries(about.PLACEHOLDERS).forEach(([k, v]) => { %><li><code><%= k %></code>: <%= v %></li><% }) %></ul>
+  </details>
+  <label class="field">Description for Google <span class="hint">The short text under the page in search results (up to 300 characters). Empty = a standard one.</span><input name="about_description" value="<%= settings.about_description %>" maxlength="300"></label>
+
   <h2 id="public-novels">Public novels</h2>
   <p class="hint" style="margin-top: 0">Novels are <strong>hidden by default</strong>: guests don’t see them anywhere on the site (home page, browse, search); signed-in accounts see everything. Hidden novels <strong>stay on Google</strong>, and anyone with a link (for example from a Google search) can still read them. Tick the novels guests should see on the site. New novels start hidden.</p>
   <input type="hidden" name="novel_visibility" value="1">

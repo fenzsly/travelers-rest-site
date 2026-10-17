@@ -25,6 +25,10 @@ const DEFAULTS = {
   social_links: '',
   // Shown on the Contact page (optional; the contact form works without it).
   contact_email: '',
+  // About page (Admin → Site settings). Empty = the built-in text.
+  about_title: '',
+  about_body: '',
+  about_description: '',
   // --- Email ---
   require_email: '0', // '1' = an email address is required to sign up
   // --- Anti-scraping (Admin → Anti-scraping). anti_scraping is the master switch for everything below. ---

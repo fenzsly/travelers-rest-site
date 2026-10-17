@@ -795,11 +795,13 @@ router.get('/about', (req, res) => {
   const s = getSettings();
   const totals = db.prepare(`SELECT (SELECT COUNT(*) FROM novels n WHERE ${listed(req)}) AS novels,
     (SELECT COUNT(*) FROM chapters c JOIN novels n ON n.id = c.novel_id WHERE ${VISIBLE} AND ${listed(req)}) AS chapters`).get();
+  const genres = q.allGenres.all().filter((g) => g.novel_count);
   res.render('about', {
-    totals, genres: q.allGenres.all().filter((g) => g.novel_count),
+    heading: s.about_title || `About ${s.site_name}`,
+    html: require('../about').aboutHtml({ totals, genres, baseUrl: res.locals.baseUrl }),
     seo: {
-      title: `About ${s.site_name} — Web Novel Translations`,
-      description: `${s.site_name} is a free site for reading English translations of web novels. Learn what we translate, how often we update and how to follow new chapters.`,
+      title: s.about_title ? `${s.about_title} | ${s.site_name}` : `About ${s.site_name} — Web Novel Translations`,
+      description: s.about_description || `${s.site_name} is a free site for reading English translations of web novels. Learn what we translate, how often we update and how to follow new chapters.`,
       canonical: `${res.locals.baseUrl}/about`,
       jsonld: { '@context': 'https://schema.org', '@type': 'AboutPage', name: `About ${s.site_name}`, url: `${res.locals.baseUrl}/about`, about: { '@id': `${res.locals.baseUrl}/#org` } },
     },

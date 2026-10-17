@@ -275,7 +275,7 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
   app.post('/novels/:id/visibility', loadNovel, (req, res) => {
     const hide = req.body.members_only === '1' ? 1 : 0;
     db.prepare('UPDATE novels SET members_only = ? WHERE id = ?').run(hide, req.novel.id);
-    req.flash('ok', hide ? `🔒 “${req.novel.title}” is now members only: guests and search engines can’t see it.` : `“${req.novel.title}” is public again.`);
+    req.flash('ok', hide ? `🔒 “${req.novel.title}” is now hidden on the site for guests (it stays on Google).` : `“${req.novel.title}” is public again.`);
     res.redirect(req.get('referer')?.includes('/novels') ? req.get('referer') : A('/novels'));
   });
 

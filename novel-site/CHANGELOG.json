@@ -1,5 +1,15 @@
 [
   {
+    "id": "2026-10-17-hidden-stays-on-google",
+    "date": "2026-10-17",
+    "title": "Hidden novels stay on Google",
+    "changes": [
+      "Hidden novels are only hidden on the site: guests don't see them on the home page, browse, genres or search.",
+      "Google still sees them: they're back in the sitemaps and RSS feed, and search engines are notified of new chapters.",
+      "Anyone with a link (for example from a Google search) can read a hidden novel, with the usual 10 free chapters for guests."
+    ]
+  },
+  {
     "id": "2026-10-17-hidden-by-default",
     "date": "2026-10-17",
     "title": "Novels hidden by default",

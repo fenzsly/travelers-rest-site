@@ -18,7 +18,7 @@
     <select name="default_role"><option value="reader" <%= settings.default_role === 'reader' ? 'selected' : '' %>>Reader (recommended)</option><option value="translator" <%= settings.default_role === 'translator' ? 'selected' : '' %>>Translator (can upload immediately)</option></select>
   </label>
   <h2 id="public-novels">Public novels</h2>
-  <p class="hint" style="margin-top: 0">Novels are <strong>hidden by default</strong>: only signed-in accounts can see and read them, and search engines don’t see them. Tick the novels everyone (guests and Google) may see. New novels start hidden.</p>
+  <p class="hint" style="margin-top: 0">Novels are <strong>hidden by default</strong>: guests don’t see them anywhere on the site (home page, browse, search); signed-in accounts see everything. Hidden novels <strong>stay on Google</strong>, and anyone with a link (for example from a Google search) can still read them. Tick the novels guests should see on the site. New novels start hidden.</p>
   <input type="hidden" name="novel_visibility" value="1">
   <% if (!novelList.length) { %><p class="muted">No novels yet.</p><% } else { %>
   <div class="public-list">

@@ -17,7 +17,7 @@
       <label class="field">Year<input name="year" type="number" min="1900" max="2100" value="<%= novel.year || '' %>"></label>
     </div>
     <label class="switch"><input type="checkbox" name="is_original" value="1" <%= novel.is_original ? 'checked' : '' %>><span></span> Original work (written for this site, not a translation): no translator is shown</label>
-    <label class="switch"><input type="checkbox" name="members_only" value="1" <%= novel.members_only || !novel.id ? 'checked' : '' %>><span></span> 🔒 Members only: hidden from guests and search engines; only signed-in accounts can find and read it</label>
+    <label class="switch"><input type="checkbox" name="members_only" value="1" <%= novel.members_only || !novel.id ? 'checked' : '' %>><span></span> 🔒 Hidden on the site: not listed for guests (home, browse, search). Still on Google, and links to it work for everyone</label>
     <datalist id="langs"><option>Chinese</option><option>Korean</option><option>Japanese</option><option>Vietnamese</option><option>Indonesian</option><option>Thai</option><option>Spanish</option></datalist>
     <label class="field">Status
       <div class="radio-row">

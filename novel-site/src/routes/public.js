@@ -70,7 +70,8 @@ function libraryUpdates(userId) {
 }
 
 const HAS_CHAPTERS = `EXISTS (SELECT 1 FROM chapters c WHERE c.novel_id = n.id AND ${VISIBLE})`;
-/** Novels marked "members only" are hidden from guests (and search engines): SQL condition for `n`. */
+/** Novels marked hidden aren't listed for guests anywhere on the site (search engines still index them,
+ *  and direct links work for everyone): SQL condition for `n`. */
 const listed = (req) => (req.user ? '1' : 'n.members_only = 0');
 
 // ---------- Home ----------
@@ -207,11 +208,6 @@ router.get('/api/search', (req, res) => {
 function loadNovel(req, res, next) {
   const novel = q.novelBySlug.get(req.params.slug);
   if (!novel) return next(notFound('Novel not found.'));
-  if (novel.members_only && !req.user) {
-    // Hidden from guests: ask them to log in (search engines are told not to index this page).
-    res.set('X-Robots-Tag', 'noindex');
-    return res.status(403).render('members-only', { currentPath: req.originalUrl.split('?')[0].replace(/\/text$/, ''), seo: { title: `Members only | ${getSettings().site_name}`, noindex: true } });
-  }
   req.novel = novel;
   next();
 }
@@ -648,7 +644,7 @@ function rss(req, res, { title, link, description, items }) {
 }
 
 const FEED_SQL = `SELECT c.id, c.number, c.title, ${RELEASED} AS released_at, n.title AS novel_title, n.slug
-  FROM chapters c JOIN novels n ON n.id = c.novel_id WHERE ${VISIBLE} AND n.members_only = 0`;
+  FROM chapters c JOIN novels n ON n.id = c.novel_id WHERE ${VISIBLE}`;
 
 router.get('/rss.xml', (req, res) => {
   const s = getSettings();
@@ -683,7 +679,7 @@ const urlTag = (loc, lastmod, extra = '') => `<url><loc>${xmlEscape(loc)}</loc>$
 
 router.get('/sitemap.xml', (req, res) => {
   const base = res.locals.baseUrl;
-  const count = db.prepare(`SELECT COUNT(*) AS n FROM chapters c JOIN novels n ON n.id = c.novel_id WHERE ${VISIBLE} AND n.members_only = 0`).get().n;
+  const count = db.prepare(`SELECT COUNT(*) AS n FROM chapters c JOIN novels n ON n.id = c.novel_id WHERE ${VISIBLE}`).get().n;
   const parts = [`${base}/sitemap-novels.xml`];
   for (let i = 1; i <= Math.ceil(count / CHAPTERS_PER_SITEMAP); i++) parts.push(`${base}/sitemap-chapters-${i}.xml`);
   res.type('application/xml').send(`<?xml version="1.0" encoding="UTF-8"?>
@@ -695,7 +691,7 @@ ${parts.map((loc) => `<sitemap><loc>${xmlEscape(loc)}</loc></sitemap>`).join('\n
 router.get('/sitemap-novels.xml', (req, res) => {
   const base = res.locals.baseUrl;
   const novels = db.prepare(`SELECT n.slug, n.title, n.cover,
-    COALESCE((SELECT MAX(${RELEASED}) FROM chapters c WHERE c.novel_id = n.id AND ${VISIBLE}), n.updated_at) AS lastmod FROM novels n WHERE n.members_only = 0 ORDER BY lastmod DESC`).all();
+    COALESCE((SELECT MAX(${RELEASED}) FROM chapters c WHERE c.novel_id = n.id AND ${VISIBLE}), n.updated_at) AS lastmod FROM novels n ORDER BY lastmod DESC`).all();
   const genres = db.prepare('SELECT g.slug FROM genres g WHERE EXISTS (SELECT 1 FROM novel_genres ng WHERE ng.genre_id = g.id)').all();
   const latest = novels.length ? novels[0].lastmod : null;
   res.type('application/xml').send(`<?xml version="1.0" encoding="UTF-8"?>
@@ -715,7 +711,7 @@ router.get('/sitemap-chapters-:n.xml', (req, res, next) => {
   if (!Number.isInteger(n) || n < 1) return next(notFound());
   const base = res.locals.baseUrl;
   const rows = db.prepare(`SELECT n.slug, c.number, ${RELEASED} AS lastmod FROM chapters c JOIN novels n ON n.id = c.novel_id
-    WHERE ${VISIBLE} AND n.members_only = 0 ORDER BY c.id LIMIT ? OFFSET ?`).all(CHAPTERS_PER_SITEMAP, (n - 1) * CHAPTERS_PER_SITEMAP);
+    WHERE ${VISIBLE} ORDER BY c.id LIMIT ? OFFSET ?`).all(CHAPTERS_PER_SITEMAP, (n - 1) * CHAPTERS_PER_SITEMAP);
   if (!rows.length && n > 1) return next(notFound());
   res.type('application/xml').send(`<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">

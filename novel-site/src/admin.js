@@ -1199,7 +1199,14 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
   // ---------- System: updates & backups (admin) ----------
   app.get('/system', adminOnly, async (req, res) => {
     const info = await system.info(req.query.check === '1');
-    res.render('admin/system', { info, update: system.status(), last: system.lastUpdate(), bundled: content.importedPackages(), history: system.changelog() });
+    res.render('admin/system', { info, update: system.status(), last: system.lastUpdate(), bundled: content.importedPackages(), history: system.changelog(), storage: system.storage(req.query.refresh === '1') });
+  });
+
+  app.post('/system/prune-backups', adminOnly, (req, res) => {
+    const { deleted, freed } = system.pruneBackups(3);
+    security.log(req, 'backups_pruned', { userId: req.user.id, username: req.user.username, detail: `${deleted} files` });
+    req.flash('ok', deleted ? `Deleted ${deleted} old backup file${deleted === 1 ? '' : 's'} and freed ${(freed / 1048576).toFixed(0)} MB. The 3 newest are kept.` : 'Nothing to delete: there are 3 or fewer backups.');
+    res.redirect(A('/system#storage'));
   });
 
   app.post('/system/update', adminOnly, (req, res) => {

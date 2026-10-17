@@ -178,4 +178,91 @@ function backupDatabase() {
   return file;
 }
 
-module.exports = { info, changelog, status, startUpdate, undoLastUpdate, lastUpdate, backupDatabase };
+// ---------- Storage: disk and memory use (Admin → Update & backup) ----------
+/** Total size in bytes of everything under `dir` (0 if it doesn't exist). Symlinks are not followed. */
+function dirSize(dir, skip = () => false) {
+  let total = 0;
+  let entries;
+  try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return 0; }
+  for (const e of entries) {
+    const full = path.join(dir, e.name);
+    if (skip(full)) continue;
+    try {
+      if (e.isDirectory()) total += dirSize(full, skip);
+      else if (e.isFile()) total += fs.statSync(full).size;
+    } catch { /* vanished or unreadable */ }
+  }
+  return total;
+}
+
+function fileSize(file) {
+  try { return fs.statSync(file).size; } catch { return 0; }
+}
+
+/** Memory the system can still hand out (MemAvailable on Linux, else free memory). */
+function availableMemory() {
+  try {
+    const m = fs.readFileSync('/proc/meminfo', 'utf8').match(/^MemAvailable:\s+(\d+) kB/m);
+    if (m) return Number(m[1]) * 1024;
+  } catch { /* not Linux */ }
+  return os.freemem();
+}
+
+const BACKUP_DIR = () => path.join(require('./db').DATA_DIR, 'backups');
+
+/** Backup files, newest first. */
+function backupFiles() {
+  try {
+    return fs.readdirSync(BACKUP_DIR(), { withFileTypes: true }).filter((e) => e.isFile())
+      .map((e) => { const st = fs.statSync(path.join(BACKUP_DIR(), e.name)); return { name: e.name, size: st.size, mtime: st.mtimeMs }; })
+      .sort((a, b) => b.mtime - a.mtime);
+  } catch {
+    return [];
+  }
+}
+
+let storageCache = null;
+/** Disk space of the server and what this site uses. Walking folders takes a moment, so it's cached for 2 minutes. */
+function storage(fresh = false) {
+  if (!fresh && storageCache && storageCache.at > Date.now() - 120000) return storageCache;
+  const { DATA_DIR } = require('./db');
+  const { UPLOAD_DIR } = require('./common');
+  const dbFile = db.prepare('PRAGMA database_list').get().file;
+  let disk = null;
+  try {
+    const st = fs.statfsSync(DATA_DIR);
+    // Like `df`: space blocked off for the system (or by a quota) isn't usable, so size = used + available.
+    const used = (st.blocks - st.bfree) * st.bsize;
+    const free = st.bavail * st.bsize;
+    disk = { total: used + free, free, used };
+  } catch { /* statfs not available */ }
+  const backups = backupFiles();
+  const inside = (dir) => (p) => p === dir || p.startsWith(dir + path.sep);
+  const parts = [
+    { key: 'database', label: 'Database (novels, chapters, users, comments)', size: fileSize(dbFile) + fileSize(`${dbFile}-wal`) + fileSize(`${dbFile}-shm`) },
+    { key: 'uploads', label: 'Uploaded images (covers)', size: dirSize(UPLOAD_DIR) },
+    { key: 'backups', label: `Backups on the server (${backups.length} file${backups.length === 1 ? '' : 's'})`, size: backups.reduce((a, b) => a + b.size, 0) },
+    { key: 'code', label: 'Site code and its version history', size: dirSize(APP_DIR, (p) => inside(path.join(APP_DIR, 'node_modules'))(p) || inside(path.join(APP_DIR, '.git'))(p) || inside(UPLOAD_DIR)(p) || inside(DATA_DIR)(p)) + dirSize(path.join(APP_DIR, '..', '.git')) },
+    { key: 'modules', label: 'Code libraries (node_modules)', size: dirSize(path.join(APP_DIR, 'node_modules')) },
+  ];
+  const site = parts.reduce((a, p) => a + p.size, 0);
+  const memTotal = os.totalmem();
+  storageCache = {
+    at: Date.now(), disk, parts, site, backups,
+    memory: { total: memTotal, available: availableMemory(), site: process.memoryUsage().rss },
+  };
+  return storageCache;
+}
+
+/** Delete all but the newest `keep` backup files on the server. Returns { deleted, freed }. */
+function pruneBackups(keep = 3) {
+  let deleted = 0;
+  let freed = 0;
+  for (const f of backupFiles().slice(keep)) {
+    try { fs.rmSync(path.join(BACKUP_DIR(), f.name)); deleted++; freed += f.size; } catch { /* ignore */ }
+  }
+  storageCache = null;
+  return { deleted, freed };
+}
+
+module.exports = { storage, pruneBackups, info, changelog, status, startUpdate, undoLastUpdate, lastUpdate, backupDatabase };

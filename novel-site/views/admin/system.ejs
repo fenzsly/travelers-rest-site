@@ -53,6 +53,50 @@
     <p class="muted small">Node <%= info.node %> · up for <%= Math.floor(info.uptime / 3600) %>h <%= Math.floor(info.uptime % 3600 / 60) %>m</p>
   </section>
 </div>
+<section class="card" id="storage">
+  <% const mb = (n) => n >= 1073741824 ? (n / 1073741824).toFixed(n >= 10737418240 ? 0 : 1) + ' GB' : n >= 1048576 ? Math.round(n / 1048576) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
+     const d = storage.disk; const pct = d ? Math.round(d.used / d.total * 100) : 0; const level = pct >= 90 ? 'bad' : pct >= 75 ? 'warn' : 'ok'; %>
+  <h2 style="display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap">💽 Server storage <a class="small" style="font-weight: 600" href="<%= A('/system?refresh=1#storage') %>">↻ Refresh</a></h2>
+  <% if (d) { %>
+    <div class="st-summary">
+      <div><div class="st-big"><%= mb(d.free) %></div><div class="muted small">free of <%= mb(d.total) %></div></div>
+      <div><div class="st-big"><%= mb(storage.site) %></div><div class="muted small">used by this site</div></div>
+      <div><div class="st-big st-<%= level %>"><%= pct %>%</div><div class="muted small">of the disk used</div></div>
+    </div>
+    <div class="st-bar" title="Disk: <%= mb(d.used) %> used, <%= mb(d.free) %> free">
+      <span class="st-site" style="width: <%= Math.min(100, storage.site / d.total * 100).toFixed(2) %>%"></span><span class="st-other" style="width: <%= Math.max(0, (d.used - storage.site) / d.total * 100).toFixed(2) %>%"></span>
+    </div>
+    <div class="st-legend small"><span><i class="st-site"></i>This site <%= mb(storage.site) %></span><span><i class="st-other"></i>System &amp; other programs <%= mb(Math.max(0, d.used - storage.site)) %></span><span><i class="st-free"></i>Free <%= mb(d.free) %></span></div>
+    <% if (level === 'bad') { %><div class="alert alert-error" style="margin-top: 12px">The disk is almost full. When it fills up the site can stop saving chapters and comments. Delete old backups below, or upgrade the server’s disk in your Hetzner account.</div>
+    <% } else if (level === 'warn') { %><div class="alert" style="margin-top: 12px">The disk is getting full. Keep an eye on it, and delete old backups if you need room.</div><% } %>
+  <% } else { %><p class="muted">The server’s disk size couldn’t be read.</p><% } %>
+
+  <table class="table" style="margin-top: 14px">
+    <thead><tr><th>What</th><th class="right">Size</th></tr></thead>
+    <% storage.parts.forEach((p) => { %><tr><td><%= p.label %></td><td class="right nowrap"><strong><%= mb(p.size) %></strong></td></tr><% }) %>
+    <tr><td><strong>Total for this site</strong></td><td class="right nowrap"><strong><%= mb(storage.site) %></strong></td></tr>
+  </table>
+
+  <h3 style="margin: 18px 0 6px">Backups on the server</h3>
+  <p class="muted small" style="margin-top: 0">The server makes a backup every night (kept 14 days) and one before every update (so it can be undone). They’re deleted automatically after 14 days. You can delete old ones now to free space; the 3 newest are always kept.</p>
+  <% if (storage.backups.length) { %>
+  <details><summary class="small"><%= storage.backups.length %> file<%= storage.backups.length === 1 ? '' : 's' %>, <%= mb(storage.parts.find((p) => p.key === 'backups').size) %></summary>
+    <table class="table small"><% storage.backups.forEach((f) => { %><tr><td><code><%= f.name %></code></td><td class="muted nowrap"><span class="local-time" data-ts="<%= Math.round(f.mtime / 1000) %>"></span></td><td class="right nowrap"><%= mb(f.size) %></td></tr><% }) %></table>
+  </details>
+  <% } %>
+  <% if (storage.backups.length > 3) { %>
+  <form method="post" action="<%= A('/system/prune-backups') %>" style="margin-top: 10px" onsubmit="return confirm('Delete all server backups except the 3 newest? Download a backup first if you want to keep a copy.')">
+    <input type="hidden" name="_csrf" value="<%= csrf %>">
+    <button class="btn" type="submit">🧹 Delete old backups (free <%= mb(storage.backups.slice(3).reduce((a, f) => a + f.size, 0)) %>)</button>
+  </form>
+  <% } %>
+
+  <h3 style="margin: 18px 0 6px">Memory (RAM)</h3>
+  <% const m = storage.memory; const mpct = Math.round((m.total - m.available) / m.total * 100); %>
+  <div class="st-bar" title="<%= mpct %>% in use"><span class="st-site" style="width: <%= Math.min(100, m.site / m.total * 100).toFixed(2) %>%"></span><span class="st-other" style="width: <%= Math.max(0, (m.total - m.available - m.site) / m.total * 100).toFixed(2) %>%"></span></div>
+  <div class="st-legend small"><span><i class="st-site"></i>This site <%= mb(m.site) %></span><span><i class="st-other"></i>Other <%= mb(Math.max(0, m.total - m.available - m.site)) %></span><span><i class="st-free"></i>Available <%= mb(m.available) %> of <%= mb(m.total) %></span></div>
+  <p class="hint">Sizes are re-measured every 2 minutes (or press Refresh).</p>
+</section>
 <section class="card" id="history">
   <h2>📝 Update history</h2>
   <p class="muted small" style="margin-top: 0">What each update changed, newest first. The release date is when the update came out; “installed” is when this site got it.</p>

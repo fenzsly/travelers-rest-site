@@ -1,5 +1,16 @@
 [
   {
+    "id": "2026-10-17-server-storage",
+    "date": "2026-10-17",
+    "title": "Server storage",
+    "changes": [
+      "Update & backup now shows the server's disk: free space, total size, and how much this site uses, with a warning when it gets full.",
+      "A breakdown of the site's space: database, cover images, backups, code.",
+      "List of backups kept on the server, with a button to delete old ones (the 3 newest are always kept).",
+      "Memory (RAM) use of the server and the site."
+    ]
+  },
+  {
     "id": "2026-10-17-upload-10000",
     "date": "2026-10-17",
     "title": "Bigger batch uploads",

@@ -1,0 +1,42 @@
+<%- include('partials/top', { title: 'Daily leaderboard' }) %>
+<% const nice = new Date(day + 'T12:00:00Z').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }); %>
+<section class="card">
+  <div class="lb-head">
+    <div>
+      <h2 style="margin: 0">🏆 <%= isToday ? 'Today' : nice %></h2>
+      <div class="muted small"><%= isToday ? nice + ' · updates live · ' : '' %><%= total.toLocaleString('en-US') %> views across <%= rows.length %> novel<%= rows.length === 1 ? '' : 's' %></div>
+    </div>
+    <form class="lb-nav" method="get" action="<%= A('/leaderboard') %>">
+      <a class="btn btn-sm" href="<%= A(`/leaderboard?day=${prev}`) %>" title="Day before">‹ Previous day</a>
+      <input type="date" name="day" value="<%= day %>" max="<%= new Date().toISOString().slice(0, 10) %>" onchange="this.form.submit()" aria-label="Pick a day">
+      <% if (next) { %><a class="btn btn-sm" href="<%= A(`/leaderboard?day=${next}`) %>" title="Next day">Next day ›</a><a class="btn btn-sm btn-ghost" href="<%= A('/leaderboard') %>">Today</a><% } %>
+    </form>
+  </div>
+  <% if (!rows.length) { %>
+    <p class="muted" style="margin-top: 16px">No novel views on this day.</p>
+  <% } else { %>
+  <table class="table table-lg lb-table">
+    <thead><tr><th>#</th><th>Novel</th><th class="right">Views</th><th class="right">vs day before</th><th class="right hide-sm">Readers</th></tr></thead>
+    <tbody>
+    <% rows.forEach((n) => { const diff = n.views - n.prev_views; const moved = n.prevRank ? n.prevRank - n.rank : null; %>
+      <tr class="<%= n.rank <= 3 ? 'lb-top' : '' %>">
+        <td class="rank-cell nowrap"><%= n.rank === 1 ? '🥇' : n.rank === 2 ? '🥈' : n.rank === 3 ? '🥉' : n.rank %>
+          <% if (moved === null) { %><span class="lb-move lb-new" title="Not ranked the day before">new</span><% } else if (moved > 0) { %><span class="lb-move lb-up" title="Up <%= moved %> from the day before">▲<%= moved %></span><% } else if (moved < 0) { %><span class="lb-move lb-down" title="Down <%= -moved %> from the day before">▼<%= -moved %></span><% } %></td>
+        <td>
+          <div class="lb-novel">
+            <% if (n.cover) { %><img src="<%= A('/uploads/covers/' + n.cover) %>" alt="" loading="lazy"><% } else { %><span class="lb-nocover"></span><% } %>
+            <div><a href="<%= A(`/novels/${n.id}/stats`) %>"><strong><%= n.title %></strong></a><div class="small"><a class="muted" href="<%= site(`/novel/${n.slug}`) %>" target="_blank" rel="noopener">↗ View on site</a></div></div>
+          </div>
+        </td>
+        <td class="right nowrap"><strong><%= n.views.toLocaleString('en-US') %></strong>
+          <div class="lb-bar"><span style="width: <%= Math.max(2, Math.round(n.views / rows[0].views * 100)) %>%"></span></div></td>
+        <td class="right nowrap small <%= diff > 0 ? 'lb-up' : diff < 0 ? 'lb-down' : 'muted' %>"><%= diff > 0 ? '+' : '' %><%= diff.toLocaleString('en-US') %></td>
+        <td class="right hide-sm"><%= n.readers.toLocaleString('en-US') %></td>
+      </tr>
+    <% }) %>
+    </tbody>
+  </table>
+  <% } %>
+  <p class="hint">Views are counted only when a chapter is opened in a real browser (bots and scrapers aren’t counted). “Readers” = different people who opened a chapter of that novel that day. Days start at 00:00 UTC (5:30 AM India time), the same as the other view charts.<% if (user.role !== 'admin') { %> You see your own novels.<% } %></p>
+</section>
+<%- include('partials/bottom') %>

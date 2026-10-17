@@ -22,7 +22,7 @@
     </div>
     <div class="toggle-row">
       <label class="switch"><input type="checkbox" name="guest_limit_on" value="1" <%= Number(settings.guest_chapter_limit) > 0 ? 'checked' : '' %>><span></span> <strong>Free-chapter limit for guests</strong></label>
-      <label class="inline-num">Guests must sign up after <input name="guest_chapter_limit" type="number" min="1" max="1000" value="<%= Number(settings.guest_chapter_limit) > 0 ? settings.guest_chapter_limit : 40 %>"> chapters</label>
+      <label class="inline-num">Guests must sign up after <input name="guest_chapter_limit" type="number" min="1" max="1000" value="<%= Number(settings.guest_chapter_limit) > 0 ? settings.guest_chapter_limit : 10 %>"> chapters</label>
     </div>
     <div class="toggle-row">
       <label class="switch"><input type="checkbox" name="guest_ip_limit" value="1" <%= on('guest_ip_limit') ? 'checked' : '' %>><span></span> <strong>Also limit guests per internet address</strong></label>

@@ -78,6 +78,30 @@ function volumeLine(line) {
   return rest.length <= 40 && /^["'“‘(\[A-Z0-9\p{Lo}]/u.test(rest) && !sentence.test(rest) ? Number(m[1]) : null;
 }
 
+// Raw (untranslated) headings: 第一百二十章 / 第120話 / 第１２回 (Chinese/Japanese), 제12화 / 12화 / 제 12 장 (Korean).
+const CJK_HEADING_RE = /^\s*第\s*([0-9０-９零〇一二两兩三四五六七八九十百千万萬]+)\s*[章话話回节節卷]\s*(?:[:：.\-–—|、]\s*)?(.*)$/;
+const KO_HEADING_RE = /^\s*(?:제\s*)?(\d+)\s*[화장]\s*(?:[:.\-–—|]\s*)?(.*)$/;
+const CN_DIGITS = { 零: 0, 〇: 0, 一: 1, 二: 2, 两: 2, 兩: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9 };
+const CN_UNITS = { 十: 10, 百: 100, 千: 1000, 万: 10000, 萬: 10000 };
+
+/** "一百二十三" -> 123, "１２" -> 12, "12" -> 12. */
+function cjkNumber(s) {
+  const ascii = s.replace(/[０-９]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 0xfee0));
+  if (/^\d+$/.test(ascii)) return Number(ascii);
+  let total = 0;
+  let section = 0;
+  let digit = 0;
+  for (const ch of ascii) {
+    if (ch in CN_DIGITS) digit = CN_DIGITS[ch];
+    else if (ch in CN_UNITS) {
+      const unit = CN_UNITS[ch];
+      if (unit === 10000) { total += (section + digit) * unit; section = 0; } else section += (digit || 1) * unit;
+      digit = 0;
+    } else return null;
+  }
+  return total + section + digit;
+}
+
 /**
  * Interpret a heading line like "Chapter 12 - The Gate" -> { number: 12, title: "The Gate" }.
  * "Volume 2 Chapter 12: …" also sets `volume`. Returns null if the line does not look like a chapter heading.
@@ -95,6 +119,10 @@ function parseHeading(line) {
   }
   let m = clean.match(HEADING_RE);
   if (m) return { number: parseFloat(m[1]), title: m[2].trim(), ...(volume ? { volume } : {}) };
+  m = clean.match(CJK_HEADING_RE);
+  if (m && cjkNumber(m[1]) !== null) return { number: cjkNumber(m[1]), title: m[2].trim(), ...(volume ? { volume } : {}) };
+  m = clean.match(KO_HEADING_RE);
+  if (m) return { number: Number(m[1]), title: m[2].trim(), ...(volume ? { volume } : {}) };
   m = clean.match(SPECIAL_RE);
   if (m) {
     const word = m[1][0].toUpperCase() + m[1].slice(1).toLowerCase();
@@ -311,6 +339,6 @@ function assignMissingNumbers(chapters, startAfter = 0) {
 }
 
 module.exports = {
-  sanitize, textToHtml, wordCount, parseHeading, numberFromFilename,
+  sanitize, textToHtml, wordCount, parseHeading, numberFromFilename, cjkNumber,
   parseFilesAsChapters, splitTextIntoChapters, parseSingleDocument, assignMissingNumbers,
 };

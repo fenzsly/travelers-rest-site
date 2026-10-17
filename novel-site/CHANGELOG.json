@@ -1,5 +1,16 @@
 [
   {
+    "id": "2026-10-17-daily-leaderboard",
+    "date": "2026-10-17",
+    "title": "Daily leaderboard and 10 free chapters",
+    "changes": [
+      "New 🏆 Daily leaderboard in the admin panel: novels ranked by that day's views, with change from the day before, rank movement and unique readers. Browse earlier days with the arrows or date picker.",
+      "The dashboard shows today's top 5 novels.",
+      "Guests can now read 10 chapters before being asked to sign up (was 40). Change it any time under Anti-scraping.",
+      "Chapter splitting understands raw headings like 第一百二十章, 第12話 and 제12화."
+    ]
+  },
+  {
     "id": "2026-10-16-update-log",
     "date": "2026-10-16",
     "title": "Update history",

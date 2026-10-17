@@ -267,7 +267,35 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
     };
     const trafficToday = req.user.role === 'admin' && require('./guard').enabled('scraper_check') ? require('./visitors').trafficByDay(1)[0] : null;
     const wantUpdates = require('./update-requests').leaderboard({ ownerId: req.user.role === 'admin' ? null : req.user.id, limit: 5 }).filter((n) => n.waiting);
-    res.render('admin/dashboard', { stats, novels: novels.slice(0, 8), recent, scheduled, chart, top, wantUpdates, people, visitorChart, readerChart, trafficToday, update: system.status() });
+    const todayTop = leaderboard(req.user, today(), 5);
+    res.render('admin/dashboard', { todayTop, stats, novels: novels.slice(0, 8), recent, scheduled, chart, top, wantUpdates, people, visitorChart, readerChart, trafficToday, update: system.status() });
+  });
+
+  // ---------- Daily leaderboard: novels ranked by one day's views ----------
+  /** Novels ranked by views on `day` (YYYY-MM-DD, UTC like all view counts), with readers and the change from the day before. */
+  function leaderboard(user, day, limit = 100) {
+    const mine = user.role === 'admin' ? '' : 'AND n.owner_id = ?';
+    const args = user.role === 'admin' ? [] : [user.id];
+    const rows = db.prepare(`SELECT n.id, n.title, n.slug, n.cover, d.views,
+        COALESCE((SELECT p.views FROM novel_views_daily p WHERE p.novel_id = n.id AND p.day = date(?, '-1 day')), 0) AS prev_views,
+        (SELECT COUNT(DISTINCT r.visitor) FROM novel_readers_daily r WHERE r.novel_id = n.id AND r.day = ?) AS readers
+      FROM novel_views_daily d JOIN novels n ON n.id = d.novel_id
+      WHERE d.day = ? AND d.views > 0 ${mine} ORDER BY d.views DESC, n.title LIMIT ?`).all(day, day, day, ...args, limit);
+    // Yesterday's ranking, to show who climbed or dropped.
+    const prevRank = {};
+    db.prepare(`SELECT d.novel_id FROM novel_views_daily d JOIN novels n ON n.id = d.novel_id
+      WHERE d.day = date(?, '-1 day') AND d.views > 0 ${mine} ORDER BY d.views DESC, n.title`).all(day, ...args)
+      .forEach((r, i) => { prevRank[r.novel_id] = i + 1; });
+    return rows.map((r, i) => ({ ...r, rank: i + 1, prevRank: prevRank[r.id] || null }));
+  }
+  const today = () => new Date().toISOString().slice(0, 10);
+
+  app.get('/leaderboard', (req, res) => {
+    const day = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.day || '')) && req.query.day <= today() ? req.query.day : today();
+    const shift = (n) => new Date(Date.parse(`${day}T00:00:00Z`) + n * 86400000).toISOString().slice(0, 10);
+    const rows = leaderboard(req.user, day);
+    const total = rows.reduce((a, r) => a + r.views, 0);
+    res.render('admin/leaderboard', { day, rows, total, prev: shift(-1), next: day < today() ? shift(1) : null, isToday: day === today() });
   });
 
   // ---------- Novels ----------
@@ -988,7 +1016,7 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
       browser_check: flag('browser_check'),
       guest_ip_limit: flag('guest_ip_limit'),
       block_ai_bots: flag('block_ai_bots'),
-      guest_chapter_limit: req.body.guest_limit_on ? num(req.body.guest_chapter_limit, 1, 1000, 40) : '0',
+      guest_chapter_limit: req.body.guest_limit_on ? num(req.body.guest_chapter_limit, 1, 1000, 10) : '0',
       account_daily_limit: req.body.account_cap_on ? num(req.body.account_daily_limit, 1, 10000, 400) : '0',
       chapter_speed_limit: req.body.speed_on ? num(req.body.chapter_speed_limit, 5, 1000, 40) : '0',
     });

@@ -57,6 +57,17 @@
 <% } %>
 <p class="hint" style="margin: -6px 0 18px">Each person counts once per day (logged-in readers by account, guests by an anonymous code that changes daily). Bots aren’t counted. Counting started with this update.</p>
 
+<section class="card">
+  <h2 style="display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap">🏆 Today’s top novels <a class="small" style="font-weight: 600" href="<%= A('/leaderboard') %>">Full leaderboard →</a></h2>
+  <% if (!todayTop.length) { %><p class="muted">No views yet today.</p><% } else { %>
+  <table class="table">
+    <% todayTop.forEach((n) => { %>
+      <tr><td class="rank-cell"><%= n.rank %></td><td><a href="<%= A(`/novels/${n.id}/stats`) %>"><strong><%= n.title %></strong></a></td><td class="right nowrap">👁 <%= n.views.toLocaleString('en-US') %> <span class="muted small">today</span></td></tr>
+    <% }) %>
+  </table>
+  <% } %>
+</section>
+
 <div class="grid-2">
   <section class="card">
     <h2>Views, last 30 days</h2>

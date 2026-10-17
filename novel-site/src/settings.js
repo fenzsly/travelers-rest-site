@@ -31,7 +31,7 @@ const DEFAULTS = {
   anti_scraping: '1',
   scraper_check: '1', // count downloads vs real browser opens and warn on the dashboard
   // Guests must create a free account after reading this many chapters (0 = never). Stops scrapers.
-  guest_chapter_limit: '40',
+  guest_chapter_limit: '10',
   guest_ip_limit: '1', // also count guests per IP address (3× the limit), for scrapers that drop cookies
   chapter_speed_limit: '40', // max chapters anyone can open per minute (0 = no limit)
   block_ai_bots: '1', // refuse AI-training / data-harvesting bots and disallow them in robots.txt
@@ -86,6 +86,15 @@ function saveSettings(values) {
 for (const key of ENCRYPTED) {
   const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
   if (row && row.value && !require('./security').isEncrypted(row.value)) saveSettings({ [key]: row.value });
+}
+
+// One-time change (Oct 2026): guests may read 10 chapters before signing up (was 40).
+// A limit that was switched off (0) stays off.
+if (!db.prepare("SELECT 1 FROM settings WHERE key = 'migrated_guest_limit_10'").get()) {
+  const row = db.prepare("SELECT value FROM settings WHERE key = 'guest_chapter_limit'").get();
+  if (row && Number(row.value) > 10) upsert.run('guest_chapter_limit', '10');
+  upsert.run('migrated_guest_limit_10', '1');
+  cache = null;
 }
 
 module.exports = { getSettings, saveSettings, DEFAULTS };

@@ -191,7 +191,7 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
   const chapterUpload = multer({
     storage: multer.memoryStorage(),
     preservePath: true,
-    limits: { fileSize: 100 * 1024 * 1024, files: 1000 },
+    limits: { fileSize: 100 * 1024 * 1024, files: 10000 },
   });
 
   app.use((req, res, next) => (req.is('multipart/form-data') ? next() : verifyCsrf(req, res, next)));
@@ -630,7 +630,7 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
     const list = Array.isArray(req.body.chapters) ? req.body.chapters : [];
     const overwrite = req.body.onConflict === 'overwrite';
     if (!list.length) throw fail(400, 'Nothing to publish.');
-    if (list.length > 5000) throw fail(400, 'Too many chapters in one batch (max 5000).');
+    if (list.length > 10000) throw fail(400, 'Too many chapters in one batch (max 10,000).');
     const insert = db.prepare('INSERT INTO chapters (novel_id, number, volume, title, content, word_count, publish_at) VALUES (?, ?, ?, ?, ?, ?, ?)');
     const update = db.prepare('UPDATE chapters SET volume = ?, title = ?, content = ?, word_count = ?, publish_at = COALESCE(?, publish_at) WHERE id = ?');
     const result = { created: 0, updated: 0, skipped: [], invalid: [], scheduled: 0 };

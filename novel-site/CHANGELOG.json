@@ -1,5 +1,14 @@
 [
   {
+    "id": "2026-10-17-upload-10000",
+    "date": "2026-10-17",
+    "title": "Bigger batch uploads",
+    "changes": [
+      "Batch upload now accepts .zip/.epub files with up to 10,000 chapters (was 5,000), up to 600 MB unpacked.",
+      "You can also pick up to 10,000 chapter files at once."
+    ]
+  },
+  {
     "id": "2026-10-17-daily-leaderboard",
     "date": "2026-10-17",
     "title": "Daily leaderboard and 10 free chapters",

@@ -2,8 +2,8 @@
 const path = require('node:path');
 const { unzipSync, strFromU8 } = require('fflate');
 
-const MAX_ENTRIES = 5000;
-const MAX_TOTAL_BYTES = 300 * 1024 * 1024; // guards against zip bombs
+const MAX_ENTRIES = 10000;
+const MAX_TOTAL_BYTES = 600 * 1024 * 1024; // guards against zip bombs
 const CHAPTER_EXT = /\.(txt|text|md|markdown|html?|xhtml|docx)$/i;
 
 class ArchiveError extends Error {}
@@ -19,7 +19,7 @@ function safeUnzip(buffer, filter) {
         entries += 1;
         total += file.originalSize;
         if (entries > MAX_ENTRIES) throw new ArchiveError(`Archive has more than ${MAX_ENTRIES} files.`);
-        if (total > MAX_TOTAL_BYTES) throw new ArchiveError('Archive is too large when unpacked (over 300 MB).');
+        if (total > MAX_TOTAL_BYTES) throw new ArchiveError('Archive is too large when unpacked (over 600 MB).');
         return true;
       },
     });

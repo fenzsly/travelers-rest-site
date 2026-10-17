@@ -70,31 +70,33 @@ function libraryUpdates(userId) {
 }
 
 const HAS_CHAPTERS = `EXISTS (SELECT 1 FROM chapters c WHERE c.novel_id = n.id AND ${VISIBLE})`;
+/** Novels marked "members only" are hidden from guests (and search engines): SQL condition for `n`. */
+const listed = (req) => (req.user ? '1' : 'n.members_only = 0');
 
 // ---------- Home ----------
 router.get('/', (req, res) => {
-  const popular = db.prepare(`SELECT ${NOVEL_COLUMNS} FROM novels n WHERE ${HAS_CHAPTERS} ORDER BY n.views DESC LIMIT 12`).all();
-  const updated = db.prepare(`SELECT ${NOVEL_COLUMNS} FROM novels n WHERE ${HAS_CHAPTERS} ORDER BY last_release DESC LIMIT 15`).all();
+  const popular = db.prepare(`SELECT ${NOVEL_COLUMNS} FROM novels n WHERE ${HAS_CHAPTERS} AND ${listed(req)} ORDER BY n.views DESC LIMIT 12`).all();
+  const updated = db.prepare(`SELECT ${NOVEL_COLUMNS} FROM novels n WHERE ${HAS_CHAPTERS} AND ${listed(req)} ORDER BY last_release DESC LIMIT 15`).all();
   const recentChapters = db.prepare(`SELECT c.id, c.number, c.title, ${RELEASED} AS released_at FROM chapters c
     WHERE c.novel_id = ? AND ${VISIBLE} ORDER BY released_at DESC, c.number DESC LIMIT 3`);
   for (const n of updated) n.recent = recentChapters.all(n.id);
-  const fresh = db.prepare(`SELECT ${NOVEL_COLUMNS} FROM novels n ORDER BY n.created_at DESC LIMIT 6`).all();
-  const topRated = db.prepare(`SELECT ${NOVEL_COLUMNS} FROM novels n WHERE rating_count > 0 ORDER BY rating DESC, rating_count DESC LIMIT 6`).all();
-  const trending = db.prepare(`SELECT ${NOVEL_COLUMNS} FROM novels n WHERE views_week > 0 ORDER BY views_week DESC LIMIT 8`).all();
-  const completed = db.prepare(`SELECT ${NOVEL_COLUMNS} FROM novels n WHERE n.status = 'completed' AND ${HAS_CHAPTERS} ORDER BY n.views DESC LIMIT 6`).all();
+  const fresh = db.prepare(`SELECT ${NOVEL_COLUMNS} FROM novels n WHERE ${listed(req)} ORDER BY n.created_at DESC LIMIT 6`).all();
+  const topRated = db.prepare(`SELECT ${NOVEL_COLUMNS} FROM novels n WHERE rating_count > 0 AND ${listed(req)} ORDER BY rating DESC, rating_count DESC LIMIT 6`).all();
+  const trending = db.prepare(`SELECT ${NOVEL_COLUMNS} FROM novels n WHERE views_week > 0 AND ${listed(req)} ORDER BY views_week DESC LIMIT 8`).all();
+  const completed = db.prepare(`SELECT ${NOVEL_COLUMNS} FROM novels n WHERE n.status = 'completed' AND ${HAS_CHAPTERS} AND ${listed(req)} ORDER BY n.views DESC LIMIT 6`).all();
   // Newest chapter comments and novel reviews from anywhere on the site (never on unreleased chapters).
   const latestComments = getSettings().comments_enabled === '1' ? db.prepare(`
     SELECT * FROM (
       SELECT 'comment' AS kind, cm.id, cm.body, cm.created_at, u.username, u.role, n.slug, n.title AS novel_title, c.number, c.volume, c.title AS chapter_title
       FROM comments cm JOIN users u ON u.id = cm.user_id JOIN chapters c ON c.id = cm.chapter_id JOIN novels n ON n.id = c.novel_id
-      WHERE ${VISIBLE}
+      WHERE ${VISIBLE} AND ${listed(req)}
       UNION ALL
       SELECT 'review', rv.id, rv.body, rv.updated_at, u.username, u.role, n.slug, n.title, NULL, NULL, NULL
-      FROM reviews rv JOIN users u ON u.id = rv.user_id JOIN novels n ON n.id = rv.novel_id
+      FROM reviews rv JOIN users u ON u.id = rv.user_id JOIN novels n ON n.id = rv.novel_id WHERE ${listed(req)}
     ) ORDER BY created_at DESC LIMIT 8`).all() : [];
-  const totals = db.prepare(`SELECT (SELECT COUNT(*) FROM novels) AS novels,
-    (SELECT COUNT(*) FROM chapters c WHERE ${VISIBLE}) AS chapters,
-    (SELECT COALESCE(SUM(views), 0) FROM novels) AS views`).get();
+  const totals = db.prepare(`SELECT (SELECT COUNT(*) FROM novels n WHERE ${listed(req)}) AS novels,
+    (SELECT COUNT(*) FROM chapters c JOIN novels n ON n.id = c.novel_id WHERE ${VISIBLE} AND ${listed(req)}) AS chapters,
+    (SELECT COALESCE(SUM(views), 0) FROM novels n WHERE ${listed(req)}) AS views`).get();
   const s = getSettings();
   const topRequests = requests.topThisWeek(5);
   res.render('home', {
@@ -125,7 +127,7 @@ const SORTS = {
 };
 
 router.get('/novels', (req, res) => {
-  const where = [];
+  const where = [listed(req)];
   const params = [];
   const search = String(req.query.q || '').trim();
   if (search) {
@@ -181,7 +183,7 @@ router.get('/genre/:slug', (req, res) => res.redirect(`/novels?genre=${encodeURI
 router.get('/ranking', (req, res) => res.redirect('/novels?sort=trending'));
 
 router.get('/random', (req, res) => {
-  const n = db.prepare(`SELECT n.slug FROM novels n WHERE ${HAS_CHAPTERS} ORDER BY RANDOM() LIMIT 1`).get();
+  const n = db.prepare(`SELECT n.slug FROM novels n WHERE ${HAS_CHAPTERS} AND ${listed(req)} ORDER BY RANDOM() LIMIT 1`).get();
   res.redirect(n ? `/novel/${n.slug}` : '/novels');
 });
 
@@ -192,7 +194,7 @@ router.get('/api/search', (req, res) => {
   const like = `%${term}%`;
   const rows = db.prepare(`SELECT n.slug, n.title, n.cover, n.status,
       (SELECT COUNT(*) FROM chapters c WHERE c.novel_id = n.id AND ${VISIBLE}) AS chapter_count
-    FROM novels n WHERE n.title LIKE ? OR n.alt_titles LIKE ? OR n.author LIKE ?
+    FROM novels n WHERE (n.title LIKE ? OR n.alt_titles LIKE ? OR n.author LIKE ?) AND ${listed(req)}
     ORDER BY (n.title LIKE ?) DESC, n.views DESC LIMIT 8`).all(like, like, like, `${term}%`);
   res.json(rows);
 });
@@ -201,6 +203,11 @@ router.get('/api/search', (req, res) => {
 function loadNovel(req, res, next) {
   const novel = q.novelBySlug.get(req.params.slug);
   if (!novel) return next(notFound('Novel not found.'));
+  if (novel.members_only && !req.user) {
+    // Hidden from guests: ask them to log in (search engines are told not to index this page).
+    res.set('X-Robots-Tag', 'noindex');
+    return res.status(403).render('members-only', { currentPath: req.originalUrl.split('?')[0].replace(/\/text$/, ''), seo: { title: `Members only | ${getSettings().site_name}`, noindex: true } });
+  }
   req.novel = novel;
   next();
 }
@@ -236,7 +243,7 @@ router.get('/novel/:slug', loadNovel, (req, res) => {
   const genres = q.genresForNovel.all(novel.id);
   // "More like this": other novels sharing the most genres.
   const similar = db.prepare(`SELECT ${NOVEL_COLUMNS} FROM novels n
-    WHERE n.id != ? AND ${HAS_CHAPTERS} AND EXISTS (SELECT 1 FROM novel_genres ng WHERE ng.novel_id = n.id AND ng.genre_id IN (SELECT genre_id FROM novel_genres WHERE novel_id = ?))
+    WHERE n.id != ? AND ${HAS_CHAPTERS} AND ${listed(req)} AND EXISTS (SELECT 1 FROM novel_genres ng WHERE ng.novel_id = n.id AND ng.genre_id IN (SELECT genre_id FROM novel_genres WHERE novel_id = ?))
     ORDER BY (SELECT COUNT(*) FROM novel_genres ng WHERE ng.novel_id = n.id AND ng.genre_id IN (SELECT genre_id FROM novel_genres WHERE novel_id = ?)) DESC, n.views DESC
     LIMIT 6`).all(novel.id, novel.id, novel.id);
   const updateStatus = updateRequests.status(novel.id, req.user?.id);
@@ -594,14 +601,14 @@ router.post('/requests/:id/vote', requireLogin, (req, res) => {
 router.get('/user/:name', (req, res, next) => {
   const profile = db.prepare('SELECT id, username, role, is_owner, created_at FROM users WHERE username = ? COLLATE NOCASE').get(req.params.name);
   if (!profile) return next(notFound('User not found.'));
-  const translated = db.prepare(`SELECT ${NOVEL_COLUMNS} FROM novels n WHERE n.owner_id = ? ORDER BY last_release DESC`).all(profile.id);
+  const translated = db.prepare(`SELECT ${NOVEL_COLUMNS} FROM novels n WHERE n.owner_id = ? AND ${listed(req)} ORDER BY last_release DESC`).all(profile.id);
   const lists = Object.fromEntries(db.prepare('SELECT status, COUNT(*) AS n FROM bookmarks WHERE user_id = ? GROUP BY status').all(profile.id).map((r) => [r.status, r.n]));
   const reading = db.prepare(`SELECT ${NOVEL_COLUMNS} FROM bookmarks b JOIN novels n ON n.id = b.novel_id
-    WHERE b.user_id = ? AND b.status = 'reading' ORDER BY b.updated_at DESC LIMIT 12`).all(profile.id);
+    WHERE b.user_id = ? AND b.status = 'reading' AND ${listed(req)} ORDER BY b.updated_at DESC LIMIT 12`).all(profile.id);
   const reviews = db.prepare(`SELECT rv.*, n.title AS novel_title, n.slug, r.score FROM reviews rv JOIN novels n ON n.id = rv.novel_id
-    LEFT JOIN ratings r ON r.user_id = rv.user_id AND r.novel_id = rv.novel_id WHERE rv.user_id = ? ORDER BY rv.updated_at DESC LIMIT 10`).all(profile.id);
+    LEFT JOIN ratings r ON r.user_id = rv.user_id AND r.novel_id = rv.novel_id WHERE rv.user_id = ? AND ${listed(req)} ORDER BY rv.updated_at DESC LIMIT 10`).all(profile.id);
   const comments = db.prepare(`SELECT cm.body, cm.created_at, c.number, c.title, n.title AS novel_title, n.slug FROM comments cm
-    JOIN chapters c ON c.id = cm.chapter_id JOIN novels n ON n.id = c.novel_id WHERE cm.user_id = ? ORDER BY cm.created_at DESC LIMIT 10`).all(profile.id);
+    JOIN chapters c ON c.id = cm.chapter_id JOIN novels n ON n.id = c.novel_id WHERE cm.user_id = ? AND ${listed(req)} ORDER BY cm.created_at DESC LIMIT 10`).all(profile.id);
   const counts = db.prepare(`SELECT (SELECT COUNT(*) FROM comments WHERE user_id = ?) AS comments,
     (SELECT COUNT(*) FROM ratings WHERE user_id = ?) AS ratings, (SELECT COUNT(*) FROM reviews WHERE user_id = ?) AS reviews`).get(profile.id, profile.id, profile.id);
   res.render('user', {
@@ -637,7 +644,7 @@ function rss(req, res, { title, link, description, items }) {
 }
 
 const FEED_SQL = `SELECT c.id, c.number, c.title, ${RELEASED} AS released_at, n.title AS novel_title, n.slug
-  FROM chapters c JOIN novels n ON n.id = c.novel_id WHERE ${VISIBLE}`;
+  FROM chapters c JOIN novels n ON n.id = c.novel_id WHERE ${VISIBLE} AND n.members_only = 0`;
 
 router.get('/rss.xml', (req, res) => {
   const s = getSettings();
@@ -672,7 +679,7 @@ const urlTag = (loc, lastmod, extra = '') => `<url><loc>${xmlEscape(loc)}</loc>$
 
 router.get('/sitemap.xml', (req, res) => {
   const base = res.locals.baseUrl;
-  const count = db.prepare(`SELECT COUNT(*) AS n FROM chapters c WHERE ${VISIBLE}`).get().n;
+  const count = db.prepare(`SELECT COUNT(*) AS n FROM chapters c JOIN novels n ON n.id = c.novel_id WHERE ${VISIBLE} AND n.members_only = 0`).get().n;
   const parts = [`${base}/sitemap-novels.xml`];
   for (let i = 1; i <= Math.ceil(count / CHAPTERS_PER_SITEMAP); i++) parts.push(`${base}/sitemap-chapters-${i}.xml`);
   res.type('application/xml').send(`<?xml version="1.0" encoding="UTF-8"?>
@@ -684,7 +691,7 @@ ${parts.map((loc) => `<sitemap><loc>${xmlEscape(loc)}</loc></sitemap>`).join('\n
 router.get('/sitemap-novels.xml', (req, res) => {
   const base = res.locals.baseUrl;
   const novels = db.prepare(`SELECT n.slug, n.title, n.cover,
-    COALESCE((SELECT MAX(${RELEASED}) FROM chapters c WHERE c.novel_id = n.id AND ${VISIBLE}), n.updated_at) AS lastmod FROM novels n ORDER BY lastmod DESC`).all();
+    COALESCE((SELECT MAX(${RELEASED}) FROM chapters c WHERE c.novel_id = n.id AND ${VISIBLE}), n.updated_at) AS lastmod FROM novels n WHERE n.members_only = 0 ORDER BY lastmod DESC`).all();
   const genres = db.prepare('SELECT g.slug FROM genres g WHERE EXISTS (SELECT 1 FROM novel_genres ng WHERE ng.genre_id = g.id)').all();
   const latest = novels.length ? novels[0].lastmod : null;
   res.type('application/xml').send(`<?xml version="1.0" encoding="UTF-8"?>
@@ -704,7 +711,7 @@ router.get('/sitemap-chapters-:n.xml', (req, res, next) => {
   if (!Number.isInteger(n) || n < 1) return next(notFound());
   const base = res.locals.baseUrl;
   const rows = db.prepare(`SELECT n.slug, c.number, ${RELEASED} AS lastmod FROM chapters c JOIN novels n ON n.id = c.novel_id
-    WHERE ${VISIBLE} ORDER BY c.id LIMIT ? OFFSET ?`).all(CHAPTERS_PER_SITEMAP, (n - 1) * CHAPTERS_PER_SITEMAP);
+    WHERE ${VISIBLE} AND n.members_only = 0 ORDER BY c.id LIMIT ? OFFSET ?`).all(CHAPTERS_PER_SITEMAP, (n - 1) * CHAPTERS_PER_SITEMAP);
   if (!rows.length && n > 1) return next(notFound());
   res.type('application/xml').send(`<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
@@ -786,7 +793,8 @@ router.post('/contact', async (req, res) => {
 
 router.get('/about', (req, res) => {
   const s = getSettings();
-  const totals = db.prepare(`SELECT (SELECT COUNT(*) FROM novels) AS novels, (SELECT COUNT(*) FROM chapters c WHERE ${VISIBLE}) AS chapters`).get();
+  const totals = db.prepare(`SELECT (SELECT COUNT(*) FROM novels n WHERE ${listed(req)}) AS novels,
+    (SELECT COUNT(*) FROM chapters c JOIN novels n ON n.id = c.novel_id WHERE ${VISIBLE} AND ${listed(req)}) AS chapters`).get();
   res.render('about', {
     totals, genres: q.allGenres.all().filter((g) => g.novel_count),
     seo: {

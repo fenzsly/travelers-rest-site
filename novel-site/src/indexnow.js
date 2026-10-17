@@ -35,17 +35,17 @@ function baseUrl() {
 function changedUrls(base, since) {
   const urls = new Set();
   const chapters = db.prepare(`SELECT n.slug, c.number FROM chapters c JOIN novels n ON n.id = c.novel_id
-    WHERE ${VISIBLE} AND ${RELEASED} > ? ORDER BY ${RELEASED} DESC LIMIT 5000`).all(since);
+    WHERE ${VISIBLE} AND n.members_only = 0 AND ${RELEASED} > ? ORDER BY ${RELEASED} DESC LIMIT 5000`).all(since);
   for (const c of chapters) {
     urls.add(`${base}/novel/${c.slug}`);
     urls.add(`${base}/novel/${c.slug}/c/${formatNumber(c.number)}`);
   }
-  for (const n of db.prepare('SELECT slug FROM novels WHERE created_at > ? OR updated_at > ?').all(since, since)) urls.add(`${base}/novel/${n.slug}`);
+  for (const n of db.prepare('SELECT slug FROM novels WHERE (created_at > ? OR updated_at > ?) AND members_only = 0').all(since, since)) urls.add(`${base}/novel/${n.slug}`);
   if (urls.size || !since) urls.add(`${base}/`);
   if (!since) {
     urls.add(`${base}/novels`);
     urls.add(`${base}/about`);
-    for (const n of db.prepare('SELECT slug FROM novels').all()) urls.add(`${base}/novel/${n.slug}`);
+    for (const n of db.prepare('SELECT slug FROM novels WHERE members_only = 0').all()) urls.add(`${base}/novel/${n.slug}`);
   }
   return [...urls].slice(0, 10000);
 }

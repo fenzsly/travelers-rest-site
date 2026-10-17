@@ -271,6 +271,14 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
     res.render('admin/dashboard', { todayTop, stats, novels: novels.slice(0, 8), recent, scheduled, chart, top, wantUpdates, people, visitorChart, readerChart, trafficToday, update: system.status() });
   });
 
+  // Quick switch from the Novels list: members only (hidden from guests) or public.
+  app.post('/novels/:id/visibility', loadNovel, (req, res) => {
+    const hide = req.body.members_only === '1' ? 1 : 0;
+    db.prepare('UPDATE novels SET members_only = ? WHERE id = ?').run(hide, req.novel.id);
+    req.flash('ok', hide ? `🔒 “${req.novel.title}” is now members only: guests and search engines can’t see it.` : `“${req.novel.title}” is public again.`);
+    res.redirect(req.get('referer')?.includes('/novels') ? req.get('referer') : A('/novels'));
+  });
+
   // ---------- Daily leaderboard: novels ranked by one day's views ----------
   /** Novels ranked by views on `day` (YYYY-MM-DD, UTC like all view counts), with readers and the change from the day before. */
   function leaderboard(user, day, limit = 100) {
@@ -349,6 +357,7 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
       author: String(body.author || '').trim().slice(0, 200),
       original_language: String(body.original_language || '').trim().slice(0, 50),
       is_original: body.is_original ? 1 : 0,
+      members_only: body.members_only ? 1 : 0,
       year: Number.isFinite(year) ? year : null,
       status: STATUS_LABELS[body.status] ? body.status : 'ongoing',
       description: String(body.description || '').trim().slice(0, 20000),
@@ -390,7 +399,7 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
         const r = db.prepare(`INSERT INTO novels (slug, title, alt_titles, author, original_language, year, status, description, tags, cover, owner_id)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(uniqueSlug(f.slug), f.title, f.alt_titles, f.author, f.original_language,
           f.year, f.status, f.description, f.tags, req.file ? req.file.filename : null, ownerId);
-        db.prepare('UPDATE novels SET is_original = ? WHERE id = ?').run(f.is_original, Number(r.lastInsertRowid));
+        db.prepare('UPDATE novels SET is_original = ?, members_only = ? WHERE id = ?').run(f.is_original, f.members_only, Number(r.lastInsertRowid));
         db.prepare('UPDATE novels SET seo_title = ?, seo_description = ? WHERE id = ?').run(f.seo_title, f.seo_description, r.lastInsertRowid);
         setNovelGenres(r.lastInsertRowid, withNewGenres(f, req.user));
         return Number(r.lastInsertRowid);
@@ -416,8 +425,8 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
       const ownerId = req.user.role === 'admin' && req.body.owner_id ? Number(req.body.owner_id) : novel.owner_id;
       tx(() => {
         db.prepare(`UPDATE novels SET slug = ?, title = ?, alt_titles = ?, author = ?, original_language = ?, year = ?, status = ?,
-          description = ?, tags = ?, cover = ?, owner_id = ?, seo_title = ?, seo_description = ?, is_original = ? WHERE id = ?`).run(uniqueSlug(f.slug, novel.id), f.title, f.alt_titles,
-          f.author, f.original_language, f.year, f.status, f.description, f.tags, cover, ownerId, f.seo_title, f.seo_description, f.is_original, novel.id);
+          description = ?, tags = ?, cover = ?, owner_id = ?, seo_title = ?, seo_description = ?, is_original = ?, members_only = ? WHERE id = ?`).run(uniqueSlug(f.slug, novel.id), f.title, f.alt_titles,
+          f.author, f.original_language, f.year, f.status, f.description, f.tags, cover, ownerId, f.seo_title, f.seo_description, f.is_original, f.members_only, novel.id);
         setNovelGenres(novel.id, withNewGenres(f, req.user));
       });
       if (cover !== novel.cover) removeCover(novel.cover);

@@ -1,5 +1,16 @@
 [
   {
+    "id": "2026-10-17-members-only-novels",
+    "date": "2026-10-17",
+    "title": "Members-only novels",
+    "changes": [
+      "New 🔒 Hide button on the Novels page (and a Members only switch in each novel's Details): hidden novels can only be seen and read by signed-in accounts.",
+      "Guests and search engines don't see hidden novels anywhere: home page, browse, search, sitemaps, RSS feed and profiles.",
+      "Guests who open a hidden novel's link are asked to log in or sign up, and come back to the same page afterwards.",
+      "Press 👁 Make public to show a novel to everyone again."
+    ]
+  },
+  {
     "id": "2026-10-17-server-storage",
     "date": "2026-10-17",
     "title": "Server storage",

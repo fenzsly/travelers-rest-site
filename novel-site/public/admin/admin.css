@@ -405,3 +405,4 @@ button.quick-card { font: inherit; text-align: left; cursor: pointer; }
 .st-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 8px; color: var(--muted); }
 .st-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
 @media (max-width: 600px) { .st-summary { grid-template-columns: 1fr 1fr; } .st-big { font-size: 20px; } }
+.pill-hidden { background: #e0e7ff; color: #3730a3; text-transform: none; }

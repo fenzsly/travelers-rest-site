@@ -317,6 +317,8 @@ CREATE TABLE IF NOT EXISTS traffic_daily (
 if (!hasColumn('traffic_daily', 'ai_blocked')) db.exec('ALTER TABLE traffic_daily ADD COLUMN ai_blocked INTEGER NOT NULL DEFAULT 0');
 
 // Original works (written for the site, not translated): shown without a translator.
+// Members only: hidden from guests and search engines; only signed-in accounts see the novel.
+if (!hasColumn('novels', 'members_only')) db.exec('ALTER TABLE novels ADD COLUMN members_only INTEGER NOT NULL DEFAULT 0');
 if (!hasColumn('novels', 'is_original')) db.exec('ALTER TABLE novels ADD COLUMN is_original INTEGER NOT NULL DEFAULT 0');
 
 db.exec(`

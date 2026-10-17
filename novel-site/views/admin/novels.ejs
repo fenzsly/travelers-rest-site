@@ -11,7 +11,7 @@
     <% novels.forEach((n) => { %>
       <tr>
         <td class="thumb"><% if (n.cover) { %><img src="<%= A('/uploads/covers/' + n.cover) %>" alt=""><% } else { %><div class="thumb-ph"></div><% } %></td>
-        <td><a href="<%= A(`/novels/${n.id}/chapters`) %>"><strong><%= n.title %></strong></a><div class="muted small"><%= n.author || '—' %><% if (user.role === 'admin' && n.translator) { %> · by <%= n.translator %><% } %></div></td>
+        <td><a href="<%= A(`/novels/${n.id}/chapters`) %>"><strong><%= n.title %></strong></a><% if (n.members_only) { %> <span class="pill pill-hidden" title="Hidden from guests and search engines">🔒 Members only</span><% } %><div class="muted small"><%= n.author || '—' %><% if (user.role === 'admin' && n.translator) { %> · by <%= n.translator %><% } %></div></td>
         <td><span class="pill pill-<%= n.status %>"><%= STATUS_LABELS[n.status] %></span></td>
         <td class="right"><%= n.chapter_count %><% if (n.latest_number != null) { %><div class="muted small">latest #<%= u.formatNumber(n.latest_number) %></div><% } %><% if (n.scheduled_count) { %><div class="small sched">⏰ <%= n.scheduled_count %> scheduled</div><% } %></td>
         <td class="right"><a href="<%= A(`/novels/${n.id}/stats`) %>" title="View stats"><%= u.compactNumber(n.views) %></a><% if (n.views_week) { %><div class="muted small">+<%= u.compactNumber(n.views_week) %> this week</div><% } %></td>
@@ -20,6 +20,7 @@
           <a class="btn btn-sm btn-primary" href="<%= A(`/novels/${n.id}/upload`) %>">⬆ Upload</a>
           <a class="btn btn-sm" href="<%= A(`/novels/${n.id}/chapters`) %>">Chapters</a>
           <a class="btn btn-sm" href="<%= A(`/novels/${n.id}/edit`) %>">Edit</a>
+          <form method="post" action="<%= A(`/novels/${n.id}/visibility`) %>" class="inline"><input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="members_only" value="<%= n.members_only ? '0' : '1' %>"><button class="btn btn-sm" type="submit" title="<%= n.members_only ? 'Make public: everyone can see it' : 'Hide from guests and search engines' %>"><%= n.members_only ? '👁 Make public' : '🔒 Hide' %></button></form>
           <a class="btn btn-sm btn-ghost" href="<%= site(`/novel/${n.slug}`) %>" target="_blank" rel="noopener" title="View on site">↗</a>
         </td>
       </tr>

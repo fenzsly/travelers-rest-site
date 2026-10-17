@@ -94,9 +94,13 @@ router.get('/', (req, res) => {
       SELECT 'review', rv.id, rv.body, rv.updated_at, u.username, u.role, n.slug, n.title, NULL, NULL, NULL
       FROM reviews rv JOIN users u ON u.id = rv.user_id JOIN novels n ON n.id = rv.novel_id WHERE ${listed(req)}
     ) ORDER BY created_at DESC LIMIT 8`).all() : [];
+  // Reading activity counts every novel, including ones hidden from guests.
   const totals = db.prepare(`SELECT (SELECT COUNT(*) FROM novels n WHERE ${listed(req)}) AS novels,
     (SELECT COUNT(*) FROM chapters c JOIN novels n ON n.id = c.novel_id WHERE ${VISIBLE} AND ${listed(req)}) AS chapters,
-    (SELECT COALESCE(SUM(views), 0) FROM novels n WHERE ${listed(req)}) AS views`).get();
+    (SELECT COALESCE(SUM(views), 0) FROM novels) AS views,
+    (SELECT COUNT(*) FROM site_visitors_daily WHERE day = date('now')) AS visitors_today,
+    (SELECT COALESCE(SUM(views), 0) FROM novel_views_daily WHERE day = date('now')) AS views_today,
+    (SELECT COUNT(*) FROM novels n WHERE n.members_only = 1) AS hidden`).get();
   const s = getSettings();
   const topRequests = requests.topThisWeek(5);
   res.render('home', {

@@ -319,6 +319,9 @@ if (!hasColumn('traffic_daily', 'ai_blocked')) db.exec('ALTER TABLE traffic_dail
 // Original works (written for the site, not translated): shown without a translator.
 // Members only: hidden from guests and search engines; only signed-in accounts see the novel.
 if (!hasColumn('novels', 'members_only')) db.exec('ALTER TABLE novels ADD COLUMN members_only INTEGER NOT NULL DEFAULT 0');
+// Novels are hidden by default: every new novel starts members only, until it's made public (Admin → Site settings).
+db.exec(`CREATE TRIGGER IF NOT EXISTS novels_hidden_by_default AFTER INSERT ON novels
+  BEGIN UPDATE novels SET members_only = 1 WHERE id = NEW.id; END`);
 if (!hasColumn('novels', 'is_original')) db.exec('ALTER TABLE novels ADD COLUMN is_original INTEGER NOT NULL DEFAULT 0');
 
 db.exec(`

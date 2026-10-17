@@ -68,3 +68,8 @@ test('IST day boundary', () => {
   assert.strictEqual(titles.istDay(Date.UTC(2026, 9, 15, 18, 30)), '2026-10-16'); // midnight IST
   assert.strictEqual(titles.ANCIENT_BEFORE, Date.UTC(2026, 10, 30, 18, 30) / 1000);
 });
+
+test('new novels start hidden (members only)', () => {
+  const id = Number(db.prepare("INSERT INTO novels (slug, title) VALUES ('secret', 'Secret')").run().lastInsertRowid);
+  assert.strictEqual(db.prepare('SELECT members_only FROM novels WHERE id = ?').get(id).members_only, 1);
+});

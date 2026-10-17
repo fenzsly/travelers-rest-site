@@ -1188,7 +1188,9 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
   });
 
   // ---------- Settings (admin) ----------
-  app.get('/settings', adminOnly, (req, res) => res.render('admin/settings'));
+  app.get('/settings', adminOnly, (req, res) => res.render('admin/settings', {
+    novelList: db.prepare('SELECT id, title, slug, members_only FROM novels ORDER BY title COLLATE NOCASE').all(),
+  }));
   app.post('/settings', adminOnly, (req, res) => {
     saveSettings({
       site_name: String(req.body.site_name || '').trim().slice(0, 80) || 'Novel Site',
@@ -1201,6 +1203,12 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
       default_role: req.body.default_role === 'translator' ? 'translator' : 'reader',
       contact_email: require('./mail').isValidEmail(String(req.body.contact_email || '').trim()) ? String(req.body.contact_email).trim() : '',
     });
+    // Public novels: everything not ticked stays hidden from guests (members only).
+    if (req.body.novel_visibility === '1') {
+      const pub = new Set([].concat(req.body.public_novels || []).map(Number));
+      const set = db.prepare('UPDATE novels SET members_only = ? WHERE id = ?');
+      tx(() => { for (const { id } of db.prepare('SELECT id FROM novels').all()) set.run(pub.has(id) ? 0 : 1, id); });
+    }
     req.flash('ok', 'Settings saved.');
     res.redirect(A('/settings'));
   });

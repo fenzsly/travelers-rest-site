@@ -1,5 +1,16 @@
 [
   {
+    "id": "2026-10-17-hidden-by-default",
+    "date": "2026-10-17",
+    "title": "Novels hidden by default",
+    "changes": [
+      "All novels are now hidden from guests and search engines by default; only signed-in accounts can see them. New novels start hidden too.",
+      "Choose which novels everyone may see under Site settings → Public novels (or with the 👁 Make public button on the Novels page).",
+      "The home page shows today's reading activity for everyone: readers today, chapters read today and chapters read in total (counting every novel, hidden ones too).",
+      "Guests see a “Most of our library is for members” box with sign-up and log-in buttons."
+    ]
+  },
+  {
     "id": "2026-10-17-members-only-novels",
     "date": "2026-10-17",
     "title": "Members-only novels",

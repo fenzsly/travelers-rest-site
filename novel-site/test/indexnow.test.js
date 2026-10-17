@@ -10,6 +10,7 @@ const indexnow = require('../src/indexnow');
 
 test('collects only newly released pages, never scheduled ones', () => {
   const novel = Number(db.prepare("INSERT INTO novels (slug, title) VALUES ('tale', 'Tale')").run().lastInsertRowid);
+  db.prepare('UPDATE novels SET members_only = 0 WHERE id = ?').run(novel); // public (new novels start hidden)
   const now = Math.floor(Date.now() / 1000);
   const add = db.prepare('INSERT INTO chapters (novel_id, number, title, content, created_at, publish_at) VALUES (?, ?, ?, ?, ?, ?)');
   add.run(novel, 1, 'Old', '<p>x</p>', now - 3600, null);

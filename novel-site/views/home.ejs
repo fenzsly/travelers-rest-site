@@ -3,6 +3,23 @@
 <main class="wrap">
   <% const altName = (settings.site_alternate_names || '').split(',').map((x) => x.trim()).find((x) => x && !/\./.test(x) && x.toLowerCase() !== settings.site_name.toLowerCase()); %>
   <h1 class="visually-hidden"><%= settings.site_name %><%= altName ? ` (${altName})` : '' %>: <%= settings.site_tagline %></h1>
+  <section class="live-stats" aria-label="Reading today">
+    <div><strong><%= totals.visitors_today.toLocaleString('en-US') %></strong><span>reader<%= totals.visitors_today === 1 ? '' : 's' %> today</span></div>
+    <div><strong><%= totals.views_today.toLocaleString('en-US') %></strong><span>chapter<%= totals.views_today === 1 ? '' : 's' %> read today</span></div>
+    <div><strong><%= u.compactNumber(totals.views) %></strong><span>chapters read in total</span></div>
+  </section>
+  <% if (!user && totals.hidden) { %>
+  <section class="block members-cta">
+    <div>
+      <h2>🔒 Most of our library is for members</h2>
+      <p>Create a <strong>free account</strong> to see every novel, save your progress and get new-chapter alerts.</p>
+    </div>
+    <div class="gate-actions">
+      <% if (settings.allow_registration === '1') { %><a class="btn btn-accent" href="/register">Create free account</a><% } %>
+      <a class="btn" href="/login">Log in</a>
+    </div>
+  </section>
+  <% } %>
   <% if (popular.length) { %>
   <section class="block">
     <h2 class="block-title">Popular novels</h2>
@@ -29,9 +46,9 @@
         <h2 class="block-title">Latest updates <a class="block-more" href="/novels?sort=updated">All novels →</a></h2>
         <% if (!updated.length) { %>
           <div class="empty">
-            <p>No chapters have been published yet.</p>
+            <p><%= !user && totals.hidden ? 'Log in to see the latest chapters.' : 'No chapters have been published yet.' %></p>
             <% if (user && isStaff && adminUrl) { %><p><a class="btn btn-accent" href="<%= adminUrl %>">Open the admin panel to add your first novel</a></p>
-            <% } else if (!user) { %><p class="muted">Site owner? <a href="/admin">Set up the admin panel</a>.</p><% } %>
+            <% } else if (!user && !totals.hidden) { %><p class="muted">Site owner? <a href="/admin">Set up the admin panel</a>.</p><% } %>
           </div>
         <% } %>
         <div class="updates">

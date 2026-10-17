@@ -88,6 +88,12 @@ for (const key of ENCRYPTED) {
   if (row && row.value && !require('./security').isEncrypted(row.value)) saveSettings({ [key]: row.value });
 }
 
+// One-time change (Oct 2026): all existing novels become members only; the owner makes chosen ones public.
+if (!db.prepare("SELECT 1 FROM settings WHERE key = 'migrated_novels_hidden'").get()) {
+  db.exec('UPDATE novels SET members_only = 1');
+  upsert.run('migrated_novels_hidden', '1');
+}
+
 // One-time change (Oct 2026): guests may read 10 chapters before signing up (was 40).
 // A limit that was switched off (0) stays off.
 if (!db.prepare("SELECT 1 FROM settings WHERE key = 'migrated_guest_limit_10'").get()) {

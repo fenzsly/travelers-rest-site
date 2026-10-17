@@ -61,7 +61,7 @@
     </ul>
   </section>
   <% } %>
-  <% if (typeof totals !== 'undefined') { %>
+  <% if (typeof totals !== 'undefined' && totals.novels) { %>
   <section class="block site-stats">
     <div><strong><%= totals.novels %></strong><span>novels</span></div>
     <div><strong><%= u.compactNumber(totals.chapters) %></strong><span>chapters</span></div>

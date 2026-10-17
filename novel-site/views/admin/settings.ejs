@@ -17,6 +17,27 @@
   <label class="field">New accounts start as
     <select name="default_role"><option value="reader" <%= settings.default_role === 'reader' ? 'selected' : '' %>>Reader (recommended)</option><option value="translator" <%= settings.default_role === 'translator' ? 'selected' : '' %>>Translator (can upload immediately)</option></select>
   </label>
+  <h2 id="public-novels">Public novels</h2>
+  <p class="hint" style="margin-top: 0">Novels are <strong>hidden by default</strong>: only signed-in accounts can see and read them, and search engines don’t see them. Tick the novels everyone (guests and Google) may see. New novels start hidden.</p>
+  <input type="hidden" name="novel_visibility" value="1">
+  <% if (!novelList.length) { %><p class="muted">No novels yet.</p><% } else { %>
+  <div class="public-list">
+    <div class="public-tools small"><button type="button" class="linkbtn" data-all="1">Tick all</button> · <button type="button" class="linkbtn" data-all="0">Untick all</button> · <span id="public-count"></span></div>
+    <% novelList.forEach((n) => { %>
+      <label class="switch"><input type="checkbox" name="public_novels" value="<%= n.id %>" <%= n.members_only ? '' : 'checked' %>><span></span> <%= n.title %></label>
+    <% }) %>
+  </div>
+  <% } %>
   <div class="form-actions"><button class="btn btn-primary btn-lg" type="submit">💾 Save settings</button></div>
 </form>
+<script>
+  (function () {
+    var boxes = [].slice.call(document.querySelectorAll('input[name=public_novels]'));
+    var count = document.getElementById('public-count');
+    function update() { if (count) count.textContent = boxes.filter(function (b) { return b.checked; }).length + ' of ' + boxes.length + ' public'; }
+    document.querySelectorAll('[data-all]').forEach(function (b) { b.addEventListener('click', function () { boxes.forEach(function (x) { x.checked = b.dataset.all === '1'; }); update(); }); });
+    boxes.forEach(function (b) { b.addEventListener('change', update); });
+    update();
+  })();
+</script>
 <%- include('partials/bottom') %>

@@ -215,3 +215,21 @@ body.reader-page { background: var(--r-page); }
 .text-loading span:nth-child(3) { animation-delay: .3s; }
 @keyframes tl { 50% { opacity: 1; transform: translateY(-4px); } }
 .panel-inner { overscroll-behavior: contain; }
+
+/* Scroll past the end → next chapter (a normal page load, not an endless page) */
+.next-pull { display: flex; flex-direction: column; align-items: center; gap: 6px; margin: 34px auto 0; max-width: 520px; padding: 18px 20px; text-align: center; text-decoration: none; color: var(--r-text, inherit); border: 1px dashed var(--border); border-radius: 14px; }
+.next-pull:hover { text-decoration: none; border-color: var(--r-accent); }
+.np-hint { font-size: 13px; opacity: .65; }
+.np-hint::before { content: "↓ "; }
+.np-title { font-weight: 700; font-size: 16px; }
+.np-bar { display: block; width: 100%; max-width: 260px; height: 4px; border-radius: 4px; background: color-mix(in srgb, var(--r-accent) 18%, transparent); overflow: hidden; margin-top: 6px; }
+.np-bar span { display: block; height: 100%; width: 0; background: var(--r-accent); border-radius: 4px; transition: width .12s linear; }
+.np-ready { border-style: solid; border-color: var(--r-accent); }
+.np-going .np-hint::before { content: "⏳ "; }
+.next-pull-space { height: 55vh; }
+.no-autonext .next-pull-space, .no-autonext .np-bar { display: none; }
+.no-autonext .np-hint { display: none; }
+a.next-pull, a.next-pull:hover, a.next-pull:visited { color: var(--r-text); }
+a.next-pull .np-title { color: var(--r-text); }
+a.next-pull .np-hint { color: var(--r-text); }
+.next-pull { width: calc(100% - 24px); box-sizing: border-box; }

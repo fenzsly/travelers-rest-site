@@ -6,6 +6,7 @@ const CHOICES = {
   rtheme: ['', 'light', 'sepia', 'green', 'dark', 'black'],
   font: ['serif', 'sans', 'mono', 'dyslexic'],
   align: ['left', 'justify'],
+  autonext: ['on', 'off'],
 };
 const RANGES = { size: [13, 32], line: [1.2, 2.6], width: [500, 1400] };
 

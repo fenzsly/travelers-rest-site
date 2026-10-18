@@ -1,5 +1,16 @@
 [
   {
+    "id": "2026-10-18-scroll-to-next-chapter",
+    "date": "2026-10-18",
+    "title": "Scroll to the next chapter",
+    "changes": [
+      "At the end of a chapter (below the comments) a “Keep scrolling for the next chapter” card shows the next chapter's title with a progress bar.",
+      "Scrolling on down to the bottom opens the next chapter as a normal new page, starting at the top (not an endless page), so every chapter is a fresh page for ads.",
+      "It only happens when the reader deliberately scrolls past the end; reloading at the bottom, or typing a comment, never jumps.",
+      "Readers can switch it off in Reader settings (“Scroll past the end to open the next chapter”); the setting is saved to their account."
+    ]
+  },
+  {
     "id": "2026-10-17-editable-about",
     "date": "2026-10-17",
     "title": "Editable About page",

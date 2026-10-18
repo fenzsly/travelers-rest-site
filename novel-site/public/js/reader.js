@@ -13,7 +13,7 @@
   // ---------- Preferences ----------
   // Phones get slightly bigger text and more line spacing by default (like reading apps).
   var phone = root.classList.contains('immersive');
-  var DEFAULTS = { rtheme: '', font: 'serif', size: phone ? 20 : 19, line: phone ? 1.9 : 1.8, width: 800, align: 'left' };
+  var DEFAULTS = { rtheme: '', font: 'serif', size: phone ? 20 : 19, line: phone ? 1.9 : 1.8, width: 800, align: 'left', autonext: 'on' };
   var prefs = Object.assign({}, DEFAULTS, json('reader-prefs', {}));
 
   // Logged-in readers: settings are also saved on the account, so they follow them to every device.
@@ -46,6 +46,8 @@
     document.querySelectorAll('button[data-rtheme]').forEach(function (b) { b.classList.toggle('on', b.dataset.rtheme === prefs.rtheme); });
     document.querySelectorAll('button[data-font]').forEach(function (b) { b.classList.toggle('on', b.dataset.font === prefs.font); });
     document.querySelectorAll('button[data-align]').forEach(function (b) { b.classList.toggle('on', b.dataset.align === prefs.align); });
+    document.querySelectorAll('button[data-autonext]').forEach(function (b) { b.classList.toggle('on', b.dataset.autonext === prefs.autonext); });
+    root.classList.toggle('no-autonext', prefs.autonext === 'off');
     [['size', 'px'], ['line', ''], ['width', 'px']].forEach(function (p) {
       var input = document.getElementById('s-' + p[0]);
       input.value = prefs[p[0]];
@@ -57,6 +59,7 @@
   document.querySelectorAll('button[data-rtheme]').forEach(function (b) { b.addEventListener('click', function () { prefs.rtheme = b.dataset.rtheme; save(); }); });
   document.querySelectorAll('button[data-font]').forEach(function (b) { b.addEventListener('click', function () { prefs.font = b.dataset.font; save(); }); });
   document.querySelectorAll('button[data-align]').forEach(function (b) { b.addEventListener('click', function () { prefs.align = b.dataset.align; save(); }); });
+  document.querySelectorAll('button[data-autonext]').forEach(function (b) { b.addEventListener('click', function () { prefs.autonext = b.dataset.autonext; save(); }); });
   ['size', 'line', 'width'].forEach(function (k) {
     document.getElementById('s-' + k).addEventListener('input', function (e) { prefs[k] = Number(e.target.value); save(); });
   });
@@ -263,6 +266,54 @@
     }
   });
 })();
+
+// ---------- Scroll past the end → next chapter ----------
+// Not an endless page: the next chapter opens as a normal page, from the top (a fresh page for ads too).
+// It only happens after the reader scrolls down through the space below the comments to the very bottom.
+(function () {
+  // Arrived by scrolling past the previous chapter: always start at the top of this one.
+  try {
+    if (sessionStorage.getItem('np-top') === location.pathname) { sessionStorage.removeItem('np-top'); window.scrollTo(0, 0); }
+  } catch (e) { /* private mode */ }
+  var card = document.getElementById('next-pull');
+  var space = document.getElementById('next-pull-space');
+  if (!card || !space) return;
+  var bar = card.querySelector('.np-bar span');
+  var hint = card.querySelector('.np-hint');
+  var armed = false; // set once the reader is above the space, so landing at the bottom (e.g. reload) never jumps
+  var timer = null;
+  var going = false;
+  function progress() {
+    var top = space.getBoundingClientRect().top;
+    return Math.max(0, Math.min(1, (window.innerHeight - top) / space.offsetHeight));
+  }
+  function typing() { var a = document.activeElement; return a && /^(TEXTAREA|INPUT|SELECT)$/.test(a.tagName); }
+  function check() {
+    if (going || document.documentElement.classList.contains('no-autonext')) return; // switched off in Reader settings
+    var p = progress();
+    if (p < 0.4) armed = true;
+    bar.style.width = Math.round(p * 100) + '%';
+    card.classList.toggle('np-ready', p >= 0.98);
+    var atBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4;
+    if (armed && atBottom && p >= 0.98 && !typing()) {
+      if (!timer) timer = setTimeout(go, 450); // a short pause, so a fling past the end can still be undone
+    } else if (timer) { clearTimeout(timer); timer = null; }
+  }
+  function go() {
+    timer = null;
+    if (going || !(window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4)) return;
+    going = true;
+    hint.textContent = 'Opening the next chapter…';
+    card.classList.add('np-going');
+    window.location.href = card.href;
+  }
+  window.addEventListener('scroll', check, { passive: true });
+  window.addEventListener('resize', check);
+  // Coming back with the browser's Back button restores this page from cache: reset it.
+  window.addEventListener('pageshow', function (e) { if (e.persisted) { going = false; armed = false; hint.textContent = 'Keep scrolling for the next chapter'; card.classList.remove('np-going'); check(); } });
+  check();
+})();
+
 
 // ---------- Immersive reading on phones: double-tap shows/hides the controls ----------
 (function () {

@@ -185,6 +185,15 @@
     </ul>
   </section>
   <% } %>
+  <% if (next) { %>
+  <%# Scroll past the end to open the next chapter: a normal page load that starts at the top (not an endless page). %>
+  <a class="next-pull" id="next-pull" href="/novel/<%= novel.slug %>/c/<%= u.formatNumber(next.number) %>">
+    <span class="np-hint">Keep scrolling for the next chapter</span>
+    <span class="np-title"><%= u.chapterLabel(next) %></span>
+    <span class="np-bar"><span></span></span>
+  </a>
+  <div class="next-pull-space" id="next-pull-space" aria-hidden="true"></div>
+  <% } %>
 </main>
 
 <div class="panel" id="panel-toc" hidden>
@@ -240,6 +249,10 @@
     <div class="setting">
       <label>Alignment</label>
       <div class="seg"><button data-align="left">Left</button><button data-align="justify">Justify</button></div>
+    </div>
+    <div class="setting">
+      <label>Scroll past the end to open the next chapter</label>
+      <div class="seg"><button data-autonext="on">On</button><button data-autonext="off">Off</button></div>
     </div>
     <button class="btn btn-block" id="reset-prefs" type="button">Reset to defaults</button>
   </div>

@@ -289,3 +289,53 @@
     });
   }, { passive: true });
 })();
+
+// Novel page table of contents: chapters in groups of 250 that load when opened.
+(function () {
+  var box = document.querySelector('.toc-groups');
+  if (!box) return;
+  var slug = box.dataset.slug;
+  function store(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
+  var read = {};
+  try { (JSON.parse(store('read:' + slug) || '[]')).forEach(function (n) { read[n] = true; }); } catch (e) {}
+  var last = null;
+  try { var pr = JSON.parse(store('progress') || '{}'); last = pr[slug] && pr[slug].num; } catch (e) {}
+  var cont = document.querySelector('.continue-btn');
+  if (!last && cont) last = cont.dataset.serverLast;
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function num(n) { return String(+(+n).toFixed(2)); }
+  function label(c) { var base = (c.volume ? 'Vol. ' + c.volume + ' · ' : '') + 'Chapter ' + num(c.number); return c.title ? base + ': ' + c.title : base; }
+  function date(ts) { return new Date(ts * 1000).toISOString().slice(0, 10); }
+  function load(group) {
+    if (group.dataset.loaded) return;
+    group.dataset.loaded = '1';
+    var list = group.querySelector('.chapter-list');
+    fetch('/novel/' + slug + '/chapters.json?from=' + group.dataset.from + '&to=' + group.dataset.to, { credentials: 'same-origin' })
+      .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(function (rows) {
+        var html = '';
+        var lastVol = null;
+        var now = Date.now() / 1000;
+        rows.forEach(function (c) {
+          if (c.volume && c.volume !== lastVol) html += '<li class="vol-head">Volume ' + esc(c.volume) + '</li>';
+          lastVol = c.volume;
+          var n = num(c.number);
+          var cls = (read[n] ? 'read' : '') + (String(last) === n ? ' last-read' : '');
+          html += '<li><a href="/novel/' + esc(slug) + '/c/' + n + '" data-num="' + n + '"' + (cls.trim() ? ' class="' + cls.trim() + '"' : '') + '>' + esc(label(c)) + '</a>' +
+            '<span class="muted small">' + (now - c.released_at < 2 * 86400 ? '<span class="new-badge">NEW</span> ' : '') + date(c.released_at) + '</span></li>';
+        });
+        list.innerHTML = html || '<li class="muted small">No chapters.</li>';
+      })
+      .catch(function () { delete group.dataset.loaded; list.innerHTML = '<li class="muted small">Couldn’t load the chapters. Close and open this section to try again.</li>'; });
+  }
+  var groups = [].slice.call(box.querySelectorAll('.toc-group'));
+  groups.forEach(function (g) { g.addEventListener('toggle', function () { if (g.open) load(g); }); });
+  // Open the group with the chapter this reader got to.
+  if (last) {
+    var n = +last;
+    groups.some(function (g) {
+      if (n >= +g.dataset.first && n <= +g.dataset.last) { g.dataset.autoOpened = '1'; g.open = true; return true; }
+      return false;
+    });
+  }
+})();

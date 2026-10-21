@@ -98,7 +98,6 @@
         <nav class="tabs-bar">
           <a href="/novel/<%= novel.slug %>#tabs" class="<%= tab === 'chapters' ? 'on' : '' %>">📄 Chapters <small><%= novel.chapter_count %></small></a>
           <a href="/novel/<%= novel.slug %>?tab=reviews#tabs" class="<%= tab === 'reviews' ? 'on' : '' %>">✍ Reviews <small><%= reviews.length %></small></a>
-          <% if (tab === 'chapters') { %><a class="tabs-extra" href="/novel/<%= novel.slug %>?order=<%= order === 'DESC' ? 'asc' : 'desc' %>#tabs"><%= order === 'DESC' ? 'Oldest first ↑' : 'Newest first ↓' %></a><% } %>
         </nav>
         <% if (tab === 'reviews') { %>
           <% if (user) { %>
@@ -133,14 +132,23 @@
             </ul>
           </div>
         <% } %>
-        <% if (!chapters.length) { %><div class="empty">No chapters yet.</div><% } %>
-        <ul class="chapter-list">
-          <% let lastVol = null; chapters.forEach((c) => { %>
-            <% if (c.volume && c.volume !== lastVol) { %><li class="vol-head">Volume <%= c.volume %></li><% } lastVol = c.volume; %>
-            <li><a href="/novel/<%= novel.slug %>/c/<%= u.formatNumber(c.number) %>" data-num="<%= u.formatNumber(c.number) %>"><%= u.chapterLabel(c) %></a><span class="muted small"><% if (u.isRecent(c.released_at)) { %><span class="new-badge">NEW</span> <% } %><%= u.formatDate(c.released_at) %></span></li>
+        <% if (!tocGroups.length) { %><div class="empty">No chapters yet.</div><% } else { %>
+        <h3 class="toc-head">Latest release</h3>
+        <ul class="toc-latest">
+          <% latestReleases.forEach((c) => { %>
+            <li><span class="toc-pos">#<%= c.position %></span><a href="/novel/<%= novel.slug %>/c/<%= u.formatNumber(c.number) %>"><%= u.chapterLabel(c) %></a><span class="muted small nowrap"><% if (u.isRecent(c.released_at)) { %><span class="new-badge">NEW</span> <% } %><%= u.timeAgo(c.released_at) %></span></li>
           <% }) %>
         </ul>
-        <%- include('partials/pager', { pager, base: `/novel/${novel.slug}`, hash: '#tabs' }) %>
+        <h3 class="toc-head">Chapters</h3>
+        <div class="toc-groups" data-slug="<%= novel.slug %>">
+          <% tocGroups.forEach((g) => { %>
+            <details class="toc-group" data-from="<%= g.from %>" data-to="<%= g.to %>" data-first="<%= g.firstNum %>" data-last="<%= g.lastNum %>">
+              <summary>Chapters <%= g.from %> - <%= g.to %></summary>
+              <ul class="chapter-list"><li class="muted small toc-loading">Loading…</li></ul>
+            </details>
+          <% }) %>
+        </div>
+        <% } %>
         <% } %>
       </section>
     </div>

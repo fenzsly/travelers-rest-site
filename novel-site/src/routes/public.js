@@ -22,6 +22,7 @@ router.use(verifyCsrf);
 
 const PER_PAGE = 20;
 const CHAPTERS_PER_PAGE = 100;
+const TOC_GROUP = 250; // chapters per group in a novel's table of contents
 
 function notFound(message = 'Page not found.') {
   return Object.assign(new Error(message), { status: 404 });
@@ -214,11 +215,17 @@ function loadNovel(req, res, next) {
 
 router.get('/novel/:slug', loadNovel, (req, res) => {
   const novel = req.novel;
-  const order = req.query.order === 'asc' ? 'ASC' : 'DESC';
-  const pager = paginate(novel.chapter_count, Number(req.query.page), CHAPTERS_PER_PAGE);
-  const chapters = db.prepare(`SELECT c.id, c.number, c.volume, c.title, ${RELEASED} AS released_at, c.word_count FROM chapters c
-    WHERE c.novel_id = ? AND ${VISIBLE} ORDER BY c.number ${order} LIMIT ? OFFSET ?`)
-    .all(novel.id, CHAPTERS_PER_PAGE, pager.offset);
+  // Table of contents: the newest releases, then every chapter in groups of 250 (each group loads when opened).
+  const latestReleases = db.prepare(`SELECT * FROM (SELECT c.number, c.volume, c.title, ${RELEASED} AS released_at,
+      ROW_NUMBER() OVER (ORDER BY c.number) AS position FROM chapters c WHERE c.novel_id = ? AND ${VISIBLE})
+    ORDER BY number DESC LIMIT 5`).all(novel.id);
+  const numbers = db.prepare(`SELECT c.number FROM chapters c WHERE c.novel_id = ? AND ${VISIBLE} ORDER BY c.number`).all(novel.id).map((r) => r.number);
+  const tocGroups = [];
+  for (let i = 0; i < numbers.length; i += TOC_GROUP) {
+    const end = Math.min(i + TOC_GROUP, numbers.length);
+    tocGroups.push({ from: i + 1, to: end, firstNum: numbers[i], lastNum: numbers[end - 1] });
+  }
+  const chapters = []; // (the full list now loads per group)
   const first = db.prepare(`SELECT c.number FROM chapters c WHERE c.novel_id = ? AND ${VISIBLE} ORDER BY c.number ASC LIMIT 1`).get(novel.id);
   const latest = db.prepare(`SELECT c.number, c.title, ${RELEASED} AS released_at FROM chapters c WHERE c.novel_id = ? AND ${VISIBLE} ORDER BY c.number DESC LIMIT 1`).get(novel.id);
   const upcoming = db.prepare(`SELECT c.number, c.title, c.publish_at FROM chapters c WHERE c.novel_id = ? AND NOT ${VISIBLE} ORDER BY c.publish_at ASC LIMIT 5`).all(novel.id);
@@ -248,7 +255,7 @@ router.get('/novel/:slug', loadNovel, (req, res) => {
     LIMIT 6`).all(novel.id, novel.id, novel.id);
   const updateStatus = updateRequests.status(novel.id, req.user?.id);
   res.render('novel', {
-    novel, chapters, pager, order, first, latest, upcoming, upcomingCount, bookmark, myRating, words, readers, rank, genres, similar, updateStatus,
+    novel, chapters, latestReleases, tocGroups, first, latest, upcoming, upcomingCount, bookmark, myRating, words, readers, rank, genres, similar, updateStatus,
     titles: titlesFor(reviews.map((r) => r.user_id)),
     dist, reviews, myReview, listCounts, tab: req.query.tab === 'reviews' ? 'reviews' : 'chapters',
     seo: {
@@ -257,7 +264,7 @@ router.get('/novel/:slug', loadNovel, (req, res) => {
       // Mention alternative titles: readers often search for the original or a shortened name.
       description: novel.seo_description || seo.excerpt(`Read ${novel.title}${novel.alt_titles ? ` (${novel.alt_titles.split('\n').map((t) => t.trim()).filter(Boolean).slice(0, 2).join(', ')})` : ''} online in English on ${getSettings().site_name}. ${seo.plainText(novel.description)}`),
       // Other orderings/tabs of the same page point search engines at the main URL.
-      canonical: `${res.locals.baseUrl}/novel/${novel.slug}${pager.current > 1 ? `?page=${pager.current}` : ''}`,
+      canonical: `${res.locals.baseUrl}/novel/${novel.slug}`,
       image: novel.cover ? `${res.locals.baseUrl}/uploads/covers/${novel.cover}` : undefined,
       type: 'book',
       jsonld: seo.bookSchema(res.locals.baseUrl, novel, genres),
@@ -289,7 +296,14 @@ router.post('/novel/:slug/request-update', requireLogin, loadNovel, (req, res) =
 });
 
 router.get('/novel/:slug/chapters.json', loadNovel, (req, res) => {
-  const rows = db.prepare(`SELECT c.number, c.volume, c.title FROM chapters c WHERE c.novel_id = ? AND ${VISIBLE} ORDER BY c.number`).all(req.novel.id);
+  // ?from=251&to=500 = one table-of-contents group (by position, 1 = first chapter); no range = every chapter.
+  const from = Math.max(1, Math.floor(Number(req.query.from)) || 0);
+  const to = Math.floor(Number(req.query.to)) || 0;
+  const ranged = from >= 1 && to >= from && req.query.from !== undefined;
+  const rows = ranged
+    ? db.prepare(`SELECT c.number, c.volume, c.title, ${RELEASED} AS released_at FROM chapters c WHERE c.novel_id = ? AND ${VISIBLE}
+        ORDER BY c.number LIMIT ? OFFSET ?`).all(req.novel.id, Math.min(to - from + 1, 1000), from - 1)
+    : db.prepare(`SELECT c.number, c.volume, c.title FROM chapters c WHERE c.novel_id = ? AND ${VISIBLE} ORDER BY c.number`).all(req.novel.id);
   res.set('Cache-Control', 'public, max-age=60').json(rows);
 });
 

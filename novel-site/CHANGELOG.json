@@ -1,5 +1,16 @@
 [
   {
+    "id": "2026-10-21-toc-groups",
+    "date": "2026-10-21",
+    "title": "New table of contents",
+    "changes": [
+      "Every novel page now shows “Latest release”: the 5 newest chapters with their position (#861) and how long ago they came out.",
+      "Below it, all chapters are grouped by 250 (Chapters 1 - 250, 251 - 500, …) in sections that open with a tap.",
+      "Each section loads only when opened, so novels with thousands of chapters load fast.",
+      "The section with the chapter a reader got to opens automatically, with read chapters greyed out and the last one marked ▶."
+    ]
+  },
+  {
     "id": "2026-10-18-scroll-to-next-chapter",
     "date": "2026-10-18",
     "title": "Scroll to the next chapter",

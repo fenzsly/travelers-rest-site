@@ -600,3 +600,22 @@ body { overflow-x: hidden; }
 .members-cta h2 { margin: 0 0 4px; font-size: 18px; }
 .members-cta p { margin: 0; }
 @media (max-width: 560px) { .live-stats { gap: 6px; } .live-stats > div { padding: 10px 6px; } .live-stats strong { font-size: 18px; } .live-stats span { font-size: 11.5px; } }
+
+/* Novel page table of contents: latest releases + chapters in groups of 250 */
+.toc-head { font-size: 17px; margin: 18px 0 10px; padding-left: 10px; border-left: 3px solid var(--accent); }
+.toc-head:first-of-type { margin-top: 4px; }
+.toc-latest { list-style: none; margin: 0; padding: 0; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.toc-latest li { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-top: 1px solid var(--border); font-size: 14px; }
+.toc-latest li:first-child { border-top: 0; }
+.toc-latest a { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+.toc-latest a:hover { color: var(--accent); }
+.toc-pos { color: var(--accent); font-weight: 700; font-size: 13px; min-width: 42px; }
+.toc-groups { display: flex; flex-direction: column; gap: 8px; }
+.toc-group { border: 1px solid var(--border); border-radius: var(--radius); }
+.toc-group > summary { list-style: none; cursor: pointer; padding: 13px 16px; font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
+.toc-group > summary::-webkit-details-marker { display: none; }
+.toc-group > summary::after { content: "⌄"; font-size: 18px; line-height: 1; opacity: .6; transition: transform .15s; }
+.toc-group[open] > summary::after { transform: rotate(180deg); }
+.toc-group[open] > summary { border-bottom: 1px solid var(--border); }
+.toc-group .chapter-list { padding: 6px 14px 10px; }
+.toc-loading { justify-content: center; border: 0 !important; }

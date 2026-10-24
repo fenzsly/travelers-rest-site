@@ -1,5 +1,14 @@
 [
   {
+    "id": "2026-10-24-reader-bar-prev-next",
+    "date": "2026-10-24",
+    "title": "Previous / next buttons in the reader bar",
+    "changes": [
+      "The reader's top bar (the one that hides while scrolling and comes back when you scroll up or double-tap on phones) now has ‹ › buttons for the previous and next chapter.",
+      "They're greyed out on the first chapter or when the next one isn't out yet."
+    ]
+  },
+  {
     "id": "2026-10-21-toc-groups",
     "date": "2026-10-21",
     "title": "New table of contents",

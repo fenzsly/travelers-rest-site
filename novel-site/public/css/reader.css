@@ -233,3 +233,14 @@ a.next-pull, a.next-pull:hover, a.next-pull:visited { color: var(--r-text); }
 a.next-pull .np-title { color: var(--r-text); }
 a.next-pull .np-hint { color: var(--r-text); }
 .next-pull { width: calc(100% - 24px); box-sizing: border-box; }
+
+/* Previous / next chapter buttons in the reader bar */
+.rb-nav { display: flex; align-items: center; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-right: 4px; }
+.rb-step { display: grid; place-items: center; width: 36px; height: 32px; color: var(--r-text); }
+.rb-step + .rb-step { border-left: 1px solid var(--border); }
+.rb-step:hover { text-decoration: none; background: color-mix(in srgb, var(--r-accent) 14%, transparent); }
+.rb-step.off { opacity: .3; cursor: default; }
+.rb-step.off:hover { background: none; }
+.reader-bar .rb-step svg { width: 20px; height: 20px; }
+.immersive .rb-step { width: 38px; height: 34px; }
+@media (max-width: 380px) { .immersive .rb-step { width: 32px; } .immersive .rb-actions .icon-btn { width: 34px; } }

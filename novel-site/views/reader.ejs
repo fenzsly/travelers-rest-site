@@ -48,6 +48,12 @@
     <span class="rb-chapter muted"><%= u.chapterLabel(chapter) %></span>
     <span class="rb-title"><%= dashLabel %></span>
     <div class="rb-actions">
+      <div class="rb-nav" role="group" aria-label="Chapters">
+        <% if (prev) { %><a class="rb-step" href="/novel/<%= novel.slug %>/c/<%= u.formatNumber(prev.number) %>" rel="prev" title="Previous chapter (←): <%= u.chapterLabel(prev) %>" aria-label="Previous chapter"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 6l-6 6 6 6"/></svg></a>
+        <% } else { %><span class="rb-step off" aria-disabled="true" title="This is the first chapter"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 6l-6 6 6 6"/></svg></span><% } %>
+        <% if (next) { %><a class="rb-step" href="/novel/<%= novel.slug %>/c/<%= u.formatNumber(next.number) %>" rel="next" title="Next chapter (→): <%= u.chapterLabel(next) %>" aria-label="Next chapter"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6l6 6-6 6"/></svg></a>
+        <% } else { %><span class="rb-step off" aria-disabled="true" title="No next chapter yet"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6l6 6-6 6"/></svg></span><% } %>
+      </div>
       <button type="button" class="icon-btn" data-open="toc" title="Contents (C)" aria-label="Contents"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h12M4 17h14"/></svg></button>
       <button type="button" class="icon-btn" data-open="settings" title="Reader settings (S)" aria-label="Reader settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h9M17 8h3M4 16h3M11 16h9"/><circle cx="15" cy="8" r="2"/><circle cx="9" cy="16" r="2"/></svg></button>
     </div>

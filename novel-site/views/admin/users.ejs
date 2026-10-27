@@ -26,12 +26,13 @@
 <div class="card flush">
   <% if (!users.length) { %><div class="empty-state"><p><%= show === 'verified' ? 'No verified accounts yet.' : 'Nobody here.' %></p></div><% } %>
   <table class="table table-lg">
-    <thead><tr><th>User</th><th>Email</th><th>Role</th><th class="right">Novels</th><th class="right">Comments</th><th>Joined</th><th></th></tr></thead>
+    <thead><tr><th>User</th><th>Email</th><th>Role</th><th class="right">Novels</th><th class="right">Comments</th><th>Last active</th><th></th></tr></thead>
     <tbody>
     <% users.forEach((x) => { %>
       <tr>
         <td><strong><%= x.username %></strong><%= x.totp_enabled ? ' 🔐' : '' %><% if (x.is_owner) { %> <span class="pill pill-owner" title="Protected: only this account can manage itself">👑 Owner</span><% } %><% if (x.id === user.id) { %> <span class="pill">you</span><% } %>
-          <% if (titles[x.id]) { %><div class="title-chips"><% titles[x.id].forEach((t) => { %><a class="title-chip" style="--b: <%= t.color %>" href="<%= A('/titles') %>"><%= t.icon %> <%= t.name %></a><% }) %></div><% } %></td>
+          <% if (titles[x.id]) { %><div class="title-chips"><% titles[x.id].forEach((t) => { %><a class="title-chip" style="--b: <%= t.color %>" href="<%= A('/titles') %>"><%= t.icon %> <%= t.name %></a><% }) %></div><% } %>
+          <div class="user-joined" title="<%= new Date(x.created_at * 1000).toUTCString() %>">📅 Joined <%= new Date(x.created_at * 1000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }) %> <span>· <%= u.timeAgo(x.created_at) %></span></div></td>
         <td class="small"><% if (x.email) { %><%= x.email %> <%= x.email_verified ? '✅' : '' %><% } else { %><span class="muted">—</span><% } %></td>
         <td>
           <% const locked = x.id === user.id || x.is_owner || (!user.is_owner && x.role === 'admin'); %>
@@ -46,7 +47,7 @@
         </td>
         <td class="right"><%= x.novel_count %></td>
         <td class="right"><%= x.comment_count %></td>
-        <td class="muted small"><%= u.formatDate(x.created_at) %></td>
+        <td class="muted small nowrap"><%= x.last_seen ? u.timeAgo(x.last_seen) : '—' %></td>
         <td class="right nowrap">
           <% if (x.is_owner && x.id !== user.id) { %><span class="muted small">🔒 Protected</span><% } else if (x.id !== user.id && !user.is_owner && x.role === 'admin') { %><span class="muted small">🔒 Owner only</span><% } else { %>
           <form method="post" action="<%= A(`/users/${x.id}`) %>" class="inline" onsubmit="return confirm('Generate a new random password for <%= x.username %>?')">

@@ -1,5 +1,14 @@
 [
   {
+    "id": "2026-10-27-users-joined-date",
+    "date": "2026-10-27",
+    "title": "Join date on every user",
+    "changes": [
+      "Each user in the Users list shows when they joined (e.g. “📅 Joined 24 Oct 2026 · 3 days ago”) right under their name, on phones too.",
+      "On larger screens, a new Last active column shows when each account was last used."
+    ]
+  },
+  {
     "id": "2026-10-27-verified-users-tab",
     "date": "2026-10-27",
     "title": "Verified users tab",

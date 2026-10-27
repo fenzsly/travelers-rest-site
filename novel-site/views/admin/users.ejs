@@ -1,4 +1,9 @@
 <%- include('partials/top', { title: 'Users' }) %>
+<div class="stats user-stats">
+  <div class="stat stat-accent" title="Everyone who opened a page in the last 10 minutes: guests and signed-in readers (bots aren't counted)"><span><%= counts.online.toLocaleString('en-US') %></span>Online now <small class="muted">(<%= counts.guests %> guest<%= counts.guests === 1 ? '' : 's' %> + <%= counts.active_now || 0 %> signed in)</small></div>
+  <div class="stat" title="Signed-in accounts active in the last 10 minutes · active at any time today (UTC)"><span><%= (counts.active_now || 0).toLocaleString('en-US') %></span>Logged in &amp; active <small class="muted">(<%= (counts.active_today || 0).toLocaleString('en-US') %> today)</small></div>
+  <div class="stat" title="All accounts · new today · new in the last 7 days"><span><%= counts.total.toLocaleString('en-US') %></span>Registered accounts <small class="muted">(+<%= counts.new_today || 0 %> today, +<%= counts.new_week || 0 %> this week)</small></div>
+</div>
 <section class="card">
   <h2>Add a team member</h2>
   <form method="post" action="<%= A('/users/new') %>" class="inline-form">

@@ -35,9 +35,21 @@ const insertVisit = db.prepare('INSERT OR IGNORE INTO site_visitors_daily (day, 
 const insertReader = db.prepare('INSERT OR IGNORE INTO novel_readers_daily (novel_id, day, visitor) VALUES (?, ?, ?)');
 
 /** Count this visitor for today (call on page views). */
+// Who's on the site right now (guests and accounts), from the page beacon. Kept in memory only.
+const ONLINE_WINDOW = 10 * 60 * 1000;
+const online = new Map();
+/** Guests seen in the last 10 minutes (signed-in people are counted from their accounts instead). */
+function guestsOnline() {
+  const since = Date.now() - ONLINE_WINDOW;
+  let guests = 0;
+  for (const [v, t] of online) { if (t < since) online.delete(v); else if (!v.startsWith('u')) guests++; }
+  return guests;
+}
+
 function recordVisit(req) {
   if (isBot(req)) return;
   const v = visitorId(req);
+  online.set(v, Date.now());
   if (remember(`site:${v}`)) insertVisit.run(today(), v);
 }
 
@@ -131,4 +143,4 @@ function beacon(req, res) {
   }
 }
 
-module.exports = { recordVisit, recordReader, siteVisitorsByDay, readersByDay, visitorId, isBot, bump, trafficByDay, beacon };
+module.exports = { guestsOnline, ONLINE_WINDOW, recordVisit, recordReader, siteVisitorsByDay, readersByDay, visitorId, isBot, bump, trafficByDay, beacon };

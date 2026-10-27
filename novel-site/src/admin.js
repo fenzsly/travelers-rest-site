@@ -865,7 +865,15 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
   app.get('/users', adminOnly, (req, res) => {
     const users = db.prepare(`SELECT u.*, (SELECT COUNT(*) FROM novels n WHERE n.owner_id = u.id) AS novel_count,
       (SELECT COUNT(*) FROM comments c WHERE c.user_id = u.id) AS comment_count FROM users u ORDER BY u.created_at DESC`).all();
-    res.render('admin/users', { users, newPassword: null, titles: require('./titles').titlesFor(users.map((x) => x.id)) });
+    const now = Math.floor(Date.now() / 1000);
+    const visitors = require('./visitors');
+    const counts = db.prepare(`SELECT COUNT(*) AS total,
+        SUM(last_seen >= ?) AS active_now, SUM(last_seen >= ?) AS active_today,
+        SUM(created_at >= ?) AS new_today, SUM(created_at >= ?) AS new_week FROM users`)
+      .get(now - visitors.ONLINE_WINDOW / 1000, Math.floor(Date.parse(new Date().toISOString().slice(0, 10)) / 1000), Math.floor(Date.parse(new Date().toISOString().slice(0, 10)) / 1000), now - 7 * 86400);
+    counts.guests = visitors.guestsOnline();
+    counts.online = counts.guests + (counts.active_now || 0);
+    res.render('admin/users', { users, counts, newPassword: null, titles: require('./titles').titlesFor(users.map((x) => x.id)) });
   });
 
   app.post('/users/new', adminOnly, (req, res) => {

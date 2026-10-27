@@ -15,7 +15,8 @@ function verifyPassword(password, stored) {
   return crypto.timingSafeEqual(expected, actual);
 }
 
-const getUser = db.prepare('SELECT id, username, role, is_owner, prefs, created_at, token_version, totp_enabled FROM users WHERE id = ?');
+const getUser = db.prepare('SELECT id, username, role, is_owner, prefs, created_at, token_version, totp_enabled, last_seen FROM users WHERE id = ?');
+const touchUser = db.prepare('UPDATE users SET last_seen = ? WHERE id = ?');
 
 /** Attach req.user / res.locals.user and a CSRF token for every request. */
 function loadUser(req, res, next) {
@@ -23,7 +24,11 @@ function loadUser(req, res, next) {
   // A password change or "log out everywhere" bumps token_version, which ends older sessions.
   if (req.user && (req.session.v || 0) !== req.user.token_version) req.user = null;
   if (!req.user && req.session.uid) { req.session.uid = null; req.session.mfa = 0; }
-  if (req.user) req.user.prefs = require('./prefs').parsePrefs(req.user.prefs);
+  if (req.user) {
+    req.user.prefs = require('./prefs').parsePrefs(req.user.prefs);
+    const now = Math.floor(Date.now() / 1000);
+    if (!(req.user.last_seen > now - 60)) touchUser.run(now, req.user.id); // "last active", at most once a minute
+  }
   if (!req.session.csrf) req.session.csrf = crypto.randomBytes(24).toString('hex');
   res.locals.user = req.user;
   res.locals.isStaff = isStaff(req.user);

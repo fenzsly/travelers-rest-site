@@ -179,6 +179,8 @@ CREATE TABLE IF NOT EXISTS reactions (
 `);
 
 // Reader settings (font, size, theme…) saved to the account so they follow the reader to any device.
+// When an account was last active (updated at most once a minute), for the Users page counters.
+if (!hasColumn('users', 'last_seen')) db.exec('ALTER TABLE users ADD COLUMN last_seen INTEGER');
 if (!hasColumn('users', 'prefs')) db.exec("ALTER TABLE users ADD COLUMN prefs TEXT NOT NULL DEFAULT '{}'");
 
 db.exec(`

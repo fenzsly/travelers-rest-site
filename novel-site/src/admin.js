@@ -862,9 +862,13 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
   });
 
   // ---------- Users (admin) ----------
+  // Tabs: everyone, accounts with a verified email, and accounts without one.
+  const USER_TABS = { all: '1', verified: 'u.email IS NOT NULL AND u.email_verified = 1', unverified: '(u.email IS NULL OR u.email_verified = 0)' };
   app.get('/users', adminOnly, (req, res) => {
+    const show = USER_TABS[req.query.show] ? req.query.show : 'all';
     const users = db.prepare(`SELECT u.*, (SELECT COUNT(*) FROM novels n WHERE n.owner_id = u.id) AS novel_count,
-      (SELECT COUNT(*) FROM comments c WHERE c.user_id = u.id) AS comment_count FROM users u ORDER BY u.created_at DESC`).all();
+      (SELECT COUNT(*) FROM comments c WHERE c.user_id = u.id) AS comment_count FROM users u WHERE ${USER_TABS[show]} ORDER BY u.created_at DESC`).all();
+    const tabCounts = db.prepare(`SELECT COUNT(*) AS all_, SUM(${USER_TABS.verified}) AS verified FROM users u`).get();
     const now = Math.floor(Date.now() / 1000);
     const visitors = require('./visitors');
     const counts = db.prepare(`SELECT COUNT(*) AS total,
@@ -873,7 +877,7 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
       .get(now - visitors.ONLINE_WINDOW / 1000, Math.floor(Date.parse(new Date().toISOString().slice(0, 10)) / 1000), Math.floor(Date.parse(new Date().toISOString().slice(0, 10)) / 1000), now - 7 * 86400);
     counts.guests = visitors.guestsOnline();
     counts.online = counts.guests + (counts.active_now || 0);
-    res.render('admin/users', { users, counts, newPassword: null, titles: require('./titles').titlesFor(users.map((x) => x.id)) });
+    res.render('admin/users', { users, counts, show, tabCounts, newPassword: null, titles: require('./titles').titlesFor(users.map((x) => x.id)) });
   });
 
   app.post('/users/new', adminOnly, (req, res) => {
@@ -886,7 +890,7 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
     security.checkPasswordStrength(password, username);
     q.insertUser.run(username, hashPassword(password), role);
     req.flash('ok', `Created ${role} “${username}”. Password: ${password}`);
-    res.redirect(A('/users'));
+    res.redirect(req.get('referer')?.includes('/users') ? req.get('referer') : A('/users')); // back to the same tab
   });
 
   app.post('/users/:uid', adminOnly, (req, res) => {
@@ -925,7 +929,7 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
       db.prepare('DELETE FROM users WHERE id = ?').run(uid);
       req.flash('ok', `Deleted ${target.username}. Their novels were kept.`);
     }
-    res.redirect(A('/users'));
+    res.redirect(req.get('referer')?.includes('/users') ? req.get('referer') : A('/users')); // back to the same tab
   });
 
   // ---------- Security: two-factor login, devices, security log ----------

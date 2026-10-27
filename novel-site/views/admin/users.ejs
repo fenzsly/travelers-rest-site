@@ -15,7 +15,16 @@
   </form>
   <p class="hint"><strong>Readers</strong> are normal accounts. <strong>Supporters</strong> are readers who see no ads. <strong>Translators</strong> can add novels and upload chapters for their own novels. <strong>Admins</strong> can manage everything, including users and settings. Only the <strong>👑 owner</strong> can create, change or remove admins, and nobody can touch the owner’s account.</p>
 </section>
+<nav class="tabs" style="margin: 0 0 12px; display: inline-flex; flex-wrap: wrap">
+  <% const verified = tabCounts.verified || 0; %>
+  <a href="<%= A('/users') %>" class="<%= show === 'all' ? 'on' : '' %>">All users (<%= tabCounts.all_ %>)</a>
+  <a href="<%= A('/users?show=verified') %>" class="<%= show === 'verified' ? 'on' : '' %>">✅ Verified email (<%= verified %>)</a>
+  <a href="<%= A('/users?show=unverified') %>" class="<%= show === 'unverified' ? 'on' : '' %>">Not verified (<%= tabCounts.all_ - verified %>)</a>
+</nav>
+<% if (show === 'verified') { %><p class="hint" style="margin: -4px 0 12px">Accounts that confirmed their email address by clicking the link we sent them.</p><% } %>
+<% if (show === 'unverified') { %><p class="hint" style="margin: -4px 0 12px">Accounts with no email address, or one they haven’t confirmed yet.</p><% } %>
 <div class="card flush">
+  <% if (!users.length) { %><div class="empty-state"><p><%= show === 'verified' ? 'No verified accounts yet.' : 'Nobody here.' %></p></div><% } %>
   <table class="table table-lg">
     <thead><tr><th>User</th><th>Email</th><th>Role</th><th class="right">Novels</th><th class="right">Comments</th><th>Joined</th><th></th></tr></thead>
     <tbody>

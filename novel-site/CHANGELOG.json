@@ -1,5 +1,14 @@
 [
   {
+    "id": "2026-10-27-verified-users-tab",
+    "date": "2026-10-27",
+    "title": "Verified users tab",
+    "changes": [
+      "The Users page has tabs above the list: All users, ✅ Verified email (accounts that confirmed their email) and Not verified, each with a count.",
+      "After resetting a password, logging someone out or changing a role, you stay on the same tab."
+    ]
+  },
+  {
     "id": "2026-10-27-user-counters",
     "date": "2026-10-27",
     "title": "User counters",

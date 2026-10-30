@@ -1,5 +1,16 @@
 [
   {
+    "id": "2026-10-30-bot-signups",
+    "date": "2026-10-30",
+    "title": "Stop bot sign-ups",
+    "changes": [
+      "Sign-up now has invisible bot protection: a hidden trap field, a minimum time to fill in the form, a check that it's a real browser, and at most 3 new accounts per internet address per day. Real people won't notice anything.",
+      "Accounts with made-up, random-letter usernames don't get a confirmation email sent automatically, so bots can't use the site to spam other people's inboxes (protects your Brevo email reputation).",
+      "New 🤖 Suspected bots tab on the Users page: accounts with a random-letter name, no confirmed email and no activity, with a button to delete them all. Staff are never included.",
+      "The tab also shows how many bot sign-ups were blocked in the last 7 days."
+    ]
+  },
+  {
     "id": "2026-10-27-users-joined-date",
     "date": "2026-10-27",
     "title": "Join date on every user",

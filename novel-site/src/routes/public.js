@@ -844,7 +844,7 @@ router.get('/manifest.webmanifest', (req, res) => {
 
 // ---------- Accounts ----------
 router.get('/login', (req, res) => res.render('login', { mode: 'login', error: null, next: safeNext(req.query.next), username: '', seo: { title: `Log in | ${getSettings().site_name}`, noindex: true } }));
-router.get('/register', (req, res) => res.render('login', { mode: 'register', error: null, next: safeNext(req.query.next), username: '', email: '', seo: { title: `Sign up | ${getSettings().site_name}`, noindex: true } }));
+router.get('/register', (req, res) => res.render('login', { mode: 'register', error: null, next: safeNext(req.query.next), username: '', email: '', signup: require('../botcheck').signupToken(), seo: { title: `Sign up | ${getSettings().site_name}`, noindex: true } }));
 
 router.post('/login', (req, res) => {
   const username = String(req.body.username || '').trim();
@@ -868,18 +868,30 @@ router.post('/login', (req, res) => {
 });
 
 router.post('/register', async (req, res) => {
+  const botcheck = require('../botcheck');
   let uid;
   try {
+    // Bot sign-ups (they use made-up names and other people's emails) are stopped before an account or email is created.
+    const bot = botcheck.checkSignup(req);
+    if (bot) {
+      security.log(req, 'signup_blocked', { username: String(req.body.username || '').slice(0, 40), detail: bot });
+      throw Object.assign(new Error(bot === 'too-many'
+        ? 'Too many accounts were created from your internet connection today. Please try again tomorrow.'
+        : 'Sign-up didn’t go through. Please wait a few seconds and try again (JavaScript needs to be switched on).'), { status: 400 });
+    }
     uid = register(req.body.username, req.body.password, req.body.email);
+    botcheck.noteSignup(req);
   } catch (err) {
     return res.status(err.status || 400).render('login', {
-      mode: 'register', error: err.message, next: safeNext(req.body.next), username: req.body.username || '', email: req.body.email || '',
+      mode: 'register', error: err.message, next: safeNext(req.body.next), username: req.body.username || '', email: req.body.email || '', signup: botcheck.signupToken(),
       seo: { title: `Sign up | ${getSettings().site_name}`, noindex: true },
     });
   }
   security.startSession(req, uid);
   const user = db.prepare('SELECT id, username, email FROM users WHERE id = ?').get(uid);
-  if (user.email && mail.isConfigured()) {
+  // No automatic email for made-up (bot-like) names: protects other people's inboxes and the site's email reputation.
+  // They can still ask for the confirmation email from their account page.
+  if (user.email && mail.isConfigured() && !botcheck.looksRandom(user.username)) {
     try {
       await mail.sendVerification(user, user.email, res.locals.baseUrl);
       req.flash('ok', `Welcome, ${user.username}! We sent a confirmation link to ${user.email}.`);

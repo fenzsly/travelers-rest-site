@@ -8,6 +8,13 @@
       <input type="hidden" name="_csrf" value="<%= csrf %>">
       <input type="hidden" name="next" value="<%= next %>">
       <label>Username <input name="username" value="<%= username %>" required autocomplete="username" autofocus></label>
+      <% if (mode === 'register' && locals.signup) { %>
+        <%# Bot checks: a field people never see, a signed time stamp, and a value only a real browser fills in. %>
+        <div class="hp-field" aria-hidden="true"><label>Website <input name="website" tabindex="-1" autocomplete="off"></label></div>
+        <input type="hidden" name="ft" value="<%= signup.token %>">
+        <input type="hidden" name="js" value="" data-k="<%= signup.jsKey %>" id="signup-js">
+        <script>document.getElementById('signup-js').value = document.getElementById('signup-js').dataset.k.split('').reverse().join('');</script>
+      <% } %>
       <% if (mode === 'register') { %>
         <label>Email <% if (settings.require_email !== '1') { %><span class="muted small">(optional, lets you reset your password)</span><% } %>
           <input name="email" type="email" value="<%= typeof email !== 'undefined' ? email : '' %>" autocomplete="email" maxlength="200" <%= settings.require_email === '1' ? 'required' : '' %>></label>

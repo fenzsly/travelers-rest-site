@@ -20,7 +20,21 @@
   <a href="<%= A('/users') %>" class="<%= show === 'all' ? 'on' : '' %>">All users (<%= tabCounts.all_ %>)</a>
   <a href="<%= A('/users?show=verified') %>" class="<%= show === 'verified' ? 'on' : '' %>">✅ Verified email (<%= verified %>)</a>
   <a href="<%= A('/users?show=unverified') %>" class="<%= show === 'unverified' ? 'on' : '' %>">Not verified (<%= tabCounts.all_ - verified %>)</a>
+  <a href="<%= A('/users?show=bots') %>" class="<%= show === 'bots' ? 'on' : '' %>">🤖 Suspected bots (<%= botCount %>)</a>
 </nav>
+<% if (show === 'bots') { %>
+  <div class="card bot-box">
+    <p style="margin-top: 0">These accounts look like <strong>bot sign-ups</strong>: a made-up username of random letters (like “gnvrqjxroz”), an email that was never confirmed, and no activity at all (no comments, reviews, ratings or library). Bots like these often use other people’s email addresses. Staff accounts are never listed here.</p>
+    <% if (botCount) { %>
+    <form method="post" action="<%= A('/users/delete-bots') %>" onsubmit="return confirm('Delete all <%= botCount %> suspected bot accounts? This can’t be undone.')">
+      <input type="hidden" name="_csrf" value="<%= csrf %>">
+      <button class="btn btn-danger" type="submit">🗑 Delete all <%= botCount %> suspected bots</button>
+    </form>
+    <% } %>
+    <p class="hint" style="margin-bottom: 0">🛡 Sign-up bot protection is on: <strong><%= blockedSignups %></strong> bot sign-up<%= blockedSignups === 1 ? '' : 's' %> blocked in the last 7 days.</p>
+  </div>
+<% } %>
+<% if (show === 'all' && botCount) { %><p class="hint" style="margin: -4px 0 12px">🤖 <%= botCount %> account<%= botCount === 1 ? ' looks' : 's look' %> like bot sign-ups. <a href="<%= A('/users?show=bots') %>">Review them</a>.</p><% } %>
 <% if (show === 'verified') { %><p class="hint" style="margin: -4px 0 12px">Accounts that confirmed their email address by clicking the link we sent them.</p><% } %>
 <% if (show === 'unverified') { %><p class="hint" style="margin: -4px 0 12px">Accounts with no email address, or one they haven’t confirmed yet.</p><% } %>
 <div class="card flush">
@@ -30,7 +44,7 @@
     <tbody>
     <% users.forEach((x) => { %>
       <tr>
-        <td><strong><%= x.username %></strong><%= x.totp_enabled ? ' 🔐' : '' %><% if (x.is_owner) { %> <span class="pill pill-owner" title="Protected: only this account can manage itself">👑 Owner</span><% } %><% if (x.id === user.id) { %> <span class="pill">you</span><% } %>
+        <td><strong><%= x.username %></strong><%= x.totp_enabled ? ' 🔐' : '' %><% if (x.is_owner) { %> <span class="pill pill-owner" title="Protected: only this account can manage itself">👑 Owner</span><% } %><% if (x.suspected) { %> <span class="pill pill-bot" title="Random-letter name, unconfirmed email, no activity">🤖 likely bot</span><% } %><% if (x.id === user.id) { %> <span class="pill">you</span><% } %>
           <% if (titles[x.id]) { %><div class="title-chips"><% titles[x.id].forEach((t) => { %><a class="title-chip" style="--b: <%= t.color %>" href="<%= A('/titles') %>"><%= t.icon %> <%= t.name %></a><% }) %></div><% } %>
           <div class="user-joined" title="<%= new Date(x.created_at * 1000).toUTCString() %>">📅 Joined <%= new Date(x.created_at * 1000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }) %> <span>· <%= u.timeAgo(x.created_at) %></span></div></td>
         <td class="small"><% if (x.email) { %><%= x.email %> <%= x.email_verified ? '✅' : '' %><% } else { %><span class="muted">—</span><% } %></td>

@@ -619,3 +619,4 @@ body { overflow-x: hidden; }
 .toc-group[open] > summary { border-bottom: 1px solid var(--border); }
 .toc-group .chapter-list { padding: 6px 14px 10px; }
 .toc-loading { justify-content: center; border: 0 !important; }
+.hp-field { position: absolute !important; left: -10000px !important; width: 1px; height: 1px; overflow: hidden; }

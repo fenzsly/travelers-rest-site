@@ -50,6 +50,7 @@ function log(req, event, { userId = null, username = '', detail = '' } = {}) {
 }
 
 const EVENT_LABELS = {
+  signup_blocked: 'Bot sign-up blocked', bots_deleted: 'Deleted suspected bot accounts',
   backups_pruned: 'Deleted old server backups',
   login: 'Signed in', login_failed: 'Wrong password', login_locked: 'Blocked: too many attempts', admin_login: 'Opened the admin panel',
   twofa_ok: 'Two-factor code accepted', twofa_failed: 'Wrong two-factor code', twofa_backup: 'Used a backup code',

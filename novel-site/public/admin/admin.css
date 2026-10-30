@@ -410,3 +410,4 @@ button.quick-card { font: inherit; text-align: left; cursor: pointer; }
 .public-tools { color: var(--muted); margin-bottom: 4px; }
 .linkbtn { border: 0; background: none; color: var(--primary); cursor: pointer; padding: 0; font: inherit; font-weight: 600; }
 .user-joined { font-size: 12px; color: var(--muted); margin-top: 3px; white-space: nowrap; }
+.pill-bot { background: #fee2e2; color: #991b1b; text-transform: none; } .bot-box { margin-bottom: 12px; }

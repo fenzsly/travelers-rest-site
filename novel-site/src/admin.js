@@ -863,11 +863,24 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
 
   // ---------- Users (admin) ----------
   // Tabs: everyone, accounts with a verified email, and accounts without one.
-  const USER_TABS = { all: '1', verified: 'u.email IS NOT NULL AND u.email_verified = 1', unverified: '(u.email IS NULL OR u.email_verified = 0)' };
+  const USER_TABS = { all: '1', verified: 'u.email IS NOT NULL AND u.email_verified = 1', unverified: '(u.email IS NULL OR u.email_verified = 0)', bots: '1' };
+  /** Accounts that look like bot sign-ups: a made-up name, no confirmed email, never did anything, not staff. */
+  function suspectedBots() {
+    return db.prepare(`SELECT u.id, u.username FROM users u
+      WHERE u.role IN ('reader') AND u.is_owner = 0 AND (u.email IS NULL OR u.email_verified = 0)
+        AND NOT EXISTS (SELECT 1 FROM comments c WHERE c.user_id = u.id) AND NOT EXISTS (SELECT 1 FROM reviews r WHERE r.user_id = u.id)
+        AND NOT EXISTS (SELECT 1 FROM ratings r WHERE r.user_id = u.id) AND NOT EXISTS (SELECT 1 FROM bookmarks b WHERE b.user_id = u.id)`).all()
+      .filter((u) => require('./botcheck').looksRandom(u.username));
+  }
   app.get('/users', adminOnly, (req, res) => {
     const show = USER_TABS[req.query.show] ? req.query.show : 'all';
-    const users = db.prepare(`SELECT u.*, (SELECT COUNT(*) FROM novels n WHERE n.owner_id = u.id) AS novel_count,
+    const bots = suspectedBots();
+    const botIds = new Set(bots.map((b) => b.id));
+    let users = db.prepare(`SELECT u.*, (SELECT COUNT(*) FROM novels n WHERE n.owner_id = u.id) AS novel_count,
       (SELECT COUNT(*) FROM comments c WHERE c.user_id = u.id) AS comment_count FROM users u WHERE ${USER_TABS[show]} ORDER BY u.created_at DESC`).all();
+    if (show === 'bots') users = users.filter((x) => botIds.has(x.id));
+    for (const x of users) x.suspected = botIds.has(x.id);
+    const blockedSignups = db.prepare("SELECT COUNT(*) AS n FROM security_log WHERE event = 'signup_blocked' AND created_at >= unixepoch() - 7 * 86400").get().n;
     const tabCounts = db.prepare(`SELECT COUNT(*) AS all_, SUM(${USER_TABS.verified}) AS verified FROM users u`).get();
     const now = Math.floor(Date.now() / 1000);
     const visitors = require('./visitors');
@@ -877,7 +890,16 @@ function createAdminApp({ base = '/admin', publicUrl = '', mounted = false } = {
       .get(now - visitors.ONLINE_WINDOW / 1000, Math.floor(Date.parse(new Date().toISOString().slice(0, 10)) / 1000), Math.floor(Date.parse(new Date().toISOString().slice(0, 10)) / 1000), now - 7 * 86400);
     counts.guests = visitors.guestsOnline();
     counts.online = counts.guests + (counts.active_now || 0);
-    res.render('admin/users', { users, counts, show, tabCounts, newPassword: null, titles: require('./titles').titlesFor(users.map((x) => x.id)) });
+    res.render('admin/users', { users, counts, show, tabCounts, botCount: bots.length, blockedSignups, newPassword: null, titles: require('./titles').titlesFor(users.map((x) => x.id)) });
+  });
+
+  app.post('/users/delete-bots', adminOnly, (req, res) => {
+    const bots = suspectedBots();
+    const del = db.prepare('DELETE FROM users WHERE id = ?');
+    tx(() => { for (const b of bots) del.run(b.id); });
+    security.log(req, 'bots_deleted', { userId: req.user.id, username: req.user.username, detail: `${bots.length} accounts` });
+    req.flash('ok', bots.length ? `Deleted ${bots.length} suspected bot account${bots.length === 1 ? '' : 's'}.` : 'No suspected bots to delete.');
+    res.redirect(A('/users'));
   });
 
   app.post('/users/new', adminOnly, (req, res) => {
